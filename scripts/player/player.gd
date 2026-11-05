@@ -4,7 +4,9 @@ extends CharacterBody2D
 signal state_changed(old_state: int, new_state: int)
 signal jumped()
 signal landed()
-signal died()
+signal died(cause: String)
+
+var last_cause_of_death: String = "Collision"
 
 @export var config: GameplayConfig
 
@@ -278,12 +280,13 @@ func _spawn_dust_puff() -> void:
 	dust.global_position = global_position + Vector2(-6, 12)
 	get_parent().add_child(dust)
 
-func hit_hazard() -> void:
+func hit_hazard(cause: String = "Collision") -> void:
 	if state_machine.current_state == PlayerStateMachine.State.DEAD:
 		return
+	last_cause_of_death = cause
 	state_machine.change_state(PlayerStateMachine.State.DEAD)
 	velocity = Vector2.ZERO
-	died.emit()
+	died.emit(cause)
 
 func _on_state_machine_state_changed(old_st: PlayerStateMachine.State, new_st: PlayerStateMachine.State) -> void:
 	state_changed.emit(old_st, new_st)

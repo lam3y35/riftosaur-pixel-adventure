@@ -135,8 +135,8 @@ func _cleanup_behind(cutoff_x: float) -> void:
 		if obs is Node2D and obs.position.x < cutoff_x:
 			obs.queue_free()
 
-func _on_player_died() -> void:
-	print("[TestTrack] Dinosaur hit hazard! Restarting track in 1.0s...")
+func _on_player_died(cause: String = "Collision") -> void:
+	print("[TestTrack] Dinosaur died (%s)! Restarting track in 1.0s..." % cause)
 	get_tree().create_timer(1.0).timeout.connect(func():
 		get_tree().reload_current_scene()
 	)

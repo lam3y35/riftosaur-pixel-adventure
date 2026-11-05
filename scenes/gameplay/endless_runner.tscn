@@ -1,0 +1,31 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/endless_runner.gd" id="1_runner"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://scripts/world/game_camera.gd" id="3_camera"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="4_hud"]
+
+[node name="EndlessRunner" type="Node2D"]
+process_mode = 3
+script = ExtResource("1_runner")
+
+[node name="BackgroundColor" type="ColorRect" parent="."]
+offset_right = 480.0
+offset_bottom = 270.0
+color = Color(0.97, 0.96, 0.92, 1)
+
+[node name="ChunkContainer" type="Node2D" parent="."]
+process_mode = 1
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+process_mode = 1
+position = Vector2(100, 216)
+
+[node name="GameCamera" type="Camera2D" parent="." node_paths=PackedStringArray("target")]
+process_mode = 1
+position = Vector2(240, 135)
+script = ExtResource("3_camera")
+target = NodePath("../Player")
+
+[node name="GameHUD" parent="." instance=ExtResource("4_hud")]
+process_mode = 3

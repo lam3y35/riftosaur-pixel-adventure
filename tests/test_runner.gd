@@ -49,6 +49,12 @@ func _register_tests() -> void:
 	var movement_script = load("res://tests/unit/test_movement.gd")
 	if movement_script:
 		test_cases.append(movement_script.new())
+	var save_script = load("res://tests/unit/test_save_service.gd")
+	if save_script:
+		test_cases.append(save_script.new())
+	var runner_script = load("res://tests/unit/test_endless_runner.gd")
+	if runner_script:
+		test_cases.append(runner_script.new())
 
 func _run_single_test(test_obj: Object, method_name: String) -> void:
 	# Check if test object has setup

@@ -263,7 +263,7 @@ func test_interrupted_state_hazard_hit() -> Variant:
 	_step_simulation(player, 5)
 
 	var died = [false]
-	player.died.connect(func(): died[0] = true)
+	player.died.connect(func(_cause: String): died[0] = true)
 	player.hit_hazard()
 
 	var is_dead = player.state_machine.current_state == StateMachine.State.DEAD

@@ -1,24 +1,57 @@
 # Riftosaur Worklog & Session Tracking
 
 ## Current state
-- **Session:** Session 2 (Completed)
-- **Milestone:** M1 (Dinosaur movement prototype - desktop)
-- **Last commit:** f634775 (tagged `m1-complete`)
+- **Session:** Session 3 (Completed)
+- **Milestone:** M2 (Endless run loop + first Android debug APK)
+- **Last commit:** 9a88d6e (tagged `m2-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
-  - Setup & Baseline: L2 Automated (14 tests passing, 0 failures, 0 skips)
-  - Movement / Gameplay: L3 Desktop play (120-second continuous desktop playtest logged to `docs/evidence/desktop_run_2min.log`)
-  - Silhouette / Art: L3 Verified (solid black-fill silhouettes verified at 1× and 3× in `docs/evidence/silhouette_1x.png`, `docs/evidence/silhouette_3x.png`)
+  - Setup & Baseline: L2 Automated (22 tests passing, 0 failures, 0 skips)
+  - Movement & Core Loop: L3 Desktop play (Endless runner scene, hand-authored chunks, dynamic spawn/recycle, instant retry, pause/resume)
+  - Silhouette / Art: L3 Verified (solid black-fill silhouettes verified at 1× and 3×)
   - Static Project Validation: L1 Static (0 errors, 0 warnings)
-  - Android Build: L0 (Scheduled for Session 3)
+  - Android Build: L4 Static APK Verification (aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
+  - Physical Android Play: NOT RUN (No physical device or emulator connected; Owner playtest #1 requested)
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** None at this time (Owner playtest #1 requested after Session 3).
-- **Next action:** Execute Session 3 — Build endless run loop, scoring, hand-authored chunks, instant retry, pause/resume, versioned save, HUD, touch controls, and first Android debug APK.
+- **Owner actions:** Owner Playtest #1 requested: Install `releases/Riftosaur-debug.apk` on an Android device following `START_HERE_AR.md` and test jump, slide, retry, and pause. Does not block Session 4.
+- **Next action:** Execute Session 4 — Build vertical movement, platforms, spring objects, vertical camera tracking, and Validator V1.
 
 ---
 
 ## Session entries
+
+### Session 3 — Endless run loop + first Android debug APK (M2)
+- **Date:** 2026-11-05
+- **Milestone:** M2
+- **Start commit:** f634775 (`m1-complete`)
+- **End commit:** 9a88d6e (tag: `m2-complete`)
+- **Evidence levels reached:**
+  - L1 Static: Zero script/parse errors, all scenes instantiable, clean project validation via `tools/validate_l1.gd`.
+  - L2 Automated: 22 passing automated unit and physics tests in `tests/test_runner.gd` (5 smoke + 1 replay + 8 movement + 4 save service + 4 endless runner loop).
+  - L3 Desktop play: Full endless runner loop with chunk sequencing, score/distance accumulation, pause/resume, game over with cause display, and sub-second instant restart.
+  - L4 Android Build Verification: Debug APK exported to `releases/Riftosaur-debug.apk` (57,247,541 bytes, SHA-256 `054A19E7A28D692760F9ABCBCDBAE783ABABB44654481F9979598DD12999EC98`). Verified via `tools/verify_apk.ps1` with `aapt2`, `zipalign`, and `apksigner`.
+  - L5 Physical Device: NOT RUN (No physical device or emulator attached to workstation). Owner Playtest #1 requested.
+- **Bugs opened & closed:**
+  - *BUG-M2-01 (Closed):* Godot 4.7 Android export failed with error requiring ETC2/ASTC texture compression. Fixed by setting `textures/vram_compression/import_etc2_astc=true` in `project.godot`.
+  - *BUG-M2-02 (Closed):* Headless test runner failed to resolve newly added GDScript classes using `class_name` until editor cache was initialized. Resolved by executing headless editor scan `--editor --quit` to generate `.godot/global_script_class_cache.cfg`.
+  - *BUG-M2-03 (Closed):* Runner test assertion failed when accessing HUD after runner world was freed. Fixed by capturing HUD label texts before teardown.
+- **Decisions and reasons:**
+  - Implemented versioned atomic save system (schema v1) with temporary file staging and automated backup to prevent data loss or save file corruption on sudden process termination.
+  - Built 5 hand-authored chunks with increasing challenge rather than pure random obstacles, guaranteeing jumpable hurdle spacing and slide-under clearance.
+  - Configured full-height touch zones (left swipe down for slide/dive, right tap/hold for jump) ensuring high responsiveness on mobile devices with $\ge 48\text{ dp}$ UI targets.
+- **Documents started / updated:**
+  - `START_HERE_AR.md` (quick start guide in Arabic)
+  - `docs/ANDROID_INSTALL_GUIDE_AR.md` (detailed installation guide in Arabic)
+  - `docs/ANDROID_BUILD_GUIDE_AR.md` (build instructions in Arabic)
+  - `docs/TEST_REPORT.md` (test & verification summary)
+  - `releases/README.md` & `releases/SHA256SUMS.txt` (build register)
+  - `CHANGELOG.md` (updated for M2)
+  - `docs/WORKLOG.md` (updated for Session 3)
+- **Changes to plan:** None.
+- **Blockers:** None.
+
+---
 
 ### Session 2 — Dinosaur movement prototype, desktop (M1)
 - **Date:** 2026-11-05

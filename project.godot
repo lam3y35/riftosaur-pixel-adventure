@@ -8,8 +8,9 @@ config_version=5
 
 config/name="Riftosaur"
 config/description="Classic endless-runner dinosaur reimagined with verticality, elemental skills, and dimension-shifting rifts."
-config/version="0.1.0"
+config/version="0.3.0"
 config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://assets/icon.png"
 run/main_scene="res://scenes/main/main.tscn"
 
 [display]
@@ -53,6 +54,7 @@ pause={
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
+textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 2d/snap/snap_2d_transforms_to_pixel=true

@@ -4,8 +4,10 @@
 # Export outputs and APK builds
 releases/*.apk
 releases/*.aab
+releases/*.idsig
 *.apk
 *.aab
+*.idsig
 
 # Keystores and signing credentials
 *.keystore

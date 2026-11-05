@@ -1,0 +1,130 @@
+class_name SaveService
+extends RefCounted
+
+const SAVE_PATH: String = "user://save_game.json"
+const TEMP_PATH: String = "user://save_game.tmp"
+const BACKUP_PATH: String = "user://save_game.bak"
+const CURRENT_VERSION: int = 1
+
+var data: Dictionary = {}
+
+func _init() -> void:
+	load_game()
+
+func get_default_data() -> Dictionary:
+	return {
+		"version": CURRENT_VERSION,
+		"best_score": 0,
+		"best_distance": 0.0,
+		"total_runs": 0,
+		"settings": {
+			"sound_enabled": true,
+			"vibration_enabled": true,
+			"volume_sfx": 1.0,
+			"volume_music": 1.0
+		},
+		"unlocks": ["classic_desert"]
+	}
+
+func load_game() -> Dictionary:
+	if not FileAccess.file_exists(SAVE_PATH):
+		data = get_default_data()
+		return data
+
+	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file == null:
+		push_warning("[SaveService] Failed to open save file for reading. Using defaults.")
+		data = get_default_data()
+		return data
+
+	var content = file.get_as_text()
+	file.close()
+
+	var json = JSON.new()
+	var err = json.parse(content)
+	if err != OK or typeof(json.data) != TYPE_DICTIONARY:
+		push_warning("[SaveService] Corrupt save file detected. Backing up and resetting to defaults.")
+		_backup_corrupted_file(content)
+		data = get_default_data()
+		return data
+
+	var loaded_data: Dictionary = json.data
+	# Validate schema
+	if not loaded_data.has("version") or not loaded_data.has("best_score"):
+		push_warning("[SaveService] Invalid save schema. Resetting to defaults.")
+		data = get_default_data()
+		return data
+
+	data = loaded_data
+	return data
+
+func save_game() -> bool:
+	data["version"] = CURRENT_VERSION
+	var json_string = JSON.stringify(data, "  ")
+
+	# 1. Atomic write to temporary file
+	var tmp_file = FileAccess.open(TEMP_PATH, FileAccess.WRITE)
+	if tmp_file == null:
+		push_warning("[SaveService] Failed to create temp save file: %s" % str(FileAccess.get_open_error()))
+		return false
+
+	tmp_file.store_string(json_string)
+	tmp_file.close()
+
+	# 2. Verify temporary file was written correctly
+	var verify_file = FileAccess.open(TEMP_PATH, FileAccess.READ)
+	if verify_file == null:
+		push_warning("[SaveService] Failed to verify temp save file.")
+		return false
+
+	var verify_json = JSON.new()
+	var parse_err = verify_json.parse(verify_file.get_as_text())
+	verify_file.close()
+
+	if parse_err != OK:
+		push_warning("[SaveService] Temp save failed verification. Aborting write.")
+		return false
+
+	# 3. Create backup of current save file if it exists
+	if FileAccess.file_exists(SAVE_PATH):
+		DirAccess.copy_absolute(SAVE_PATH, BACKUP_PATH)
+
+	# 4. Atomic rename temp file to main save file
+	var dir = DirAccess.open("user://")
+	if dir == null:
+		push_warning("[SaveService] Failed to open user:// directory.")
+		return false
+
+	var rename_err = dir.rename(TEMP_PATH.replace("user://", ""), SAVE_PATH.replace("user://", ""))
+	if rename_err != OK:
+		# Fallback: copy and remove
+		DirAccess.copy_absolute(TEMP_PATH, SAVE_PATH)
+		DirAccess.remove_absolute(TEMP_PATH)
+
+	return true
+
+func update_high_score(new_score: int, new_distance: float) -> bool:
+	var updated = false
+	if new_score > data.get("best_score", 0):
+		data["best_score"] = new_score
+		updated = true
+	if new_distance > data.get("best_distance", 0.0):
+		data["best_distance"] = new_distance
+		updated = true
+
+	data["total_runs"] = data.get("total_runs", 0) + 1
+	save_game()
+	return updated
+
+func get_best_score() -> int:
+	return data.get("best_score", 0)
+
+func get_best_distance() -> float:
+	return data.get("best_distance", 0.0)
+
+func _backup_corrupted_file(content: String) -> void:
+	var corrupt_path = "user://save_corrupt_%d.txt" % Time.get_unix_time_from_system()
+	var f = FileAccess.open(corrupt_path, FileAccess.WRITE)
+	if f:
+		f.store_string(content)
+		f.close()

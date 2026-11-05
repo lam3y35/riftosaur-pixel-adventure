@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] - 2026-11-05 (Milestone M2: Session 3)
+
+### Added
+- Endless runner core gameplay loop (`scenes/gameplay/endless_runner.tscn`, `scripts/gameplay/endless_runner.gd`).
+- 5 modular hand-authored ground chunks (480px width each) with low hurdles, overhangs, double hurdles, and jump-and-slide sequences (`scenes/obstacles/chunks/chunk_01` to `chunk_05`).
+- Chunk base controller `scripts/world/ground_chunk.gd` and generator `tools/build_chunks.py`.
+- Dynamic chunk spawning ahead of camera and automated cleanup of recycled chunks behind camera.
+- HUD system (`scenes/ui/hud.tscn`, `scripts/ui/hud.gd`) featuring distance tracking, real-time score, all-time best score display, and pause overlay.
+- Game Over screen with cause-of-death display, final distance, final score, and instant retry (<1s) mechanism.
+- Touch controls: full-height right-side tap-and-hold jump zone and left-side downward swipe gesture detection for slide/dive. Minimum 48 dp touch targets.
+- Versioned atomic save system (`scripts/systems/save_service.gd`) with schema v1, temporary-file write staging, automatic backup, and corrupted save recovery.
+- Automated tests for save system (`tests/unit/test_save_service.gd`) and endless runner loop (`tests/unit/test_endless_runner.gd`), bringing test suite to 22 passing tests.
+- High-res original pixel-art Android app launcher icons in 48px, 72px, 96px, 144px, 192px, and 512px resolutions (`tools/generate_icon.py`, `assets/icons/android/`).
+- Android export preset configured with ETC2/ASTC compression, landscape orientation, package `com.riftosaur.game`, arm64-v8a and x86_64 binaries.
+- Automated APK verification script `tools/verify_apk.ps1` inspecting aapt2 badging, zipalign, apksigner, and inner assets (L4).
+- First signed debug APK release artifact: `releases/Riftosaur-debug.apk` (54.6 MB, SHA-256 verified).
+- Arabic user guides: `START_HERE_AR.md`, `docs/ANDROID_INSTALL_GUIDE_AR.md`, and `docs/ANDROID_BUILD_GUIDE_AR.md`.
+
+---
+
 ## [0.2.0] - 2026-11-05 (Milestone M1: Session 2)
 
 ### Added
