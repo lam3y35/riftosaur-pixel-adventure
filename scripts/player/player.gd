@@ -18,6 +18,8 @@ var jump_hold_timer: float = 0.0
 var is_jump_holding: bool = false
 var jump_held: bool = false # Virtual/simulated hold flag for touch/tests
 var slide_held: bool = false # Virtual/simulated slide hold flag for touch/tests
+var steer_input: float = 0.0 # -1.0 to 1.0 (Mode 3 Freestyle)
+var is_steer_enabled: bool = false
 var slide_timer: float = 0.0
 var run_anim_timer: float = 0.0
 
@@ -57,8 +59,12 @@ func _physics_process(delta: float) -> void:
 
 	# Horizontal speed progression
 	if state_machine.current_state != PlayerStateMachine.State.DEAD and state_machine.current_state != PlayerStateMachine.State.IDLE:
-		current_speed = minf(current_speed + config.acceleration_rate * delta, config.speed_cap)
-		velocity.x = current_speed
+		if is_steer_enabled:
+			var kb_steer = Input.get_axis("ui_left", "ui_right")
+			var final_steer = steer_input if absf(steer_input) > 0.1 else kb_steer
+			velocity.x = maxf(current_speed + (final_steer * 150.0), 60.0)
+		else:
+			velocity.x = current_speed
 	else:
 		velocity.x = 0.0
 
@@ -202,6 +208,13 @@ func _handle_land_state(_delta: float) -> void:
 func _handle_slide_state(delta: float) -> void:
 	slide_timer += delta
 
+	# If slid off a ledge or in mid-air, apply gravity immediately
+	if not is_on_floor():
+		_exit_slide()
+		velocity.y += config.gravity * delta
+		state_machine.change_state(PlayerStateMachine.State.JUMP_FALL)
+		return
+
 	# Try to stand if duration expired or slide key released
 	var is_sliding = Input.is_action_pressed("slide") or slide_held
 	var wants_to_recover = slide_timer >= config.slide_duration or not is_sliding
@@ -227,6 +240,11 @@ func _execute_jump() -> void:
 	_apply_takeoff_stretch()
 
 func _enter_slide() -> void:
+	if not is_on_floor():
+		# Mid-air slide becomes dive down, cannot hover in air
+		state_machine.change_state(PlayerStateMachine.State.DIVE)
+		velocity.y = config.dive_velocity
+		return
 	slide_timer = 0.0
 	state_machine.change_state(PlayerStateMachine.State.SLIDE)
 	if box_shape:
@@ -313,21 +331,20 @@ func _update_presentation(delta: float) -> void:
 	if sprite == null:
 		return
 
-	# Frame index mapping based on assets/sprites/dinosaur_frames.json
+	# Frame index mapping based on assets/sprites/dinosaur_sheet.png
 	match state_machine.current_state:
 		PlayerStateMachine.State.IDLE:
-			sprite.frame = 0
+			sprite.frame = 0 if int(state_machine.time_in_state * 2.0) % 6 != 0 else 1
 			sprite.rotation_degrees = 0.0
 
 		PlayerStateMachine.State.RUN:
-			run_anim_timer += delta * (current_speed / 45.0)
+			run_anim_timer += delta * (current_speed / 40.0)
 			sprite.frame = 2 + (int(run_anim_timer) % 6)
-			# Subtle forward lean when accelerating
-			sprite.rotation_degrees = 3.0
+			sprite.rotation_degrees = 0.0
 
 		PlayerStateMachine.State.JUMP_RISE:
 			sprite.frame = 8
-			sprite.rotation_degrees = -2.0
+			sprite.rotation_degrees = 0.0
 
 		PlayerStateMachine.State.JUMP_APEX:
 			sprite.frame = 9
@@ -335,25 +352,25 @@ func _update_presentation(delta: float) -> void:
 
 		PlayerStateMachine.State.JUMP_FALL:
 			sprite.frame = 10
-			sprite.rotation_degrees = 2.0
+			sprite.rotation_degrees = 0.0
 
 		PlayerStateMachine.State.LAND:
 			sprite.frame = 11
 			sprite.rotation_degrees = 0.0
 
 		PlayerStateMachine.State.SLIDE:
-			sprite.frame = 13 if int(state_machine.time_in_state * 8.0) % 2 == 0 else 14
+			sprite.frame = 12 + (int(state_machine.time_in_state * 10.0) % 3)
 			sprite.rotation_degrees = 0.0
 
 		PlayerStateMachine.State.DIVE:
 			sprite.frame = 15
-			sprite.rotation_degrees = 15.0
+			sprite.rotation_degrees = 0.0
 
 		PlayerStateMachine.State.HURT:
-			sprite.frame = 19
-			sprite.rotation_degrees = -10.0
+			sprite.frame = 16
+			sprite.rotation_degrees = 0.0
 
 		PlayerStateMachine.State.DEAD:
-			var death_f = mini(int(state_machine.time_in_state * 10.0), 5)
-			sprite.frame = 21 + death_f
-			sprite.rotation_degrees = -20.0
+			var death_f = mini(int(state_machine.time_in_state * 12.0), 7)
+			sprite.frame = 19 + death_f
+			sprite.rotation_degrees = 0.0

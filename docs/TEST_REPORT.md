@@ -73,8 +73,8 @@
 - **Verification Script:** `tools/verify_apk.ps1`
 - **Result:** PASSED (L4 Verified)
 - **Specification Compliance (Spec D):**
-  - **File Size:** 57,363,089 bytes (54.71 MB)
-  - **SHA-256 Checksum:** `DCAE77CE89E7A75FD988F71F675937DC907E7F961537ACD2221C1D9F8D0FAE3F`
+  - **File Size:** 62,268,929 bytes (59.38 MB)
+  - **SHA-256 Checksum:** `FE3C2D6904B32661BD14E632128250C11D70A7185109F91C11FD4F15343DEFC1`
   - **Package Identifier:** `com.riftosaur.game`
   - **Version:** `versionCode='1'`, `versionName='0.3.0'`
   - **SDK Target:** `minSdkVersion='24'`, `targetSdkVersion='36'`

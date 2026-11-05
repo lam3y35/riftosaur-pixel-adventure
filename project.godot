@@ -53,7 +53,7 @@ pause={
 
 [rendering]
 
-environment/defaults/default_clear_color=Color(0.08, 0.06, 0.14, 1)
+environment/defaults/default_clear_color=Color(0.48, 0.76, 0.98, 1)
 textures/canvas_textures/default_texture_filter=0
 textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method="gl_compatibility"

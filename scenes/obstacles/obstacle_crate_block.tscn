@@ -1,0 +1,35 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/sprites/obstacle_crate.png" id="1_tex"]
+[ext_resource type="Script" path="res://scripts/obstacles/hazard.gd" id="2_hazard"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_solid_top"]
+size = Vector2(22, 6)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_side_hitbox"]
+size = Vector2(8, 16)
+
+[node name="ObstacleCrate" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_tex")
+offset = Vector2(0, -12)
+
+[node name="SolidPlatformTop" type="StaticBody2D" parent="."]
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="SolidPlatformTop"]
+position = Vector2(0, -21)
+shape = SubResource("RectangleShape2D_solid_top")
+one_way_collision = true
+
+[node name="FrontHazard" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("2_hazard")
+hazard_name = "Front of Wooden Crate"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="FrontHazard"]
+position = Vector2(-7, -9)
+shape = SubResource("RectangleShape2D_side_hitbox")

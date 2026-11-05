@@ -9,7 +9,7 @@ outline_color = Color(0, 0, 0, 1)
 
 [sub_resource type="LabelSettings" id="LabelSettings_title"]
 font_size = 18
-font_color = Color(1, 0.84, 0, 1)
+font_color = Color(1, 0.85, 0.1, 1)
 outline_size = 3
 outline_color = Color(0, 0, 0, 1)
 
@@ -35,6 +35,7 @@ anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 32.0
 grow_horizontal = 2
+mouse_filter = 2
 
 [node name="ScoreLabel" type="Label" parent="TopBar"]
 layout_mode = 0
@@ -85,29 +86,57 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="SlideButton" type="Button" parent="TouchControls"]
-modulate = Color(1, 1, 1, 0.75)
+modulate = Color(1, 1, 1, 0.85)
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 12.0
+offset_left = 14.0
 offset_top = -54.0
-offset_right = 88.0
+offset_right = 90.0
 offset_bottom = -12.0
 grow_vertical = 0
 text = "▼ SLIDE"
 
+[node name="SteerLeftButton" type="Button" parent="TouchControls"]
+visible = false
+modulate = Color(1, 1, 1, 0.85)
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = -54.0
+offset_right = 60.0
+offset_bottom = -12.0
+grow_vertical = 0
+text = "◀"
+
+[node name="SteerRightButton" type="Button" parent="TouchControls"]
+visible = false
+modulate = Color(1, 1, 1, 0.85)
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 68.0
+offset_top = -54.0
+offset_right = 114.0
+offset_bottom = -12.0
+grow_vertical = 0
+text = "▶"
+
 [node name="JumpButton" type="Button" parent="TouchControls"]
-modulate = Color(1, 1, 1, 0.75)
+modulate = Color(1, 1, 1, 0.85)
 layout_mode = 1
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -88.0
+offset_left = -90.0
 offset_top = -54.0
-offset_right = -12.0
+offset_right = -14.0
 offset_bottom = -12.0
 grow_horizontal = 0
 grow_vertical = 0
@@ -120,6 +149,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 
 [node name="DimOverlay" type="ColorRect" parent="StartMenu"]
 layout_mode = 1
@@ -128,7 +158,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.05, 0.04, 0.1, 0.75)
+mouse_filter = 2
+color = Color(0.04, 0.08, 0.14, 0.75)
 
 [node name="Panel" type="PanelContainer" parent="StartMenu"]
 layout_mode = 1
@@ -137,10 +168,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -130.0
-offset_top = -80.0
-offset_right = 130.0
-offset_bottom = 80.0
+offset_left = -150.0
+offset_top = -105.0
+offset_right = 150.0
+offset_bottom = 105.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -156,7 +187,7 @@ horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="StartMenu/Panel/VBox"]
 layout_mode = 2
-text = "DIMENSIONAL ENDLESS RUNNER"
+text = "CLASSIC & DIMENSIONAL RUNNER"
 label_settings = SubResource("LabelSettings_subtitle")
 horizontal_alignment = 1
 
@@ -166,13 +197,41 @@ text = "BEST: 0"
 label_settings = SubResource("LabelSettings_hud")
 horizontal_alignment = 1
 
+[node name="ModeLabel" type="Label" parent="StartMenu/Panel/VBox"]
+layout_mode = 2
+text = "CHOOSE DIFFICULTY MODE:"
+label_settings = SubResource("LabelSettings_subtitle")
+horizontal_alignment = 1
+
+[node name="ModeHBox" type="HBoxContainer" parent="StartMenu/Panel/VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="ModeCasualBtn" type="Button" parent="StartMenu/Panel/VBox/ModeHBox"]
+layout_mode = 2
+text = "1. CASUAL"
+
+[node name="ModeRunnerBtn" type="Button" parent="StartMenu/Panel/VBox/ModeHBox"]
+layout_mode = 2
+text = "2. RUNNER"
+
+[node name="ModeFreestyleBtn" type="Button" parent="StartMenu/Panel/VBox/ModeHBox"]
+layout_mode = 2
+text = "3. FREESTYLE"
+
+[node name="ModeDescLabel" type="Label" parent="StartMenu/Panel/VBox"]
+layout_mode = 2
+text = "Fixed speed • Only Jump • Relaxed classic play"
+label_settings = SubResource("LabelSettings_subtitle")
+horizontal_alignment = 1
+
 [node name="PlayButton" type="Button" parent="StartMenu/Panel/VBox"]
 layout_mode = 2
 text = "▶ PLAY RUN"
 
 [node name="ControlsHint" type="Label" parent="StartMenu/Panel/VBox"]
 layout_mode = 2
-text = "TAP RIGHT = JUMP | TAP LEFT = SLIDE"
+text = "RIGHT = JUMP | LEFT = SLIDE / STEER"
 label_settings = SubResource("LabelSettings_subtitle")
 horizontal_alignment = 1
 
@@ -184,6 +243,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 
 [node name="DimOverlay" type="ColorRect" parent="PauseMenu"]
 layout_mode = 1
@@ -192,6 +252,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 color = Color(0, 0, 0, 0.6)
 
 [node name="Panel" type="PanelContainer" parent="PauseMenu"]
@@ -234,6 +295,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 
 [node name="DimOverlay" type="ColorRect" parent="GameOverMenu"]
 layout_mode = 1
@@ -242,6 +304,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 color = Color(0, 0, 0, 0.7)
 
 [node name="Panel" type="PanelContainer" parent="GameOverMenu"]
@@ -251,10 +314,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -110.0
-offset_top = -80.0
-offset_right = 110.0
-offset_bottom = 80.0
+offset_left = -120.0
+offset_top = -90.0
+offset_right = 120.0
+offset_bottom = 90.0
 grow_horizontal = 2
 grow_vertical = 2
 

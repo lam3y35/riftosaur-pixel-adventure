@@ -4,18 +4,18 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/obstacle_low.png" id="2_tex"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_obs"]
-size = Vector2(10, 16)
+size = Vector2(10, 18)
 
 [node name="ObstacleLow" type="Area2D"]
 collision_layer = 4
 collision_mask = 1
 script = ExtResource("1_hazard")
-hazard_name = "Deadly Crystal Spikes"
+hazard_name = "Cactus Hazard"
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = ExtResource("2_tex")
 offset = Vector2(0, -12)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(0, -8)
+position = Vector2(0, -9)
 shape = SubResource("RectangleShape2D_obs")

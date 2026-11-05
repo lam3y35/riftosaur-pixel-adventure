@@ -81,6 +81,7 @@ func test_pause_and_resume() -> Variant:
 func test_game_over_and_instant_retry() -> Variant:
 	var w = _create_runner_world()
 	var runner: EndlessRunner = w["runner"]
+	runner.begin_run()
 
 	# Simulate death
 	runner.player.hit_hazard("Hit by Desert Cactus Rock")
