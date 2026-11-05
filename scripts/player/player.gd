@@ -20,6 +20,7 @@ var jump_held: bool = false # Virtual/simulated hold flag for touch/tests
 var slide_held: bool = false # Virtual/simulated slide hold flag for touch/tests
 var steer_input: float = 0.0 # -1.0 to 1.0 (Mode 3 Freestyle)
 var is_steer_enabled: bool = false
+var invulnerability_timer: float = 0.0 # Spawn shield protection
 var slide_timer: float = 0.0
 var run_anim_timer: float = 0.0
 
@@ -79,6 +80,9 @@ func _physics_process(delta: float) -> void:
 
 func _update_timers(delta: float) -> void:
 	state_machine.update(delta)
+
+	if invulnerability_timer > 0.0:
+		invulnerability_timer = maxf(invulnerability_timer - delta, 0.0)
 
 	if jump_buffer_timer > 0.0:
 		jump_buffer_timer = maxf(jump_buffer_timer - delta, 0.0)
@@ -298,8 +302,10 @@ func _spawn_dust_puff() -> void:
 	dust.global_position = global_position + Vector2(-6, 12)
 	get_parent().add_child(dust)
 
-func hit_hazard(cause: String = "Collision") -> void:
+func hit_hazard(cause: String = "Collision", force: bool = false) -> void:
 	if state_machine.current_state == PlayerStateMachine.State.DEAD:
+		return
+	if invulnerability_timer > 0.0 and not force:
 		return
 	last_cause_of_death = cause
 	state_machine.change_state(PlayerStateMachine.State.DEAD)
@@ -315,10 +321,12 @@ func reset() -> void:
 	is_jump_holding = false
 	jump_held = false
 	slide_held = false
+	steer_input = 0.0
 	jump_buffer_timer = 0.0
 	coyote_timer = 0.0
 	jump_hold_timer = 0.0
 	slide_timer = 0.0
+	invulnerability_timer = 0.35 # Spawn shield against stale overlaps
 	_exit_slide()
 	if sprite:
 		sprite.rotation_degrees = 0.0

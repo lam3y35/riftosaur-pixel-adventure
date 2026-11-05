@@ -43,6 +43,7 @@ func _ready() -> void:
 	hud.pause_requested.connect(toggle_pause)
 	hud.resume_requested.connect(resume_game)
 	hud.retry_requested.connect(restart_run)
+	hud.menu_requested.connect(go_to_title_menu)
 
 	# Connect Player signals
 	player.died.connect(_on_player_died)
@@ -118,8 +119,9 @@ func start_new_run() -> void:
 	hud.update_hud(0, 0.0, save_service.get_best_score())
 
 func _reset_world_state() -> void:
-	# Clear previous chunks
+	# Immediately detach from scene tree to destroy all active colliders
 	for c in chunk_container.get_children():
+		chunk_container.remove_child(c)
 		c.queue_free()
 	chunk_pool.clear()
 
@@ -134,10 +136,10 @@ func _reset_world_state() -> void:
 	distance_m = 0.0
 	current_score = 0
 
-	# Spawn initial safe chunks
-	_spawn_chunk_by_index(0) # Chunk 1: Empty starter
-	_spawn_chunk_by_index(1) # Chunk 2: Single low
-	_spawn_chunk_by_index(0) # Chunk 3: Empty breather
+	# Spawn initial safe chunks: 0..960px is 100% open, guaranteed safe runway!
+	_spawn_chunk_by_index(0) # Chunk 1: Safe runway (0 to 480)
+	_spawn_chunk_by_index(0) # Chunk 2: Safe runway (480 to 960)
+	_spawn_chunk_by_index(1) # Chunk 3: First low hurdle (960 to 1440)
 
 func _physics_process(_delta: float) -> void:
 	if not is_game_started or is_game_over or is_paused:
@@ -238,6 +240,11 @@ func resume_game() -> void:
 
 func restart_run() -> void:
 	start_new_run()
+
+func go_to_title_menu() -> void:
+	hud.hide_pause_menu()
+	hud.hide_game_over()
+	init_title_screen()
 
 func _on_hud_jump(pressed: bool) -> void:
 	if not is_game_started:

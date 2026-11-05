@@ -84,7 +84,7 @@ func test_game_over_and_instant_retry() -> Variant:
 	runner.begin_run()
 
 	# Simulate death
-	runner.player.hit_hazard("Hit by Desert Cactus Rock")
+	runner.player.hit_hazard("Hit by Desert Cactus Rock", true)
 
 	if not runner.is_game_over:
 		_destroy_runner_world(w)

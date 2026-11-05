@@ -9,6 +9,7 @@ signal steer_requested(dir: float)
 signal pause_requested()
 signal resume_requested()
 signal retry_requested()
+signal menu_requested()
 
 @onready var score_label: Label = $TopBar/ScoreLabel
 @onready var distance_label: Label = $TopBar/DistanceLabel
@@ -32,6 +33,7 @@ signal retry_requested()
 @onready var pause_menu: Control = $PauseMenu
 @onready var resume_button: Button = $PauseMenu/Panel/VBox/ResumeButton
 @onready var restart_button: Button = $PauseMenu/Panel/VBox/RestartButton
+@onready var pause_menu_button: Button = $PauseMenu/Panel/VBox/PauseMenuButton
 
 @onready var game_over_menu: Control = $GameOverMenu
 @onready var cause_label: Label = $GameOverMenu/Panel/VBox/CauseLabel
@@ -40,6 +42,7 @@ signal retry_requested()
 @onready var best_score_label: Label = $GameOverMenu/Panel/VBox/BestScoreLabel
 @onready var new_best_label: Label = $GameOverMenu/Panel/VBox/NewBestLabel
 @onready var retry_button: Button = $GameOverMenu/Panel/VBox/RetryButton
+@onready var game_over_menu_button: Button = $GameOverMenu/Panel/VBox/GameOverMenuButton
 
 var current_mode: int = 1 # 0 = Casual, 1 = Runner, 2 = Freestyle
 var retry_debounce: bool = false
@@ -56,11 +59,15 @@ func _ready() -> void:
 	resume_button.pressed.connect(_on_resume_button_pressed)
 	restart_button.pressed.connect(_on_restart_button_pressed)
 
+	# Main Menu navigation
+	pause_menu_button.pressed.connect(func(): menu_requested.emit())
+	game_over_menu_button.pressed.connect(func(): menu_requested.emit())
+
 	# Direct instant response on Retry Button
 	retry_button.button_down.connect(_on_retry_button_pressed)
 	retry_button.pressed.connect(_on_retry_button_pressed)
 
-	# Mode buttons
+	# Mode selection buttons
 	mode_casual_btn.pressed.connect(func(): select_mode(0))
 	mode_runner_btn.pressed.connect(func(): select_mode(1))
 	mode_freestyle_btn.pressed.connect(func(): select_mode(2))
@@ -92,21 +99,28 @@ func select_mode(mode: int) -> void:
 	mode_freestyle_btn.modulate = Color(1.2, 1.2, 0.4, 1.0) if mode == 2 else Color(1, 1, 1, 0.7)
 
 	match mode:
-		0:
+		0: # Casual
 			mode_desc_label.text = "Fixed speed • Only Jump • Relaxed classic play"
 			slide_button.visible = false
 			steer_left_btn.visible = false
 			steer_right_btn.visible = false
-		1:
+		1: # Runner
 			mode_desc_label.text = "Accelerating speed • Jump & Slide • Intense challenge"
 			slide_button.visible = true
+			slide_button.offset_left = 14.0
+			slide_button.offset_right = 90.0
+			slide_button.text = "▼ SLIDE"
 			steer_left_btn.visible = false
 			steer_right_btn.visible = false
-		2:
+		2: # Freestyle
 			mode_desc_label.text = "Steer Left/Right • Air control • Overcome hard puzzles"
-			slide_button.visible = true
 			steer_left_btn.visible = true
 			steer_right_btn.visible = true
+			slide_button.visible = true
+			# Reposition slide button to the right of steering buttons so there is ZERO overlap
+			slide_button.offset_left = 130.0
+			slide_button.offset_right = 196.0
+			slide_button.text = "▼ DUCK"
 
 func show_start_menu(best_score: int) -> void:
 	start_best_label.text = "BEST: %05d" % best_score
@@ -145,13 +159,11 @@ func hide_pause_menu() -> void:
 	touch_controls.visible = true
 
 func _unhandled_input(event: InputEvent) -> void:
-	# If game over, pressing jump immediately retries
 	if game_over_menu.visible:
 		if event.is_action_pressed("jump"):
 			_on_retry_button_pressed()
 		return
 
-	# Touch screen gesture processing
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			_handle_touch_down(event.index, event.position)
@@ -175,14 +187,17 @@ func _handle_touch_down(index: int, pos: Vector2) -> void:
 			jump_touch_index = index
 			jump_requested.emit(true)
 	else:
-		# Strictly LEFT HALF = SLIDE / DIVE ZONE (or steering in mode 2)
-		if slide_touch_index == -1:
-			slide_touch_index = index
-			if current_mode != 0:
+		# In Casual mode, ignore left side touches (jump only)
+		if current_mode == 0:
+			return
+		# In Runner mode: tap or hold left side = Slide
+		if current_mode == 1:
+			if slide_touch_index == -1:
+				slide_touch_index = index
 				slide_requested.emit(true)
 
 func _handle_touch_drag(index: int, pos: Vector2) -> void:
-	if index == slide_touch_index and touch_start_positions.has(index):
+	if current_mode == 1 and index == slide_touch_index and touch_start_positions.has(index):
 		var start_pos: Vector2 = touch_start_positions[index]
 		var delta = pos - start_pos
 		if delta.y > SWIPE_THRESHOLD:

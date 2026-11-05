@@ -74,7 +74,7 @@
 - **Result:** PASSED (L4 Verified)
 - **Specification Compliance (Spec D):**
   - **File Size:** 62,268,929 bytes (59.38 MB)
-  - **SHA-256 Checksum:** `FE3C2D6904B32661BD14E632128250C11D70A7185109F91C11FD4F15343DEFC1`
+  - **SHA-256 Checksum:** `4B6C0217421A8F4ED140FC5FD1C92077C5DCDEE23114A9749449B5C1F3A899FA`
   - **Package Identifier:** `com.riftosaur.game`
   - **Version:** `versionCode='1'`, `versionName='0.3.0'`
   - **SDK Target:** `minSdkVersion='24'`, `targetSdkVersion='36'`

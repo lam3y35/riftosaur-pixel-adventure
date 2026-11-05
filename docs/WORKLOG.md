@@ -11,11 +11,11 @@
   - Silhouette / Art: L3 Verified (solid black-fill silhouettes verified at 1× and 3×, multi-layer parallax background, deadly crystal spikes)
   - Static Project Validation: L1 Static (0 errors, 0 warnings)
   - Android Build: L4 Static APK Verification (aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
-  - Physical Android Play: L5 Owner Playtest #1 complete (9 issues identified and resolved; updated APK built)
+  - Physical Android Play: L5 Owner Playtest #1 & #2 complete (All reported issues resolved: layout deconfliction, instant restart fix, main menu return button, 3 difficulty modes, pro art overhaul; latest APK verified)
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** Owner Playtest #1 requested: Install `releases/Riftosaur-debug.apk` on an Android device following `START_HERE_AR.md` and test jump, slide, retry, and pause. Does not block Session 4.
-- **Next action:** Execute Session 4 — Build vertical movement, platforms, spring objects, vertical camera tracking, and Validator V1.
+- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) or approve launch of Session 4.
+- **Next action:** Execute Session 4 — Build vertical movement, platforms, spring objects, vertical camera tracking, and Validator V1 upon owner instruction.
 
 ---
 
@@ -44,6 +44,9 @@
   - *BUG-M2-09 (Closed):* [Owner Playtest #1 - Issue 8] Touch jump misses and swipe down triggering jump: fixed by dynamically splitting screen width (`vp_width * 0.5`), dedicating right 50% strictly to Jump and left 50% strictly to Slide/Dive, and adding on-screen semi-transparent `SlideButton` and `JumpButton`.
   - *BUG-M2-10 (Closed):* [Owner Playtest #1 - Issue 7] Obstacle looked like a stepping stone: replaced dull stone with sharp, glowing crystalline ruby/magenta spikes (`obstacle_low.png`) and tuned hitbox to fair 10x16 dimensions.
   - *BUG-M2-11 (Closed):* [Owner Playtest #1 - Issue 1] App icon quality: generated badass roaring Riftosaur profile with glowing neon-cyan rift eye, dorsal spines, and dimensional rift fissure across all Android densities.
+  - *BUG-M2-12 (Closed):* [Owner Playtest #2 - Issue 1] Steer buttons overlap on slide button in Freestyle mode: repositioned `SlideButton` in Mode 2 to `offset_left = 130`, `offset_right = 196`, completely deconflicted from steer buttons at `14..64` and `72..122`.
+  - *BUG-M2-13 (Closed):* [Owner Playtest #2 - Issue 2] Instant microsecond death on "Play Again" with score 0: fixed by calling `chunk_container.remove_child(c)` before `queue_free()` to immediately detach colliders from active physics tree, adding 0.35s spawn invulnerability shield, and spawning two empty runway chunks (960px).
+  - *BUG-M2-14 (Closed):* [Owner Playtest #2 - Issue 3] Inability to return to main menu to change difficulty modes: added "MAIN MENU" buttons to both Pause and GameOver menus wired to `endless_runner.go_to_title_menu()`.
 - **Decisions and reasons:**
   - Implemented versioned atomic save system (schema v1) with temporary file staging and automated backup to prevent data loss or save file corruption on sudden process termination.
   - Built 5 hand-authored chunks with increasing challenge rather than pure random obstacles, guaranteeing jumpable hurdle spacing and slide-under clearance.
