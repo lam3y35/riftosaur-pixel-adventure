@@ -3,7 +3,7 @@
 ## Current state
 - **Session:** Session 2 (Completed)
 - **Milestone:** M1 (Dinosaur movement prototype - desktop)
-- **Last commit:** Pending Session 2 commit (tagged `m1-complete`)
+- **Last commit:** f634775 (tagged `m1-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
   - Setup & Baseline: L2 Automated (14 tests passing, 0 failures, 0 skips)
@@ -24,7 +24,7 @@
 - **Date:** 2026-11-05
 - **Milestone:** M1
 - **Start commit:** ae88541 (`m0-complete`)
-- **End commit:** Pending Session 2 commit (tag: `m1-complete`)
+- **End commit:** f634775 (tag: `m1-complete`)
 - **Evidence levels reached:**
   - L1 Static: Zero script/parse errors, clean resource resolution, all input actions defined and verified via `tools/validate_l1.gd`.
   - L2 Automated: 14 passing automated unit tests in `tests/test_runner.gd` (5 smoke + 1 replay + 8 movement physics tests).
