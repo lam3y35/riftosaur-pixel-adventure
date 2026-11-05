@@ -3,7 +3,7 @@
 ## Current state
 - **Session:** Session 1 (Completed)
 - **Milestone:** M0 (Preflight + project setup and baseline)
-- **Last commit:** Pending first commit (Session 1 wrap-up)
+- **Last commit:** 295627e (tagged `m0-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
   - Setup & Baseline: L2 Automated (6 tests passing, 0 failures, 0 skips)
@@ -22,8 +22,8 @@
 ### Session 1 — Preflight + project setup and baseline (M0)
 - **Date:** 2026-11-05
 - **Milestone:** M0
-- **Start commit:** None (Initial commit)
-- **End commit:** Pending initial commit
+- **Start commit:** 295627e (root commit)
+- **End commit:** 295627e (tag: `m0-complete`)
 - **Evidence levels reached:**
   - L1 Static: Verified headless project load, import, settings, and node/action references with `tools/validate_l1.gd`.
   - L2 Automated: 6 automated tests passed (5 smoke tests in `test_smoke.gd` + 1 replay test in `test_replay.gd`).
