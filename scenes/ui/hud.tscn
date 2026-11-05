@@ -209,7 +209,7 @@ alignment = 1
 
 [node name="ModeCasualBtn" type="Button" parent="StartMenu/Panel/VBox/ModeHBox"]
 layout_mode = 2
-text = "1. CASUAL"
+text = "1. SPICY JUMP"
 
 [node name="ModeRunnerBtn" type="Button" parent="StartMenu/Panel/VBox/ModeHBox"]
 layout_mode = 2
@@ -221,7 +221,7 @@ text = "3. FREESTYLE"
 
 [node name="ModeDescLabel" type="Label" parent="StartMenu/Panel/VBox"]
 layout_mode = 2
-text = "Fixed speed • Only Jump • Relaxed classic play"
+text = "⚡ Spicy Speed (310-520 px/s) • Pure Jump Reflexes • High-Speed Challenge"
 label_settings = SubResource("LabelSettings_subtitle")
 horizontal_alignment = 1
 
@@ -231,7 +231,7 @@ text = "▶ PLAY RUN"
 
 [node name="ControlsHint" type="Label" parent="StartMenu/Panel/VBox"]
 layout_mode = 2
-text = "RIGHT = JUMP | LEFT = SLIDE / STEER"
+text = "TAP ANYWHERE = JUMP | RUNNER = JUMP + SLIDE"
 label_settings = SubResource("LabelSettings_subtitle")
 horizontal_alignment = 1
 

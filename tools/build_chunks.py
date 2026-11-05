@@ -52,19 +52,51 @@ CHUNKS = [
             ("low", 140.0),
             ("high", 340.0)
         ]
+    },
+    {
+        "filename": "chunk_06_crate_step.tscn",
+        "name": "ChunkCrateStep",
+        "pattern": "stepping_crate_and_cactus",
+        "difficulty": 2,
+        "hazards": [
+            ("crate", 160.0),
+            ("low", 320.0)
+        ]
+    },
+    {
+        "filename": "chunk_07_triple_low.tscn",
+        "name": "ChunkTripleLow",
+        "pattern": "triple_rhythm_hurdles",
+        "difficulty": 3,
+        "hazards": [
+            ("low", 120.0),
+            ("low", 240.0),
+            ("low", 360.0)
+        ]
+    },
+    {
+        "filename": "chunk_08_double_crate.tscn",
+        "name": "ChunkDoubleCrate",
+        "pattern": "double_crate_stairway",
+        "difficulty": 3,
+        "hazards": [
+            ("crate", 150.0),
+            ("crate", 270.0),
+            ("low", 390.0)
+        ]
     }
 ]
 
 def make_chunk_tscn(cfg):
-    load_steps = 4
     has_low = any(h[0] == "low" for h in cfg["hazards"])
     has_high = any(h[0] == "high" for h in cfg["hazards"])
+    has_crate = any(h[0] == "crate" for h in cfg["hazards"])
 
     ext_res = [
         '[ext_resource type="Script" path="res://scripts/world/ground_chunk.gd" id="1_chunk"]',
         '[ext_resource type="Texture2D" path="res://assets/sprites/ground_tile.png" id="2_tile"]'
     ]
-    ext_map = {"tile": "ExtResource(\"2_tile\")"}
+    ext_map = {"tile": 'ExtResource("2_tile")'}
 
     res_id = 3
     if has_low:
@@ -74,6 +106,10 @@ def make_chunk_tscn(cfg):
     if has_high:
         ext_res.append(f'[ext_resource type="PackedScene" path="res://scenes/obstacles/obstacle_overhang.tscn" id="{res_id}_high"]')
         ext_map["high"] = f'ExtResource("{res_id}_high")'
+        res_id += 1
+    if has_crate:
+        ext_res.append(f'[ext_resource type="PackedScene" path="res://scenes/obstacles/obstacle_crate_block.tscn" id="{res_id}_crate"]')
+        ext_map["crate"] = f'ExtResource("{res_id}_crate")'
         res_id += 1
 
     content = f"""[gd_scene load_steps={res_id + 1} format=3]
@@ -121,5 +157,6 @@ position = Vector2({h_x}, 230)
         f.write(content)
     print(f"Created chunk: scenes/obstacles/chunks/{cfg['filename']}")
 
-for c in CHUNKS:
-    make_chunk_tscn(c)
+if __name__ == "__main__":
+    for c in CHUNKS:
+        make_chunk_tscn(c)

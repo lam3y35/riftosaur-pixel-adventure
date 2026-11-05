@@ -99,8 +99,8 @@ func select_mode(mode: int) -> void:
 	mode_freestyle_btn.modulate = Color(1.2, 1.2, 0.4, 1.0) if mode == 2 else Color(1, 1, 1, 0.7)
 
 	match mode:
-		0: # Casual
-			mode_desc_label.text = "Fixed speed • Only Jump • Relaxed classic play"
+		0: # Arcade Jump (Spicy)
+			mode_desc_label.text = "⚡ Spicy Speed (310-520 px/s) • Pure Jump Reflexes • High-Speed Challenge"
 			slide_button.visible = false
 			steer_left_btn.visible = false
 			steer_right_btn.visible = false
@@ -181,15 +181,19 @@ func _handle_touch_down(index: int, pos: Vector2) -> void:
 	if pos.y < 34.0:
 		return
 
+	# In Mode 0 (Pure Jump Arcade), any tap across the entire screen triggers jump!
+	if current_mode == 0:
+		if jump_touch_index == -1:
+			jump_touch_index = index
+			jump_requested.emit(true)
+		return
+
 	if pos.x >= split_x:
 		# Strictly RIGHT HALF = JUMP ZONE
 		if jump_touch_index == -1:
 			jump_touch_index = index
 			jump_requested.emit(true)
 	else:
-		# In Casual mode, ignore left side touches (jump only)
-		if current_mode == 0:
-			return
 		# In Runner mode: tap or hold left side = Slide
 		if current_mode == 1:
 			if slide_touch_index == -1:

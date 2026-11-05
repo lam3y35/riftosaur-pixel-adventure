@@ -27,11 +27,14 @@ func _ready() -> void:
 
 	# Load chunk scenes
 	chunk_scenes = [
-		preload("res://scenes/obstacles/chunks/chunk_01_empty.tscn"),
-		preload("res://scenes/obstacles/chunks/chunk_02_single_low.tscn"),
-		preload("res://scenes/obstacles/chunks/chunk_03_overhang.tscn"),
-		preload("res://scenes/obstacles/chunks/chunk_04_double_low.tscn"),
-		preload("res://scenes/obstacles/chunks/chunk_05_jump_and_slide.tscn")
+		preload("res://scenes/obstacles/chunks/chunk_01_empty.tscn"),        # 0: Safe breather
+		preload("res://scenes/obstacles/chunks/chunk_02_single_low.tscn"),    # 1: Single cactus hop
+		preload("res://scenes/obstacles/chunks/chunk_03_overhang.tscn"),      # 2: Stone arch slide
+		preload("res://scenes/obstacles/chunks/chunk_04_double_low.tscn"),    # 3: Double low rhythm
+		preload("res://scenes/obstacles/chunks/chunk_05_jump_and_slide.tscn"),# 4: Hop + slide combo
+		preload("res://scenes/obstacles/chunks/chunk_06_crate_step.tscn"),    # 5: Stepping crate + cactus
+		preload("res://scenes/obstacles/chunks/chunk_07_triple_low.tscn"),    # 6: Triple rhythm hurdles
+		preload("res://scenes/obstacles/chunks/chunk_08_double_crate.tscn")   # 7: Double crate stairway
 	]
 
 	# Connect HUD signals
@@ -55,15 +58,15 @@ func _on_mode_selected(mode: int) -> void:
 
 func _apply_mode_settings() -> void:
 	match current_mode:
-		0: # Casual: fixed speed, only jump
+		0: # Arcade Jump (Spicy): fast opening speed, pure jump focus
 			player.is_steer_enabled = false
-			player.current_speed = 240.0
+			player.current_speed = 310.0
 		1: # Runner: accelerating speed, jump & slide
 			player.is_steer_enabled = false
-			player.current_speed = 260.0
+			player.current_speed = 280.0
 		2: # Freestyle: steering enabled
 			player.is_steer_enabled = true
-			player.current_speed = 270.0
+			player.current_speed = 280.0
 
 func init_title_screen() -> void:
 	is_game_started = false
@@ -152,12 +155,12 @@ func _physics_process(_delta: float) -> void:
 
 	# Dynamic speed progression based on difficulty mode
 	match current_mode:
-		0: # Casual: fixed cruising speed
-			player.current_speed = 240.0
-		1: # Runner: fast, exciting acceleration curve!
-			player.current_speed = minf(260.0 + (distance_m * 0.18), 500.0)
-		2: # Freestyle: progressive speed with manual steering
-			player.current_speed = minf(270.0 + (distance_m * 0.15), 520.0)
+		0: # Arcade Jump (Spicy): fast, escalating jump challenge!
+			player.current_speed = minf(310.0 + (distance_m * 0.25), 520.0)
+		1: # Runner: fast, exciting acceleration curve with jump & slide!
+			player.current_speed = minf(280.0 + (distance_m * 0.22), 520.0)
+		2: # Freestyle: high speed with manual air control & steering
+			player.current_speed = minf(280.0 + (distance_m * 0.20), 520.0)
 
 	hud.update_hud(current_score, distance_m, save_service.get_best_score())
 
@@ -190,15 +193,32 @@ func _spawn_chunk_by_index(idx: int) -> void:
 func _spawn_next_procedural_chunk() -> void:
 	var chunk_idx: int
 	if current_mode == 0:
-		# Casual: only low single hurdles and open tracks, no overhead slides
-		chunk_idx = randi() % 2 # 0 (empty), 1 (single low)
-	else:
-		if distance_m < 50.0:
-			chunk_idx = randi() % 3 # 0, 1, 2
-		elif distance_m < 150.0:
-			chunk_idx = (randi() % 4) + 1 # 1, 2, 3, 4
+		# Spicy Arcade Jump: intense jump patterns with escalating difficulty
+		# Chunks: 0=empty, 1=single low, 3=double low, 5=crate step, 6=triple low, 7=double crate
+		if distance_m < 35.0:
+			var pool = [0, 1, 1, 5]
+			chunk_idx = pool[randi() % pool.size()]
+		elif distance_m < 90.0:
+			var pool = [1, 3, 5, 7, 1, 5]
+			chunk_idx = pool[randi() % pool.size()]
+		elif distance_m < 180.0:
+			var pool = [3, 5, 6, 7, 3, 6]
+			chunk_idx = pool[randi() % pool.size()]
 		else:
-			chunk_idx = (randi() % 3) + 2 # 2, 3, 4
+			# High speed mayhem: triple rhythm hurdles, double hurdles, and crate leaps!
+			var pool = [3, 6, 6, 7, 6, 3]
+			chunk_idx = pool[randi() % pool.size()]
+	else:
+		# Runner & Freestyle: jump, slide, and platform variety
+		if distance_m < 40.0:
+			var pool = [0, 1, 2, 5]
+			chunk_idx = pool[randi() % pool.size()]
+		elif distance_m < 120.0:
+			var pool = [1, 2, 3, 4, 5, 7]
+			chunk_idx = pool[randi() % pool.size()]
+		else:
+			var pool = [2, 3, 4, 5, 6, 7]
+			chunk_idx = pool[randi() % pool.size()]
 
 	_spawn_chunk_by_index(chunk_idx)
 
