@@ -8,9 +8,11 @@
 layer = -10
 
 [node name="SkyLayer" type="ParallaxLayer" parent="."]
-motion_scale = Vector2(0, 0)
+motion_scale = Vector2(0.03, 0)
+motion_mirroring = Vector2(480, 0)
 
 [node name="SkySprite" type="Sprite2D" parent="SkyLayer"]
+texture_filter = 1
 texture = ExtResource("1_sky")
 centered = false
 
@@ -19,6 +21,7 @@ motion_scale = Vector2(0.12, 0)
 motion_mirroring = Vector2(480, 0)
 
 [node name="MountainsSprite" type="Sprite2D" parent="MountainsLayer"]
+texture_filter = 1
 texture = ExtResource("2_mountains")
 centered = false
 
@@ -27,5 +30,6 @@ motion_scale = Vector2(0.28, 0)
 motion_mirroring = Vector2(480, 0)
 
 [node name="HillsSprite" type="Sprite2D" parent="HillsLayer"]
+texture_filter = 1
 texture = ExtResource("3_hills")
 centered = false
