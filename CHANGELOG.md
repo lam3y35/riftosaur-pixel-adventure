@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-11-05 (Milestone M1: Session 2)
+
+### Added
+- Original 32×32 pixel-art dinosaur sprite sheet (`assets/sprites/dinosaur_sheet.png`) with 27 frames (idle, 6-frame run, rise, apex, fall, land squash, slide, dive, hurt, 6-frame death).
+- Text source maps in `assets/sources/dinosaur_sourcemap.txt` and compilation tool `tools/generate_sprites.py`.
+- 1× and 3× solid black silhouette verification in `tools/verify_silhouette.py` and `docs/evidence/`.
+- Central gameplay tuning resource `resources/gameplay_config/gameplay_config.tres` and `scripts/resources/gameplay_config.gd`.
+- Player state machine `scripts/player/player_state_machine.gd` with 14 discrete states.
+- Responsive movement system `scripts/player/player.gd` featuring variable jump, coyote timing (0.11s), jump buffering (0.12s), sliding collision shrink, dive descent, and landing dust puff.
+- Pixel-snapped horizontal camera `scripts/world/game_camera.gd` positioning dinosaur in the left third of the 480×270 viewport.
+- Flat test track `scenes/gameplay/flat_test_track.tscn` with dynamic chunk pooling and test hazards.
+- 8 automated physics movement unit tests in `tests/unit/test_movement.gd` (total 14 passing automated tests).
+- 2-minute autonomous desktop playtest runner `tools/run_desktop_playtest.gd` with evidence log in `docs/evidence/desktop_run_2min.log`.
+- `docs/DEVELOPER_GUIDE.md`, `docs/ARCHITECTURE.md`, and `docs/ASSET_LICENSES.md`.
+
+---
+
 ## [0.1.0] - 2026-11-05 (Milestone M0: Session 1)
 
 ### Added

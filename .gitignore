@@ -20,7 +20,7 @@ build/
 bin/
 *.tmp
 *.log
-docs/evidence/*.log
+!docs/evidence/*.log
 
 # OS / Editor specific
 .DS_Store

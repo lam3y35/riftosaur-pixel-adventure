@@ -1,0 +1,40 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/test_track.gd" id="1_track"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://scripts/world/game_camera.gd" id="3_camera"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_debug"]
+font_size = 10
+outline_size = 2
+outline_color = Color(0, 0, 0, 1)
+
+[node name="TestTrack" type="Node2D"]
+script = ExtResource("1_track")
+
+[node name="BackgroundColor" type="ColorRect" parent="."]
+offset_right = 480.0
+offset_bottom = 270.0
+color = Color(0.96, 0.96, 0.94, 1)
+
+[node name="GroundContainer" type="Node2D" parent="."]
+
+[node name="ObstacleContainer" type="Node2D" parent="."]
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(100, 216)
+
+[node name="GameCamera" type="Camera2D" parent="." node_paths=PackedStringArray("target")]
+position = Vector2(240, 135)
+script = ExtResource("3_camera")
+target = NodePath("../Player")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="DebugLabel" type="Label" parent="CanvasLayer"]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 472.0
+offset_bottom = 24.0
+text = "State: IDLE | Speed: 0 px/s | Dist: 0 px | FPS: 60"
+label_settings = SubResource("LabelSettings_debug")

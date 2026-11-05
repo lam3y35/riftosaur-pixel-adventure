@@ -26,20 +26,36 @@ Riftosaur/
 ├── project.godot            # Godot 4.x project configuration
 ├── README.md                # Project documentation and developer overview
 ├── assets/                  # Original sprites, tiles, audio, and source maps
+│   ├── sources/             # Human-readable text source maps for pixel art
+│   └── sprites/             # Compiled pixel-art sheets (dinosaur, tiles, particles)
 ├── docs/                    # Technical architecture, worklogs, test reports
-│   └── WORKLOG.md           # Autonomous session execution log and resume state
+│   ├── ARCHITECTURE.md      # Key decisions and technical trade-offs
+│   ├── ASSET_LICENSES.md    # Provenance register and CC0 licensing
+│   ├── DEVELOPER_GUIDE.md   # Developer setup, conventions, and extension guide
+│   ├── WORKLOG.md           # Autonomous session execution log and resume state
+│   └── evidence/            # Verification logs and silhouette checks
 ├── resources/               # Central gameplay configuration and data resources
-├── scenes/                  # Game scenes (main, player, worlds, ui)
-│   └── main/                # Main entry point
+│   └── gameplay_config/     # Central GameplayConfig resource (.tres)
+├── scenes/                  # Game scenes (main, player, obstacles, gameplay)
+│   ├── gameplay/            # Flat test track with pooling
+│   ├── main/                # Main entry point
+│   ├── obstacles/           # Low rocks and overhang hazards
+│   └── player/              # Player scene with animations and collision
 ├── scripts/                 # Typed GDScript modular logic
-│   ├── main.gd              # Main scene lifecycle controller
+│   ├── gameplay/            # Test track generation controller
+│   ├── obstacles/           # Hazard damage dispatchers
+│   ├── player/              # Player movement & 14-state machine
+│   ├── resources/           # Configuration schema definitions
 │   └── systems/             # Replay and helper systems
 ├── tests/                   # Headless SceneTree automated testing framework
 │   ├── test_runner.gd       # Headless test runner
-│   └── unit/                # Unit and smoke test suites
+│   └── unit/                # Unit, smoke, replay, and movement physics tests
 └── tools/                   # Validation, testing, and automation scripts
+    ├── generate_sprites.py  # Procedural pixel-art sheet generator
+    ├── run_desktop_playtest.gd # 2-minute L3 desktop playtest runner
     ├── run_tests.ps1        # PowerShell test execution wrapper
-    └── validate_l1.gd       # L1 static validation script
+    ├── validate_l1.gd       # L1 static validation script
+    └── verify_silhouette.py # Solid silhouette 1x/3x validation tool
 ```
 
 ---

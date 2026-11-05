@@ -38,14 +38,21 @@ func _validate() -> void:
 			if events.is_empty():
 				errors.append("Input action has no events bound: %s" % act)
 
-	# 3. Main scene & critical paths
-	var main_scene = ProjectSettings.get_setting("application/run/main_scene", "")
-	if main_scene.is_empty() or not ResourceLoader.exists(main_scene):
-		errors.append("Main scene '%s' does not exist or is empty" % main_scene)
-	else:
-		var res = load(main_scene)
-		if res == null:
-			errors.append("Failed to load main scene resource '%s'" % main_scene)
+	# 3. Critical scenes, resources & paths
+	var critical_paths: Array[String] = [
+		"res://scenes/main/main.tscn",
+		"res://scenes/player/player.tscn",
+		"res://scenes/gameplay/flat_test_track.tscn",
+		"res://resources/gameplay_config/gameplay_config.tres",
+		"res://assets/sprites/dinosaur_sheet.png"
+	]
+	for cp in critical_paths:
+		if not ResourceLoader.exists(cp):
+			errors.append("Critical resource '%s' does not exist" % cp)
+		else:
+			var res = load(cp)
+			if res == null:
+				errors.append("Failed to load resource '%s'" % cp)
 
 	# 4. Summary
 	print("\nValidation Findings:")

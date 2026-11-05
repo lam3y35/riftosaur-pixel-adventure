@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="GameplayConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/gameplay_config.gd" id="1_config"]
+
+[resource]
+script = ExtResource("1_config")
+opening_speed = 290.0
+speed_cap = 464.0
+acceleration_rate = 2.5
+gravity = 1050.0
+fall_gravity_multiplier = 1.35
+initial_jump_velocity = 250.0
+jump_hold_force = 800.0
+max_jump_hold_time = 0.35
+early_jump_release_multiplier = 0.45
+max_jump_height = 84.0
+tap_jump_height = 30.0
+coyote_time = 0.11
+jump_buffer_time = 0.12
+slide_duration = 0.5
+dive_velocity = 520.0
+standing_extents = Vector2(10, 12)
+sliding_extents = Vector2(12, 6)
+standing_offset = Vector2(0, 0)
+sliding_offset = Vector2(0, 6)
+squash_duration = 0.12
+stretch_duration = 0.15
+landing_squash_scale = Vector2(1.25, 0.75)
+takeoff_stretch_scale = Vector2(0.8, 1.25)

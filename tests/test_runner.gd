@@ -46,6 +46,9 @@ func _register_tests() -> void:
 	var replay_script = load("res://tests/unit/test_replay.gd")
 	if replay_script:
 		test_cases.append(replay_script.new())
+	var movement_script = load("res://tests/unit/test_movement.gd")
+	if movement_script:
+		test_cases.append(movement_script.new())
 
 func _run_single_test(test_obj: Object, method_name: String) -> void:
 	# Check if test object has setup
@@ -57,10 +60,10 @@ func _run_single_test(test_obj: Object, method_name: String) -> void:
 	if test_obj.has_method("after_each"):
 		test_obj.call("after_each")
 
-	if result == null or result == true:
+	if result == null or (typeof(result) == TYPE_BOOL and result == true):
 		passed += 1
 		print("  [PASS] %s" % method_name)
-	elif typeof(result) == TYPE_STRING and result.begins_with("SKIP:"):
+	elif typeof(result) == TYPE_STRING and (result as String).begins_with("SKIP:"):
 		skipped += 1
 		print("  [SKIP] %s (%s)" % [method_name, result])
 	else:
