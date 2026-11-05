@@ -25,7 +25,7 @@
 ## 2. Level L2: Automated Unit & Physics Tests
 - **Runner:** `tests/test_runner.gd` via `tools/run_tests.ps1`
 - **Execution Mode:** Headless SceneTree (`--headless --script tests/test_runner.gd`)
-- **Overall Result:** PASSED (22 Passed, 0 Failed, 0 Skipped)
+- **Overall Result:** PASSED (23 Passed, 0 Failed, 0 Skipped)
 
 ### Detailed Suite Breakdown
 
@@ -45,6 +45,7 @@
 | **MovementTestSuite** | `test_slide_and_collision_shape_shrink_and_recovery` | PASS | Height shrinks 28px -> 14px, restores after exit |
 | **MovementTestSuite** | `test_dive_mechanic` | PASS | Mid-air slide accelerates downward to 650 px/s |
 | **MovementTestSuite** | `test_interrupted_state_hazard_hit` | PASS | Hazard collision transitions to Hurt/Dead, stops speed |
+| **MovementTestSuite** | `test_overhang_slide_clearance_and_jump_fatal` | PASS | Slide passes 14px crawlspace safely; mid-air jump/dive into arch is fatal |
 | **SaveServiceTest** | `test_default_data_schema` | PASS | Version 1, 0 high_score, default sound/controls |
 | **SaveServiceTest** | `test_atomic_save_and_load` | PASS | Atomic write via temp file, clean load back |
 | **SaveServiceTest** | `test_high_score_update` | PASS | Increases high score; ignores lower score |
@@ -73,8 +74,8 @@
 - **Verification Script:** `tools/verify_apk.ps1`
 - **Result:** PASSED (L4 Verified)
 - **Specification Compliance (Spec D):**
-  - **File Size:** 62,268,929 bytes (59.38 MB)
-  - **SHA-256 Checksum:** `4B6C0217421A8F4ED140FC5FD1C92077C5DCDEE23114A9749449B5C1F3A899FA`
+  - **File Size:** 62,273,025 bytes (59.39 MB)
+  - **SHA-256 Checksum:** `EA8F74C26D008FFD5E3B9C0DB642F8A16D82956AE7BD581483F29231B3273223`
   - **Package Identifier:** `com.riftosaur.game`
   - **Version:** `versionCode='1'`, `versionName='0.3.0'`
   - **SDK Target:** `minSdkVersion='24'`, `targetSdkVersion='36'`

@@ -4,7 +4,7 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/obstacle_high.png" id="2_tex"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_overhang"]
-size = Vector2(20, 14)
+size = Vector2(26, 240)
 
 [node name="ObstacleOverhang" type="Area2D"]
 collision_layer = 4
@@ -13,9 +13,17 @@ script = ExtResource("1_hazard")
 hazard_name = "Cave Overhang Barrier"
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, -134)
 texture = ExtResource("2_tex")
-offset = Vector2(0, -16)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(0, -22)
+position = Vector2(0, -134)
+shape = SubResource("RectangleShape2D_overhang")
+
+[node name="CeilingSolid" type="StaticBody2D" parent="."]
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CeilingSolid"]
+position = Vector2(0, -134)
 shape = SubResource("RectangleShape2D_overhang")

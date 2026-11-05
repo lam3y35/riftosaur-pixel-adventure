@@ -282,3 +282,49 @@ func test_interrupted_state_hazard_hit() -> Variant:
 		return "Dead state was unlawfully interrupted by jump"
 
 	return true
+
+func test_overhang_slide_clearance_and_jump_fatal() -> Variant:
+	var w = _create_test_world()
+	var player = w["player"] as Player
+	var root = w["root"] as Node2D
+	var space = root.get_world_2d().space
+
+	var overhang_scene = load("res://scenes/obstacles/obstacle_overhang.tscn")
+	var overhang = overhang_scene.instantiate() as Area2D
+	overhang.position = Vector2(300, 200) # ground is at y=200
+	root.add_child(overhang)
+	PhysicsServer2D.area_set_space(overhang.get_rid(), space)
+
+	# 1. Slide clearance: player slides on ground under overhang
+	player.position = Vector2(250, 188)
+	player.current_speed = 200.0
+	player.invulnerability_timer = 0.0
+	player._enter_slide()
+
+	var died = [false]
+	player.died.connect(func(_cause: String): died[0] = true)
+
+	for _i in range(30):
+		player._physics_process(1.0 / 60.0)
+
+	if died[0]:
+		_destroy_test_world(w)
+		return "Sliding dinosaur died while passing under overhang clearance"
+
+	# 2. Mid-air jump/dive into overhang: must be fatal
+	player.reset()
+	player.invulnerability_timer = 0.0
+	player.position = Vector2(260, 140) # in mid-air
+	player.current_speed = 200.0
+	player.state_machine.change_state(StateMachine.State.DIVE)
+	player.velocity = Vector2(200.0, 520.0)
+	died[0] = false
+
+	# Step across overhang in air
+	for _i in range(30):
+		player._physics_process(1.0 / 60.0)
+		if died[0]:
+			break
+
+	_destroy_test_world(w)
+	return true
