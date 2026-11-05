@@ -146,11 +146,11 @@ func test_challenge_service_progress_tracking() -> Variant:
 	if service.get_points() != 80: # 50 welcome + 30 reward
 		return "Expected 80 points after 'jump_5' reward, got %d" % service.get_points()
 
-	# Simulate 50m distance
+	# Simulate run progress (score 80)
 	cs.check_run_progress(55.0, 80, 1)
 
 	if not service.is_challenge_completed("dist_50"):
-		return "Challenge 'dist_50' should be completed after 55m distance"
+		return "Challenge 'dist_50' should be completed after 80 score"
 	if service.get_points() != 130: # 80 + 50 reward
 		return "Expected 130 points after 'dist_50' reward, got %d" % service.get_points()
 

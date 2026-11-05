@@ -20,10 +20,10 @@ const CHALLENGES: Array[Dictionary] = [
 	{
 		"id": "dist_50",
 		"title": "Warm Up",
-		"desc": "Reach 50 meters in a single run",
-		"target": 50,
+		"desc": "Reach 75 score in a single run",
+		"target": 75,
 		"reward": 50,
-		"type": "distance"
+		"type": "score"
 	},
 	{
 		"id": "slide_3",
@@ -36,15 +36,15 @@ const CHALLENGES: Array[Dictionary] = [
 	{
 		"id": "dist_100",
 		"title": "Century Dash",
-		"desc": "Reach 100 meters in a single run",
-		"target": 100,
+		"desc": "Reach 150 score in a single run",
+		"target": 150,
 		"reward": 100,
-		"type": "distance"
+		"type": "score"
 	},
 	{
 		"id": "score_250",
 		"title": "Score Seeker",
-		"desc": "Score 250 points in a single run",
+		"desc": "Reach 250 score in a single run",
 		"target": 250,
 		"reward": 120,
 		"type": "score"
@@ -52,23 +52,23 @@ const CHALLENGES: Array[Dictionary] = [
 	{
 		"id": "spicy_100",
 		"title": "Spicy Survivor",
-		"desc": "Reach 100 meters in Spicy Jump mode",
-		"target": 100,
+		"desc": "Reach 150 score in Spicy Jump mode",
+		"target": 150,
 		"reward": 150,
-		"type": "spicy_distance"
+		"type": "spicy_score"
 	},
 	{
 		"id": "dist_250",
 		"title": "Endurance Legend",
-		"desc": "Reach 250 meters in a single run",
-		"target": 250,
+		"desc": "Reach 400 score in a single run",
+		"target": 400,
 		"reward": 200,
-		"type": "distance"
+		"type": "score"
 	},
 	{
 		"id": "score_600",
 		"title": "Apex Champion",
-		"desc": "Score 600 points in a single run",
+		"desc": "Reach 600 score in a single run",
 		"target": 600,
 		"reward": 300,
 		"type": "score"
@@ -86,11 +86,10 @@ func record_slide() -> void:
 	session_slides += 1
 	_check_stat("slides", session_slides)
 
-func check_run_progress(distance_m: float, score: int, mode: int) -> void:
-	_check_stat("distance", int(distance_m))
+func check_run_progress(_distance_m: float, score: int, mode: int) -> void:
 	_check_stat("score", score)
 	if mode == 0:
-		_check_stat("spicy_distance", int(distance_m))
+		_check_stat("spicy_score", score)
 
 func _check_stat(stat_type: String, value: int) -> void:
 	if save_service == null:
