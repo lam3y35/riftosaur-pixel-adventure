@@ -73,11 +73,12 @@
 - **Verification Script:** `tools/verify_apk.ps1`
 - **Result:** PASSED (L4 Verified)
 - **Specification Compliance (Spec D):**
-  - **File Size:** 57,247,541 bytes (54.6 MB)
-  - **SHA-256 Checksum:** `054A19E7A28D692760F9ABCBCDBAE783ABABB44654481F9979598DD12999EC98`
+  - **File Size:** 57,363,089 bytes (54.71 MB)
+  - **SHA-256 Checksum:** `DCAE77CE89E7A75FD988F71F675937DC907E7F961537ACD2221C1D9F8D0FAE3F`
   - **Package Identifier:** `com.riftosaur.game`
   - **Version:** `versionCode='1'`, `versionName='0.3.0'`
   - **SDK Target:** `minSdkVersion='24'`, `targetSdkVersion='36'`
+  - **Orientation:** Landscape locked (`screen/orientation=0`)
   - **Architectures Included:** `arm64-v8a`, `x86_64`
   - **4-byte Alignment (zipalign):** Verified successful
   - **Code Signature (apksigner):** Verified with Godot debug certificate

@@ -7,11 +7,11 @@
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
   - Setup & Baseline: L2 Automated (22 tests passing, 0 failures, 0 skips)
-  - Movement & Core Loop: L3 Desktop play (Endless runner scene, hand-authored chunks, dynamic spawn/recycle, instant retry, pause/resume)
-  - Silhouette / Art: L3 Verified (solid black-fill silhouettes verified at 1× and 3×)
+  - Movement & Core Loop: L3 Desktop play (Endless runner scene, start menu, parallax background, hand-authored chunks, dynamic spawn/recycle, instant retry, pause/resume)
+  - Silhouette / Art: L3 Verified (solid black-fill silhouettes verified at 1× and 3×, multi-layer parallax background, deadly crystal spikes)
   - Static Project Validation: L1 Static (0 errors, 0 warnings)
   - Android Build: L4 Static APK Verification (aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
-  - Physical Android Play: NOT RUN (No physical device or emulator connected; Owner playtest #1 requested)
+  - Physical Android Play: L5 Owner Playtest #1 complete (9 issues identified and resolved; updated APK built)
 - **Open Blockers:** 0
 - **Open Majors:** 0
 - **Owner actions:** Owner Playtest #1 requested: Install `releases/Riftosaur-debug.apk` on an Android device following `START_HERE_AR.md` and test jump, slide, retry, and pause. Does not block Session 4.
@@ -30,12 +30,20 @@
   - L1 Static: Zero script/parse errors, all scenes instantiable, clean project validation via `tools/validate_l1.gd`.
   - L2 Automated: 22 passing automated unit and physics tests in `tests/test_runner.gd` (5 smoke + 1 replay + 8 movement + 4 save service + 4 endless runner loop).
   - L3 Desktop play: Full endless runner loop with chunk sequencing, score/distance accumulation, pause/resume, game over with cause display, and sub-second instant restart.
-  - L4 Android Build Verification: Debug APK exported to `releases/Riftosaur-debug.apk` (57,247,541 bytes, SHA-256 `054A19E7A28D692760F9ABCBCDBAE783ABABB44654481F9979598DD12999EC98`). Verified via `tools/verify_apk.ps1` with `aapt2`, `zipalign`, and `apksigner`.
-  - L5 Physical Device: NOT RUN (No physical device or emulator attached to workstation). Owner Playtest #1 requested.
+  - L4 Android Build Verification: Debug APK exported to `releases/Riftosaur-debug.apk` (57,363,089 bytes, SHA-256 `DCAE77CE89E7A75FD988F71F675937DC907E7F961537ACD2221C1D9F8D0FAE3F`). Verified via `tools/verify_apk.ps1` with `aapt2`, `zipalign`, and `apksigner`.
+  - L5 Physical Device: Owner Playtest #1 completed. 9 concrete issues reported and addressed (orientation, restart dead lock, resolution scaling, start menu, parallax background, crystal spikes hazard, dual touch zones + buttons, badass icon). Updated APK exported and verified.
 - **Bugs opened & closed:**
   - *BUG-M2-01 (Closed):* Godot 4.7 Android export failed with error requiring ETC2/ASTC texture compression. Fixed by setting `textures/vram_compression/import_etc2_astc=true` in `project.godot`.
   - *BUG-M2-02 (Closed):* Headless test runner failed to resolve newly added GDScript classes using `class_name` until editor cache was initialized. Resolved by executing headless editor scan `--editor --quit` to generate `.godot/global_script_class_cache.cfg`.
   - *BUG-M2-03 (Closed):* Runner test assertion failed when accessing HUD after runner world was freed. Fixed by capturing HUD label texts before teardown.
+  - *BUG-M2-04 (Closed):* [Owner Playtest #1 - Issue 3] Player stuck on ground after restart: `PlayerStateMachine` rejected transition from `DEAD` to `RUN` because dead state only allowed transition to `RESPAWN`. Fixed by adding comprehensive `player.reset()` transitioning through `RESPAWN` to `RUN`, clearing velocity, timers, and resetting sprite rotation/scale.
+  - *BUG-M2-05 (Closed):* [Owner Playtest #1 - Issue 2] App opened in portrait / vertical view because `export_presets.cfg` had `screen/orientation=1` (portrait). Fixed by setting `screen/orientation=0` (landscape locked) in `export_presets.cfg` and `window/handheld/orientation=0` in `project.godot`.
+  - *BUG-M2-06 (Closed):* [Owner Playtest #1 - Issues 4 & 9] Blurry resolution, letterboxing, and misplaced white box over gray void: fixed by removing static 480x270 `ColorRect` in world space, switching stretch mode to `canvas_items` and aspect to `expand`, and setting default clear color to deep twilight sky.
+  - *BUG-M2-07 (Closed):* [Owner Playtest #1 - Issue 6] Missing background: added 3-layer parallax pixel art background (`bg_sky`, `bg_mountains`, `bg_hills`) with atmospheric twilight sky, distant volcanic peaks, and prehistoric monoliths.
+  - *BUG-M2-08 (Closed):* [Owner Playtest #1 - Issue 5] Instant run start without title screen: added `StartMenu` with stylized title, controls breakdown, best score, and Play button; dino stays in breathing `IDLE` state until player starts.
+  - *BUG-M2-09 (Closed):* [Owner Playtest #1 - Issue 8] Touch jump misses and swipe down triggering jump: fixed by dynamically splitting screen width (`vp_width * 0.5`), dedicating right 50% strictly to Jump and left 50% strictly to Slide/Dive, and adding on-screen semi-transparent `SlideButton` and `JumpButton`.
+  - *BUG-M2-10 (Closed):* [Owner Playtest #1 - Issue 7] Obstacle looked like a stepping stone: replaced dull stone with sharp, glowing crystalline ruby/magenta spikes (`obstacle_low.png`) and tuned hitbox to fair 10x16 dimensions.
+  - *BUG-M2-11 (Closed):* [Owner Playtest #1 - Issue 1] App icon quality: generated badass roaring Riftosaur profile with glowing neon-cyan rift eye, dorsal spines, and dimensional rift fissure across all Android densities.
 - **Decisions and reasons:**
   - Implemented versioned atomic save system (schema v1) with temporary file staging and automated backup to prevent data loss or save file corruption on sudden process termination.
   - Built 5 hand-authored chunks with increasing challenge rather than pure random obstacles, guaranteeing jumpable hurdle spacing and slide-under clearance.

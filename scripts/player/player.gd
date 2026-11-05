@@ -288,6 +288,24 @@ func hit_hazard(cause: String = "Collision") -> void:
 	velocity = Vector2.ZERO
 	died.emit(cause)
 
+func reset() -> void:
+	if state_machine.current_state == PlayerStateMachine.State.DEAD:
+		state_machine.change_state(PlayerStateMachine.State.RESPAWN)
+	state_machine.change_state(PlayerStateMachine.State.RUN)
+	current_speed = config.opening_speed
+	velocity = Vector2.ZERO
+	is_jump_holding = false
+	jump_held = false
+	slide_held = false
+	jump_buffer_timer = 0.0
+	coyote_timer = 0.0
+	jump_hold_timer = 0.0
+	slide_timer = 0.0
+	_exit_slide()
+	if sprite:
+		sprite.rotation_degrees = 0.0
+		sprite.scale = Vector2.ONE
+
 func _on_state_machine_state_changed(old_st: PlayerStateMachine.State, new_st: PlayerStateMachine.State) -> void:
 	state_changed.emit(old_st, new_st)
 

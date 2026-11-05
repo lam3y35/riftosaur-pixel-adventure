@@ -9,6 +9,7 @@ extends Node2D
 var save_service: SaveService
 var is_game_over: bool = false
 var is_paused: bool = false
+var is_game_started: bool = false
 
 var start_x: float = 100.0
 var distance_px: float = 0.0
@@ -33,6 +34,7 @@ func _ready() -> void:
 	]
 
 	# Connect HUD signals
+	hud.start_requested.connect(begin_run)
 	hud.jump_requested.connect(_on_hud_jump)
 	hud.slide_requested.connect(_on_hud_slide)
 	hud.pause_requested.connect(toggle_pause)
@@ -42,41 +44,71 @@ func _ready() -> void:
 	# Connect Player signals
 	player.died.connect(_on_player_died)
 
-	start_new_run()
+	init_title_screen()
+
+func init_title_screen() -> void:
+	is_game_started = false
+	is_game_over = false
+	is_paused = false
+	get_tree().paused = false
+
+	# Setup initial chunks
+	_reset_world_state()
+
+	# Put player in idle breathing pose at start
+	player.reset()
+	player.state_machine.change_state(PlayerStateMachine.State.IDLE)
+
+	hud.show_start_menu(save_service.get_best_score())
+	hud.update_hud(0, 0.0, save_service.get_best_score())
+
+func begin_run() -> void:
+	if is_game_started:
+		return
+	is_game_started = true
+	hud.hide_start_menu()
+	player.state_machine.change_state(PlayerStateMachine.State.RUN)
 
 func start_new_run() -> void:
 	is_game_over = false
 	is_paused = false
+	is_game_started = true
 	get_tree().paused = false
 	hud.hide_game_over()
 	hud.hide_pause_menu()
+	hud.hide_start_menu()
 
+	_reset_world_state()
+
+	# Reset player directly into RUN
+	player.reset()
+
+	hud.update_hud(0, 0.0, save_service.get_best_score())
+
+func _reset_world_state() -> void:
 	# Clear previous chunks
 	for c in chunk_container.get_children():
 		c.queue_free()
 	chunk_pool.clear()
 
-	# Reset player
+	# Reset player position
 	start_x = 100.0
 	player.position = Vector2(start_x, 216.0)
-	player.velocity = Vector2.ZERO
-	player.current_speed = player.config.opening_speed
-	player.state_machine.change_state(PlayerStateMachine.State.RUN)
+	if camera:
+		camera.global_position.x = roundf(player.global_position.x + camera.horizontal_lead)
 
 	next_chunk_x = 0.0
 	distance_px = 0.0
 	distance_m = 0.0
 	current_score = 0
 
-	# Spawn initial safe chunk and upcoming chunks
+	# Spawn initial safe chunks
 	_spawn_chunk_by_index(0) # Chunk 1: Empty starter
 	_spawn_chunk_by_index(1) # Chunk 2: Single low
 	_spawn_chunk_by_index(2) # Chunk 3: Overhang
 
-	hud.update_hud(0, 0.0, save_service.get_best_score())
-
 func _physics_process(_delta: float) -> void:
-	if is_game_over or is_paused:
+	if not is_game_started or is_game_over or is_paused:
 		return
 
 	# Calculate distance & score
@@ -94,6 +126,11 @@ func _physics_process(_delta: float) -> void:
 	_cleanup_chunks_behind(player.global_position.x - 600.0)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not is_game_started:
+		if event.is_action_pressed("jump") or event.is_action_pressed("ui_accept"):
+			begin_run()
+		return
+
 	if event.is_action_pressed("pause"):
 		toggle_pause()
 	elif event.is_action_pressed("jump") and is_game_over:
@@ -108,16 +145,12 @@ func _spawn_chunk_by_index(idx: int) -> void:
 	next_chunk_x += CHUNK_WIDTH
 
 func _spawn_next_procedural_chunk() -> void:
-	# Select chunk pattern based on difficulty and progression
 	var chunk_idx: int
 	if distance_m < 50.0:
-		# Early game: simple low hops and empty breathers
 		chunk_idx = randi() % 3 # 0, 1, 2
 	elif distance_m < 150.0:
-		# Mid game: all patterns
 		chunk_idx = (randi() % 4) + 1 # 1, 2, 3, 4
 	else:
-		# Late game: challenging double obstacles and combos
 		chunk_idx = (randi() % 3) + 2 # 2, 3, 4
 
 	_spawn_chunk_by_index(chunk_idx)
@@ -137,14 +170,11 @@ func _on_player_died(cause: String) -> void:
 		return
 	is_game_over = true
 
-	# Update persistent high score atomically
 	var is_new_best = save_service.update_high_score(current_score, distance_m)
-
-	# Show Game Over screen with cause and scores
 	hud.show_game_over(cause, current_score, distance_m, save_service.get_best_score(), is_new_best)
 
 func toggle_pause() -> void:
-	if is_game_over:
+	if is_game_over or not is_game_started:
 		return
 	if is_paused:
 		resume_game()
@@ -165,6 +195,10 @@ func restart_run() -> void:
 	start_new_run()
 
 func _on_hud_jump(pressed: bool) -> void:
+	if not is_game_started:
+		if pressed:
+			begin_run()
+		return
 	if is_game_over or is_paused:
 		return
 	player.jump_held = pressed
@@ -172,7 +206,7 @@ func _on_hud_jump(pressed: bool) -> void:
 		player._execute_jump()
 
 func _on_hud_slide(pressed: bool) -> void:
-	if is_game_over or is_paused:
+	if not is_game_started or is_game_over or is_paused:
 		return
 	player.slide_held = pressed
 	if pressed and player.state_machine.current_state != PlayerStateMachine.State.SLIDE:

@@ -1,0 +1,33 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/sprites/bg_sky.png" id="1_sky"]
+[ext_resource type="Texture2D" path="res://assets/sprites/bg_mountains.png" id="2_mountains"]
+[ext_resource type="Texture2D" path="res://assets/sprites/bg_hills.png" id="3_hills"]
+
+[node name="ParallaxBackground" type="ParallaxBackground"]
+layer = -10
+
+[node name="SkyLayer" type="ParallaxLayer" parent="."]
+motion_scale = Vector2(0, 0)
+
+[node name="SkySprite" type="Sprite2D" parent="SkyLayer"]
+texture = ExtResource("1_sky")
+centered = false
+
+[node name="MountainsLayer" type="ParallaxLayer" parent="."]
+motion_scale = Vector2(0.12, 0)
+motion_mirroring = Vector2(480, 0)
+
+[node name="MountainsSprite" type="Sprite2D" parent="MountainsLayer"]
+position = Vector2(0, 65)
+texture = ExtResource("2_mountains")
+centered = false
+
+[node name="HillsLayer" type="ParallaxLayer" parent="."]
+motion_scale = Vector2(0.28, 0)
+motion_mirroring = Vector2(480, 0)
+
+[node name="HillsSprite" type="Sprite2D" parent="HillsLayer"]
+position = Vector2(0, 105)
+texture = ExtResource("3_hills")
+centered = false

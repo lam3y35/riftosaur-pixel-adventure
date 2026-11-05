@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
 
@@ -8,14 +8,20 @@ outline_size = 2
 outline_color = Color(0, 0, 0, 1)
 
 [sub_resource type="LabelSettings" id="LabelSettings_title"]
-font_size = 16
+font_size = 18
 font_color = Color(1, 0.84, 0, 1)
 outline_size = 3
 outline_color = Color(0, 0, 0, 1)
 
+[sub_resource type="LabelSettings" id="LabelSettings_subtitle"]
+font_size = 9
+font_color = Color(0.2, 0.85, 1, 1)
+outline_size = 2
+outline_color = Color(0, 0, 0, 1)
+
 [sub_resource type="LabelSettings" id="LabelSettings_cause"]
 font_size = 10
-font_color = Color(0.9, 0.3, 0.3, 1)
+font_color = Color(0.95, 0.3, 0.3, 1)
 outline_size = 2
 outline_color = Color(0, 0, 0, 1)
 
@@ -62,12 +68,113 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -56.0
+offset_left = -64.0
 offset_top = 6.0
 offset_right = -10.0
-offset_bottom = 26.0
+offset_bottom = 28.0
 grow_horizontal = 0
 text = "PAUSE"
+
+[node name="TouchControls" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SlideButton" type="Button" parent="TouchControls"]
+modulate = Color(1, 1, 1, 0.75)
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = -54.0
+offset_right = 88.0
+offset_bottom = -12.0
+grow_vertical = 0
+text = "▼ SLIDE"
+
+[node name="JumpButton" type="Button" parent="TouchControls"]
+modulate = Color(1, 1, 1, 0.75)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -88.0
+offset_top = -54.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "▲ JUMP"
+
+[node name="StartMenu" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DimOverlay" type="ColorRect" parent="StartMenu"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.04, 0.1, 0.75)
+
+[node name="Panel" type="PanelContainer" parent="StartMenu"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -130.0
+offset_top = -80.0
+offset_right = 130.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="StartMenu/Panel"]
+layout_mode = 2
+alignment = 1
+
+[node name="Title" type="Label" parent="StartMenu/Panel/VBox"]
+layout_mode = 2
+text = "RIFTOSAUR"
+label_settings = SubResource("LabelSettings_title")
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="StartMenu/Panel/VBox"]
+layout_mode = 2
+text = "DIMENSIONAL ENDLESS RUNNER"
+label_settings = SubResource("LabelSettings_subtitle")
+horizontal_alignment = 1
+
+[node name="StartBestLabel" type="Label" parent="StartMenu/Panel/VBox"]
+layout_mode = 2
+text = "BEST: 0"
+label_settings = SubResource("LabelSettings_hud")
+horizontal_alignment = 1
+
+[node name="PlayButton" type="Button" parent="StartMenu/Panel/VBox"]
+layout_mode = 2
+text = "▶ PLAY RUN"
+
+[node name="ControlsHint" type="Label" parent="StartMenu/Panel/VBox"]
+layout_mode = 2
+text = "TAP RIGHT = JUMP | TAP LEFT = SLIDE"
+label_settings = SubResource("LabelSettings_subtitle")
+horizontal_alignment = 1
 
 [node name="PauseMenu" type="Control" parent="."]
 visible = false

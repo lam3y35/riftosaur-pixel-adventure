@@ -19,9 +19,9 @@ window/size/viewport_width=480
 window/size/viewport_height=270
 window/size/window_width_override=960
 window/size/window_height_override=540
-window/stretch/mode="viewport"
-window/stretch/aspect="keep"
-window/handheld/orientation=6
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=0
 
 [input]
 
@@ -53,6 +53,7 @@ pause={
 
 [rendering]
 
+environment/defaults/default_clear_color=Color(0.08, 0.06, 0.14, 1)
 textures/canvas_textures/default_texture_filter=0
 textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method="gl_compatibility"

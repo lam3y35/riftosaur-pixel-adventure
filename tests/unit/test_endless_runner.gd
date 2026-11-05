@@ -41,6 +41,7 @@ func test_runner_initialization() -> Variant:
 func test_distance_and_score_progression() -> Variant:
 	var w = _create_runner_world()
 	var runner: EndlessRunner = w["runner"]
+	runner.begin_run()
 
 	# Step 60 physics ticks (1 second)
 	for _i in range(60):
@@ -62,6 +63,7 @@ func test_distance_and_score_progression() -> Variant:
 func test_pause_and_resume() -> Variant:
 	var w = _create_runner_world()
 	var runner: EndlessRunner = w["runner"]
+	runner.begin_run()
 
 	runner.pause_game()
 	if not runner.is_paused or not runner.get_tree().paused:
@@ -102,6 +104,10 @@ func test_game_over_and_instant_retry() -> Variant:
 	if runner.is_game_over:
 		_destroy_runner_world(w)
 		return "Runner remained in game over after restart"
+
+	if runner.player.state_machine.current_state != PlayerStateMachine.State.RUN:
+		_destroy_runner_world(w)
+		return "Player state not reset to RUN on restart: %s" % runner.player.state_machine.get_state_name()
 
 	if runner.current_score != 0 or runner.distance_m != 0.0:
 		_destroy_runner_world(w)
