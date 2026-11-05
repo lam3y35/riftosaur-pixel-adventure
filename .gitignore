@@ -1,0 +1,31 @@
+# Godot 4.x engine cache and imports
+.godot/
+
+# Export outputs and APK builds
+releases/*.apk
+releases/*.aab
+*.apk
+*.aab
+
+# Keystores and signing credentials
+*.keystore
+*.jks
+*.key
+credentials/
+local.properties
+keystore_passwords.txt
+
+# Build intermediates and temp files
+build/
+bin/
+*.tmp
+*.log
+docs/evidence/*.log
+
+# OS / Editor specific
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
