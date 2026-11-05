@@ -146,3 +146,48 @@ func test_camera_ground_lock_during_jump() -> Variant:
 
 	_destroy_runner_world(w)
 	return true
+
+func test_skin_switching_and_shop_dialog() -> Variant:
+	var w = _create_runner_world()
+	var runner: EndlessRunner = w["runner"]
+
+	# Test player skin switching
+	var switched_emerald = runner.player.set_skin("emerald")
+	if not switched_emerald or runner.player.get_skin() != "emerald":
+		_destroy_runner_world(w)
+		return "Failed to switch player skin to emerald"
+
+	var switched_ruby = runner.player.set_skin("ruby")
+	if not switched_ruby or runner.player.get_skin() != "ruby":
+		_destroy_runner_world(w)
+		return "Failed to switch player skin to ruby"
+
+	var switched_invalid = runner.player.set_skin("nonexistent_skin_xyz")
+	if switched_invalid:
+		_destroy_runner_world(w)
+		return "Player.set_skin should return false for invalid skin"
+
+	# Test HUD shop dialog opening & closing
+	runner.hud.open_skin_shop()
+	if not runner.hud.skin_shop_dialog.visible:
+		_destroy_runner_world(w)
+		return "Skin shop dialog should be visible after open_skin_shop()"
+
+	runner.hud.close_skin_shop()
+	if runner.hud.skin_shop_dialog.visible:
+		_destroy_runner_world(w)
+		return "Skin shop dialog should be hidden after close_skin_shop()"
+
+	# Test HUD challenges dialog opening & closing
+	runner.hud.open_challenges()
+	if not runner.hud.challenges_dialog.visible:
+		_destroy_runner_world(w)
+		return "Challenges dialog should be visible after open_challenges()"
+
+	runner.hud.close_challenges()
+	if runner.hud.challenges_dialog.visible:
+		_destroy_runner_world(w)
+		return "Challenges dialog should be hidden after close_challenges()"
+
+	_destroy_runner_world(w)
+	return true

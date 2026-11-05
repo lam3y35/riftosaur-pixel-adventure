@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
 
@@ -8,7 +8,7 @@ outline_size = 2
 outline_color = Color(0, 0, 0, 1)
 
 [sub_resource type="LabelSettings" id="LabelSettings_title"]
-font_size = 18
+font_size = 16
 font_color = Color(1, 0.85, 0.1, 1)
 outline_size = 3
 outline_color = Color(0, 0, 0, 1)
@@ -22,6 +22,18 @@ outline_color = Color(0, 0, 0, 1)
 [sub_resource type="LabelSettings" id="LabelSettings_cause"]
 font_size = 10
 font_color = Color(0.95, 0.3, 0.3, 1)
+outline_size = 2
+outline_color = Color(0, 0, 0, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_gold"]
+font_size = 11
+font_color = Color(1, 0.85, 0.15, 1)
+outline_size = 2
+outline_color = Color(0, 0, 0, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_green"]
+font_size = 10
+font_color = Color(0.3, 0.95, 0.4, 1)
 outline_size = 2
 outline_color = Color(0, 0, 0, 1)
 
@@ -39,30 +51,39 @@ mouse_filter = 2
 
 [node name="ScoreLabel" type="Label" parent="TopBar"]
 layout_mode = 0
-offset_left = 12.0
+offset_left = 10.0
 offset_top = 8.0
-offset_right = 120.0
+offset_right = 110.0
 offset_bottom = 24.0
 text = "SCORE: 00000"
 label_settings = SubResource("LabelSettings_hud")
 
 [node name="DistanceLabel" type="Label" parent="TopBar"]
 layout_mode = 0
-offset_left = 140.0
+offset_left = 118.0
 offset_top = 8.0
-offset_right = 230.0
+offset_right = 205.0
 offset_bottom = 24.0
 text = "DIST: 0m"
 label_settings = SubResource("LabelSettings_hud")
 
 [node name="BestLabel" type="Label" parent="TopBar"]
 layout_mode = 0
-offset_left = 250.0
+offset_left = 212.0
 offset_top = 8.0
-offset_right = 350.0
+offset_right = 302.0
 offset_bottom = 24.0
 text = "HI: 00000"
 label_settings = SubResource("LabelSettings_hud")
+
+[node name="PointsLabel" type="Label" parent="TopBar"]
+layout_mode = 0
+offset_left = 310.0
+offset_top = 8.0
+offset_right = 405.0
+offset_bottom = 24.0
+text = "PTS: 00050"
+label_settings = SubResource("LabelSettings_gold")
 
 [node name="PauseButton" type="Button" parent="TopBar"]
 layout_mode = 1
@@ -168,10 +189,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -150.0
-offset_top = -105.0
-offset_right = 150.0
-offset_bottom = 105.0
+offset_left = -160.0
+offset_top = -120.0
+offset_right = 160.0
+offset_bottom = 120.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -191,11 +212,19 @@ text = "CLASSIC & DIMENSIONAL RUNNER"
 label_settings = SubResource("LabelSettings_subtitle")
 horizontal_alignment = 1
 
-[node name="StartBestLabel" type="Label" parent="StartMenu/Panel/VBox"]
+[node name="StatsHBox" type="HBoxContainer" parent="StartMenu/Panel/VBox"]
 layout_mode = 2
-text = "BEST: 0"
+alignment = 1
+
+[node name="StartBestLabel" type="Label" parent="StartMenu/Panel/VBox/StatsHBox"]
+layout_mode = 2
+text = "BEST: 0   "
 label_settings = SubResource("LabelSettings_hud")
-horizontal_alignment = 1
+
+[node name="StartPointsLabel" type="Label" parent="StartMenu/Panel/VBox/StatsHBox"]
+layout_mode = 2
+text = "PTS: 50"
+label_settings = SubResource("LabelSettings_gold")
 
 [node name="ModeLabel" type="Label" parent="StartMenu/Panel/VBox"]
 layout_mode = 2
@@ -221,9 +250,21 @@ text = "3. FREESTYLE"
 
 [node name="ModeDescLabel" type="Label" parent="StartMenu/Panel/VBox"]
 layout_mode = 2
-text = "⚡ Spicy Speed (310-520 px/s) • Pure Jump Reflexes • High-Speed Challenge"
+text = "⚡ Spicy Speed (310-520 px/s) • Pure Jump Reflexes"
 label_settings = SubResource("LabelSettings_subtitle")
 horizontal_alignment = 1
+
+[node name="ShopQuestsHBox" type="HBoxContainer" parent="StartMenu/Panel/VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="StartShopBtn" type="Button" parent="StartMenu/Panel/VBox/ShopQuestsHBox"]
+layout_mode = 2
+text = "🛒 SKIN SHOP"
+
+[node name="StartQuestsBtn" type="Button" parent="StartMenu/Panel/VBox/ShopQuestsHBox"]
+layout_mode = 2
+text = "🏆 CHALLENGES"
 
 [node name="PlayButton" type="Button" parent="StartMenu/Panel/VBox"]
 layout_mode = 2
@@ -309,7 +350,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0, 0, 0, 0.7)
+color = Color(0, 0, 0, 0.75)
 
 [node name="Panel" type="PanelContainer" parent="GameOverMenu"]
 layout_mode = 1
@@ -318,10 +359,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -120.0
-offset_top = -100.0
-offset_right = 120.0
-offset_bottom = 100.0
+offset_left = -135.0
+offset_top = -125.0
+offset_right = 135.0
+offset_bottom = 125.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -341,23 +382,39 @@ text = "Hit by Hazard"
 label_settings = SubResource("LabelSettings_cause")
 horizontal_alignment = 1
 
-[node name="FinalScoreLabel" type="Label" parent="GameOverMenu/Panel/VBox"]
+[node name="StatsHBox" type="HBoxContainer" parent="GameOverMenu/Panel/VBox"]
 layout_mode = 2
-text = "SCORE: 0"
+alignment = 1
+
+[node name="FinalScoreLabel" type="Label" parent="GameOverMenu/Panel/VBox/StatsHBox"]
+layout_mode = 2
+text = "SCORE: 0   "
 label_settings = SubResource("LabelSettings_hud")
+
+[node name="FinalDistLabel" type="Label" parent="GameOverMenu/Panel/VBox/StatsHBox"]
+layout_mode = 2
+text = "DIST: 0m"
+label_settings = SubResource("LabelSettings_hud")
+
+[node name="RunPointsLabel" type="Label" parent="GameOverMenu/Panel/VBox"]
+layout_mode = 2
+text = "+0 PTS EARNED"
+label_settings = SubResource("LabelSettings_green")
 horizontal_alignment = 1
 
-[node name="FinalDistLabel" type="Label" parent="GameOverMenu/Panel/VBox"]
+[node name="TotalsHBox" type="HBoxContainer" parent="GameOverMenu/Panel/VBox"]
 layout_mode = 2
-text = "DISTANCE: 0m"
-label_settings = SubResource("LabelSettings_hud")
-horizontal_alignment = 1
+alignment = 1
 
-[node name="BestScoreLabel" type="Label" parent="GameOverMenu/Panel/VBox"]
+[node name="BestScoreLabel" type="Label" parent="GameOverMenu/Panel/VBox/TotalsHBox"]
 layout_mode = 2
-text = "BEST: 0"
+text = "BEST: 0   "
 label_settings = SubResource("LabelSettings_hud")
-horizontal_alignment = 1
+
+[node name="TotalPointsLabel" type="Label" parent="GameOverMenu/Panel/VBox/TotalsHBox"]
+layout_mode = 2
+text = "TOTAL PTS: 0"
+label_settings = SubResource("LabelSettings_gold")
 
 [node name="NewBestLabel" type="Label" parent="GameOverMenu/Panel/VBox"]
 visible = false
@@ -366,6 +423,18 @@ text = "★ NEW HIGH SCORE! ★"
 label_settings = SubResource("LabelSettings_title")
 horizontal_alignment = 1
 
+[node name="GameOverShopQuestsHBox" type="HBoxContainer" parent="GameOverMenu/Panel/VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="GameOverShopBtn" type="Button" parent="GameOverMenu/Panel/VBox/GameOverShopQuestsHBox"]
+layout_mode = 2
+text = "🛒 SKIN SHOP"
+
+[node name="GameOverQuestsBtn" type="Button" parent="GameOverMenu/Panel/VBox/GameOverShopQuestsHBox"]
+layout_mode = 2
+text = "🏆 CHALLENGES"
+
 [node name="RetryButton" type="Button" parent="GameOverMenu/Panel/VBox"]
 layout_mode = 2
 text = "PLAY AGAIN (R)"
@@ -373,3 +442,143 @@ text = "PLAY AGAIN (R)"
 [node name="GameOverMenuButton" type="Button" parent="GameOverMenu/Panel/VBox"]
 layout_mode = 2
 text = "MAIN MENU"
+
+[node name="SkinShopDialog" type="Control" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DimOverlay" type="ColorRect" parent="SkinShopDialog"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.85)
+
+[node name="Panel" type="PanelContainer" parent="SkinShopDialog"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -225.0
+offset_top = -120.0
+offset_right = 225.0
+offset_bottom = 120.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="SkinShopDialog/Panel"]
+layout_mode = 2
+
+[node name="HeaderHBox" type="HBoxContainer" parent="SkinShopDialog/Panel/VBox"]
+layout_mode = 2
+
+[node name="ShopTitle" type="Label" parent="SkinShopDialog/Panel/VBox/HeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🦖 DINO SKIN SHOP"
+label_settings = SubResource("LabelSettings_title")
+
+[node name="ShopPointsLabel" type="Label" parent="SkinShopDialog/Panel/VBox/HeaderHBox"]
+layout_mode = 2
+text = "PTS: 00050"
+label_settings = SubResource("LabelSettings_gold")
+
+[node name="ShopCloseBtn" type="Button" parent="SkinShopDialog/Panel/VBox/HeaderHBox"]
+layout_mode = 2
+text = " ✕ "
+
+[node name="SkinsHBox" type="HBoxContainer" parent="SkinShopDialog/Panel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+alignment = 1
+
+[node name="ChallengesDialog" type="Control" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DimOverlay" type="ColorRect" parent="ChallengesDialog"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.85)
+
+[node name="Panel" type="PanelContainer" parent="ChallengesDialog"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -215.0
+offset_top = -120.0
+offset_right = 215.0
+offset_bottom = 120.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="ChallengesDialog/Panel"]
+layout_mode = 2
+
+[node name="HeaderHBox" type="HBoxContainer" parent="ChallengesDialog/Panel/VBox"]
+layout_mode = 2
+
+[node name="QuestsTitle" type="Label" parent="ChallengesDialog/Panel/VBox/HeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🏆 CHALLENGES & QUESTS"
+label_settings = SubResource("LabelSettings_title")
+
+[node name="QuestsPointsLabel" type="Label" parent="ChallengesDialog/Panel/VBox/HeaderHBox"]
+layout_mode = 2
+text = "PTS: 00050"
+label_settings = SubResource("LabelSettings_gold")
+
+[node name="QuestsCloseBtn" type="Button" parent="ChallengesDialog/Panel/VBox/HeaderHBox"]
+layout_mode = 2
+text = " ✕ "
+
+[node name="ScrollContainer" type="ScrollContainer" parent="ChallengesDialog/Panel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="QuestsList" type="VBoxContainer" parent="ChallengesDialog/Panel/VBox/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="QuestsBottomCloseBtn" type="Button" parent="ChallengesDialog/Panel/VBox"]
+layout_mode = 2
+text = "CLOSE"
+
+[node name="ChallengeToast" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -170.0
+offset_top = 34.0
+offset_right = 170.0
+offset_bottom = 60.0
+grow_horizontal = 2
+
+[node name="ToastLabel" type="Label" parent="ChallengeToast"]
+layout_mode = 2
+text = "🏆 CHALLENGE COMPLETE: Warm Up (+50 PTS)!"
+label_settings = SubResource("LabelSettings_gold")
+horizontal_alignment = 1

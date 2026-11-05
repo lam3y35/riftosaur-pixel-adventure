@@ -1,222 +1,213 @@
 """
 Pro Dinosaur Sprite Sheet Generator for Riftosaur.
-Directly reproduces the iconic, pro-grade pixel art style from the reference photos in gini/:
-- Crisp charcoal slate body (#484f58 / #525252)
-- Clean rectangular head with open maw and 2x2 white eye (#e6e6e6)
-- Cute upward-angled tail, small L-shaped arm
-- 4-frame running animation with distinct leg strides
-- Clean jump pose, slide/duck pose, and hurt/death pose
+Generates multi-skin sprite sheets for the Dinosaur Skin Shop:
+- Classic Charcoal (Default)
+- Emerald Raptor (Vibrant jungle green with golden eye)
+- Ruby Carnotaur (Fiery crimson with glowing yellow eye)
+- Cyber Rift (Electric neon cyan with magenta eye)
+- Golden Fossil (Shimmering ammonite gold with platinum eye)
 """
 
 from PIL import Image
 
-def generate_pro_dino():
-    # Each frame is 32x32 pixels
-    fw, fh = 32, 32
+SKINS = {
+    "classic": {
+        "file": "assets/sprites/dinosaur_sheet.png",
+        "copy": "assets/sprites/dinosaur_sheet_classic.png",
+        "body": (72, 79, 88, 255),
+        "body_dark": (55, 62, 71, 255),
+        "eye": (240, 243, 246, 255),
+        "hurt_eye": (239, 68, 68, 255)
+    },
+    "emerald": {
+        "file": "assets/sprites/dinosaur_sheet_emerald.png",
+        "body": (46, 142, 60, 255),
+        "body_dark": (32, 98, 42, 255),
+        "eye": (255, 218, 54, 255),
+        "hurt_eye": (239, 68, 68, 255)
+    },
+    "ruby": {
+        "file": "assets/sprites/dinosaur_sheet_ruby.png",
+        "body": (212, 48, 56, 255),
+        "body_dark": (148, 28, 36, 255),
+        "eye": (255, 235, 90, 255),
+        "hurt_eye": (255, 255, 255, 255)
+    },
+    "cyber": {
+        "file": "assets/sprites/dinosaur_sheet_cyber.png",
+        "body": (18, 190, 230, 255),
+        "body_dark": (10, 115, 170, 255),
+        "eye": (255, 105, 230, 255),
+        "hurt_eye": (255, 255, 255, 255)
+    },
+    "gold": {
+        "file": "assets/sprites/dinosaur_sheet_gold.png",
+        "body": (242, 185, 40, 255),
+        "body_dark": (185, 132, 22, 255),
+        "eye": (255, 255, 255, 255),
+        "hurt_eye": (239, 68, 68, 255)
+    }
+}
 
-    # Pro Dino Palette matching reference
-    BODY = (72, 79, 88, 255)       # Charcoal slate
-    BODY_DARK = (55, 62, 71, 255)  # Shadow / back leg
-    EYE = (240, 243, 246, 255)     # Clean white eye
-    HURT_EYE = (239, 68, 68, 255)  # Red X eye
+def generate_skin_sheet(cfg):
+    fw, fh = 32, 32
+    BODY = cfg["body"]
+    BODY_DARK = cfg["body_dark"]
+    EYE = cfg["eye"]
+    HURT_EYE = cfg["hurt_eye"]
     TRANSPARENT = (0, 0, 0, 0)
 
-    # Base dinosaur anatomy (head, body, tail, arm)
-    # Head: x=14..27, y=3..12
-    # Snout front: x=25..27, y=4..11
-    # Mouth notch: x=21..27, y=9..10
-    # Eye: (18, 5), (19, 5), (18, 6), (19, 6)
-    # Body: x=9..20, y=11..21
-    # Tail: starts at x=9, y=14, goes up to x=5..6, y=9..13
-    # Arm: x=20..22, y=13..16
-
     def draw_base_dino(grid, eye_type="normal", arm_raised=False):
-        # 1. Head
         for y in range(3, 12):
             for x in range(15, 28):
                 grid[y][x] = 'B'
 
-        # Mouth notch cutout
         for y in range(9, 11):
             for x in range(21, 28):
                 grid[y][x] = '.'
 
-        # Eye
         if eye_type == "normal":
             grid[5][18] = 'W'; grid[5][19] = 'W'
             grid[6][18] = 'W'; grid[6][19] = 'W'
         elif eye_type == "blink":
             grid[6][18] = '.'; grid[6][19] = '.'
         elif eye_type == "hurt":
-            grid[5][18] = 'X'; grid[5][19] = 'X'
-            grid[6][18] = 'X'; grid[6][19] = 'X'
+            grid[5][18] = 'X'; grid[6][19] = 'X'
+            grid[5][19] = 'X'; grid[6][18] = 'X'
 
-        # 2. Neck & Body
-        # Neck connection
-        for y in range(10, 14):
-            for x in range(13, 20):
-                grid[y][x] = 'B'
-        # Main torso
-        for y in range(12, 22):
-            for x in range(8, 20):
+        for y in range(11, 21):
+            for x in range(9, 21):
                 grid[y][x] = 'B'
 
-        # 3. Tail (pointing up and back)
-        for y in range(13, 20):
-            for x in range(6, 10):
-                grid[y][x] = 'B'
-        for y in range(10, 15):
-            for x in range(5, 8):
-                grid[y][x] = 'B'
-        grid[9][5] = 'B'; grid[9][6] = 'B'
-        grid[8][5] = 'B'; grid[8][6] = 'B'
+        tail_pts = [(8, 14), (8, 15), (7, 13), (7, 14), (6, 12), (6, 13), (5, 10), (5, 11), (5, 12), (4, 9), (4, 10)]
+        for tx, ty in tail_pts:
+            grid[ty][tx] = 'B'
 
-        # 4. Cute little arm
-        if not arm_raised:
-            grid[14][20] = 'B'; grid[14][21] = 'B'
-            grid[15][21] = 'B'
-            grid[16][21] = 'B'
-        else:
-            grid[13][20] = 'B'; grid[13][21] = 'B'
-            grid[14][21] = 'B'
+        arm_y = 13 if arm_raised else 14
+        grid[arm_y][20] = 'B'; grid[arm_y][21] = 'B'
+        grid[arm_y + 1][21] = 'B'
+
+    def draw_legs_idle(grid):
+        for y in range(21, 27):
+            grid[y][12] = 'B'; grid[y][13] = 'B'
+        grid[27][13] = 'B'; grid[27][14] = 'B'; grid[27][15] = 'B'
+        for y in range(21, 27):
+            grid[y][17] = 'D'; grid[y][18] = 'D'
+        grid[27][18] = 'D'; grid[27][19] = 'D'; grid[27][20] = 'D'
 
     def draw_legs_run_1(grid):
-        # Left leg forward, right leg back
-        # Front leg (left)
-        grid[22][16] = 'B'; grid[22][17] = 'B'
-        grid[23][16] = 'B'; grid[23][17] = 'B'
-        grid[24][16] = 'B'; grid[24][17] = 'B'; grid[24][18] = 'B'
-        # Back leg (right) - slightly darker for depth
-        grid[22][10] = 'D'; grid[22][11] = 'D'
-        grid[23][9] = 'D'; grid[23][10] = 'D'
-        grid[24][8] = 'D'; grid[24][9] = 'D'
+        for y in range(21, 27):
+            grid[y][11] = 'B'; grid[y][12] = 'B'
+        grid[27][10] = 'B'; grid[27][11] = 'B'; grid[27][12] = 'B'
+        for y in range(21, 25):
+            grid[y][18] = 'D'; grid[y][19] = 'D'
+        grid[25][20] = 'D'; grid[25][21] = 'D'
+        grid[26][21] = 'D'; grid[26][22] = 'D'
 
     def draw_legs_run_2(grid):
-        # Passing frame: legs straight down
-        grid[22][12] = 'B'; grid[22][13] = 'B'; grid[22][15] = 'B'; grid[22][16] = 'B'
-        grid[23][12] = 'B'; grid[23][13] = 'B'; grid[23][15] = 'B'; grid[23][16] = 'B'
-        grid[24][12] = 'B'; grid[24][13] = 'B'; grid[24][14] = 'B'; grid[24][15] = 'B'; grid[24][16] = 'B'; grid[24][17] = 'B'
+        for y in range(21, 26):
+            grid[y][13] = 'B'; grid[y][14] = 'B'
+        grid[26][12] = 'B'; grid[26][13] = 'B'
+        for y in range(21, 26):
+            grid[y][17] = 'D'; grid[y][18] = 'D'
+        grid[26][18] = 'D'; grid[26][19] = 'D'
 
     def draw_legs_run_3(grid):
-        # Right leg forward, left leg back
-        # Front leg (right)
-        grid[22][10] = 'B'; grid[22][11] = 'B'
-        grid[23][10] = 'B'; grid[23][11] = 'B'; grid[23][12] = 'B'
-        grid[24][11] = 'B'; grid[24][12] = 'B'; grid[24][13] = 'B'
-        # Back leg (left)
-        grid[22][16] = 'D'; grid[22][17] = 'D'
-        grid[23][17] = 'D'; grid[23][18] = 'D'
-        grid[24][18] = 'D'; grid[24][19] = 'D'
+        for y in range(21, 25):
+            grid[y][12] = 'B'; grid[y][13] = 'B'
+        grid[25][10] = 'B'; grid[25][11] = 'B'
+        grid[26][9] = 'B'; grid[26][10] = 'B'
+        for y in range(21, 27):
+            grid[y][18] = 'D'; grid[y][19] = 'D'
+        grid[27][19] = 'D'; grid[27][20] = 'D'; grid[27][21] = 'D'
 
     def draw_legs_run_4(grid):
-        # Passing frame 2
-        grid[22][13] = 'B'; grid[22][14] = 'B'; grid[22][15] = 'B'
-        grid[23][13] = 'B'; grid[23][14] = 'B'; grid[23][15] = 'B'
-        grid[24][13] = 'B'; grid[24][14] = 'B'; grid[24][15] = 'B'; grid[24][16] = 'B'
+        for y in range(21, 26):
+            grid[y][14] = 'B'; grid[y][15] = 'B'
+        grid[26][15] = 'B'; grid[26][16] = 'B'
+        for y in range(21, 26):
+            grid[y][16] = 'D'; grid[y][17] = 'D'
+        grid[26][15] = 'D'; grid[26][16] = 'D'
 
     def draw_legs_jump(grid):
-        # Tucked jump legs
-        grid[22][11] = 'B'; grid[22][12] = 'B'; grid[22][15] = 'B'; grid[22][16] = 'B'
-        grid[23][10] = 'B'; grid[23][11] = 'B'; grid[23][16] = 'B'; grid[23][17] = 'B'
+        for y in range(21, 25):
+            grid[y][12] = 'B'; grid[y][13] = 'B'
+        grid[25][11] = 'B'; grid[25][12] = 'B'
+        for y in range(21, 25):
+            grid[y][17] = 'D'; grid[y][18] = 'D'
+        grid[25][18] = 'D'; grid[25][19] = 'D'
 
-    # Build frames
     frames = []
 
-    # Frame 0: Idle (standing)
+    # Frame 0..1: Idle
     f_idle = [['.' for _ in range(fw)] for _ in range(fh)]
     draw_base_dino(f_idle, "normal")
-    draw_legs_run_2(f_idle)
+    draw_legs_idle(f_idle)
     frames.append(f_idle)
 
-    # Frame 1: Idle blink
     f_blink = [['.' for _ in range(fw)] for _ in range(fh)]
     draw_base_dino(f_blink, "blink")
-    draw_legs_run_2(f_blink)
+    draw_legs_idle(f_blink)
     frames.append(f_blink)
 
-    # Frame 2..5: 4-Frame Run Cycle
-    f_run1 = [['.' for _ in range(fw)] for _ in range(fh)]
-    draw_base_dino(f_run1, "normal")
-    draw_legs_run_1(f_run1)
-    frames.append(f_run1)
+    # Frame 2..7: Run cycle
+    run_leg_funcs = [draw_legs_run_1, draw_legs_run_2, draw_legs_run_3, draw_legs_run_4, draw_legs_run_1, draw_legs_run_3]
+    for i, leg_fn in enumerate(run_leg_funcs):
+        f_run = [['.' for _ in range(fw)] for _ in range(fh)]
+        draw_base_dino(f_run, "normal", arm_raised=(i % 2 == 1))
+        leg_fn(f_run)
+        frames.append(f_run)
 
-    f_run2 = [['.' for _ in range(fw)] for _ in range(fh)]
-    draw_base_dino(f_run2, "normal")
-    draw_legs_run_2(f_run2)
-    frames.append(f_run2)
-
-    f_run3 = [['.' for _ in range(fw)] for _ in range(fh)]
-    draw_base_dino(f_run3, "normal")
-    draw_legs_run_3(f_run3)
-    frames.append(f_run3)
-
-    f_run4 = [['.' for _ in range(fw)] for _ in range(fh)]
-    draw_base_dino(f_run4, "normal")
-    draw_legs_run_4(f_run4)
-    frames.append(f_run4)
-
-    # Extra run frames for 6-frame loop compatibility (frames 6, 7)
-    frames.append(f_run1)
-    frames.append(f_run3)
-
-    # Frame 8: Jump Rise (arm slightly raised, legs tucked)
-    f_rise = [['.' for _ in range(fw)] for _ in range(fh)]
-    draw_base_dino(f_rise, "normal", arm_raised=True)
-    draw_legs_jump(f_rise)
-    frames.append(f_rise)
+    # Frame 8: Jump Rise
+    f_jump = [['.' for _ in range(fw)] for _ in range(fh)]
+    draw_base_dino(f_jump, "normal", arm_raised=True)
+    draw_legs_jump(f_jump)
+    frames.append(f_jump)
 
     # Frame 9: Jump Apex
-    f_apex = [['.' for _ in range(fw)] for _ in range(fh)]
-    draw_base_dino(f_apex, "normal")
-    draw_legs_jump(f_apex)
-    frames.append(f_apex)
+    frames.append(f_jump)
 
     # Frame 10: Jump Fall
     f_fall = [['.' for _ in range(fw)] for _ in range(fh)]
-    draw_base_dino(f_fall, "normal")
-    draw_legs_run_1(f_fall)
+    draw_base_dino(f_fall, "normal", arm_raised=False)
+    draw_legs_idle(f_fall)
     frames.append(f_fall)
 
-    # Frame 11: Land squash
+    # Frame 11: Land
     f_land = [['.' for _ in range(fw)] for _ in range(fh)]
     draw_base_dino(f_land, "normal")
-    draw_legs_run_2(f_land)
+    draw_legs_idle(f_land)
     frames.append(f_land)
 
-    # Frame 12..14: Slide / Duck (lower profile)
-    f_slide1 = [['.' for _ in range(fw)] for _ in range(fh)]
-    # Ducked head: y=10..18, x=16..29
-    for y in range(10, 18):
-        for x in range(16, 30):
-            f_slide1[y][x] = 'B'
-    # Mouth notch
-    for y in range(15, 17):
-        for x in range(24, 30):
-            f_slide1[y][x] = '.'
-    # Eye
-    f_slide1[12][20] = 'W'; f_slide1[12][21] = 'W'
-    f_slide1[13][20] = 'W'; f_slide1[13][21] = 'W'
-    # Ducked body & horizontal tail
+    # Frames 12..14: Slide / Duck (low crouching profile)
+    f_slide = [['.' for _ in range(fw)] for _ in range(fh)]
+    for y in range(12, 19):
+        for x in range(16, 28):
+            f_slide[y][x] = 'B'
+    for y in range(16, 18):
+        for x in range(22, 28):
+            f_slide[y][x] = '.'
+    f_slide[13][19] = 'W'; f_slide[13][20] = 'W'
+    f_slide[14][19] = 'W'; f_slide[14][20] = 'W'
     for y in range(14, 22):
         for x in range(6, 20):
-            f_slide1[y][x] = 'B'
+            f_slide[y][x] = 'B'
     for y in range(15, 18):
         for x in range(2, 6):
-            f_slide1[y][x] = 'B'
-    # Feet tucked
+            f_slide[y][x] = 'B'
     for x in range(8, 16):
-        f_slide1[22][x] = 'B'
-    frames.append(f_slide1)
-    frames.append(f_slide1)
-    frames.append(f_slide1)
+        f_slide[22][x] = 'B'
+    frames.append(f_slide)
+    frames.append(f_slide)
+    frames.append(f_slide)
 
-    # Frame 15: Dive (angled forward downward)
+    # Frame 15: Dive
     f_dive = [['.' for _ in range(fw)] for _ in range(fh)]
     draw_base_dino(f_dive, "normal", arm_raised=True)
     draw_legs_jump(f_dive)
     frames.append(f_dive)
 
-    # Frames 16..18: Hurt / Hit
+    # Frames 16..18: Hurt
     f_hurt = [['.' for _ in range(fw)] for _ in range(fh)]
     draw_base_dino(f_hurt, "hurt")
     draw_legs_jump(f_hurt)
@@ -224,14 +215,13 @@ def generate_pro_dino():
     frames.append(f_hurt)
     frames.append(f_hurt)
 
-    # Frames 19..26: Death animation sequence (tumble back onto ground)
-    for rot in range(8):
+    # Frames 19..26: Death animation sequence
+    for _ in range(8):
         f_dead = [['.' for _ in range(fw)] for _ in range(fh)]
         draw_base_dino(f_dead, "hurt")
         draw_legs_run_1(f_dead)
         frames.append(f_dead)
 
-    # Stitch into a single horizontal sprite sheet
     total_frames = len(frames)
     sheet = Image.new("RGBA", (total_frames * fw, fh), TRANSPARENT)
 
@@ -249,8 +239,14 @@ def generate_pro_dino():
                 if c in palette:
                     sheet.putpixel((i * fw + x, y), palette[c])
 
-    sheet.save("assets/sprites/dinosaur_sheet.png")
-    print(f"Generated pro-grade dinosaur_sheet.png with {total_frames} frames (size: {sheet.size}).")
+    sheet.save(cfg["file"])
+    if "copy" in cfg:
+        sheet.save(cfg["copy"])
+    print(f"Generated skin: {cfg['file']} ({sheet.size})")
+
+def generate_all_skins():
+    for name, cfg in SKINS.items():
+        generate_skin_sheet(cfg)
 
 if __name__ == "__main__":
-    generate_pro_dino()
+    generate_all_skins()

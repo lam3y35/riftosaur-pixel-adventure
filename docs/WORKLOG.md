@@ -6,15 +6,15 @@
 - **Last commit:** 9a88d6e (tagged `m2-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
-  - Setup & Baseline: L2 Automated (24 tests passing, 0 failures, 0 skips)
-  - Movement & Core Loop: L3 Desktop play (Endless runner scene, start menu, parallax background, hand-authored chunks, dynamic spawn/recycle, instant retry, pause/resume)
-  - Silhouette / Art: L3 Verified (solid black-fill silhouettes verified at 1× and 3×, multi-layer parallax background, deadly crystal spikes)
+  - Setup & Baseline: L2 Automated (28 tests passing, 0 failures, 0 skips)
+  - Movement & Core Loop: L3 Desktop play (Endless runner scene, start menu, parallax background, hand-authored chunks, dynamic spawn/recycle, instant retry, pause/resume, skin shop, challenges)
+  - Silhouette / Art: L3 Verified (solid black-fill silhouettes verified at 1× and 3×, multi-layer parallax background, deadly crystal spikes, 5 distinct dino skins)
   - Static Project Validation: L1 Static (0 errors, 0 warnings)
   - Android Build: L4 Static APK Verification (aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
-  - Physical Android Play: L5 Owner Playtest #1 & #2 complete (All reported issues resolved: layout deconfliction, instant restart fix, main menu return button, 3 difficulty modes, pro art overhaul; latest APK verified)
+  - Physical Android Play: L5 Owner Playtest #1 & #2 complete (All reported issues resolved: layout deconfliction, instant restart fix, main menu return button, 3 difficulty modes, pro art overhaul; challenges, points currency, and 5-skin shop added; latest APK verified)
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) or approve launch of Session 4.
+- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with Challenges, Points, and Skin Shop, or approve launch of Session 4.
 - **Next action:** Execute Session 4 — Build vertical movement, platforms, spring objects, vertical camera tracking, and Validator V1 upon owner instruction.
 
 ---
@@ -50,6 +50,7 @@
   - *BUG-M2-15 (Closed):* [Owner Playtest #2 - Issue 4] Overhead slide obstacle bypassed by jumping and sliding: The overhang obstacle was only a 20×14 floating box at y = 208 with empty air above y = 201, allowing even a 30px tap jump to fly above the collision shape. Fixed by redesigning `ObstacleOverhang` into a towering 32×240 prehistoric stone archway with a 26×240 hazard collision shape and static ceiling body extending all the way off the top of the screen (y = -254) down to the 14px slide crawlspace (y = -14), making it physically and fatally impossible to jump over or dive through, strictly enforcing ground slide. Verified with automated test `test_overhang_slide_clearance_and_jump_fatal`.
   - *BUG-M2-16 (Closed):* [Owner Playtest #2 - Issue 5] Background disconnected from ground during jump: The rolling hills texture stopped at y = 225 leaving a 5px gap before ground at y = 230, and the camera moved vertically 1:1 on every jump, dropping ground by up to 84px and revealing raw blue sky between hills and ground. Fixed by: 1) Regenerating `bg_hills.png` and `bg_mountains.png` at full 480×270 height with seamless periodic waveforms so green meadows extend all the way down behind the ground track (y = 270); 2) Locking `game_camera.gd` to `baseline_y = 135.0` with deadzone during ground jumps so the camera does not jerk vertically on jumps. Verified with automated test `test_camera_ground_lock_during_jump`.
   - *BUG-M2-17 (Closed):* [Owner Playtest #2 - Issue 6] Mode 0 (Casual) was boring and lacked challenge: Mode 0 ran at a flat 240 px/s with only 1 single cactus hurdle pattern. Overhauled Mode 0 into high-intensity "1. SPICY JUMP" arcade mode: 1) Dynamic acceleration speed curve starting at 310 px/s and ramping up with distance to 520 px/s; 2) Built 3 new procedural chunk scenes (`chunk_06_crate_step.tscn`, `chunk_07_triple_low.tscn`, `chunk_08_double_crate.tscn`) adding double hurdles, triple rhythm hurdles, and stepping crate launchpads; 3) Enabled full-screen tap-to-jump on touch devices for responsive one-touch arcade play.
+  - *BUG-M2-18 (Closed):* [Feature Request - Challenges, Points, and Skin Shop] Added full in-game economy and progression: 1) Persistent Points currency system saved in `SaveService` with 50 PTS welcome bonus and distance/score earnings per run; 2) 8-quest Challenge tracker (`ChallengeService`) monitoring jumps, slides, distances, and modes with animated in-game completion toasts and rewards; 3) 5 distinct dinosaur skins (Classic Charcoal, Emerald Raptor, Ruby Carnotaur, Cyber Rift, Golden Fossil) each with generated 27-frame 864×32 spritesheets and 32×32 preview icons; 4) Interactive Skin Shop & Challenges dialogs accessible from both Start Menu and Game Over screen; 5) Automated tests expanded to 28 passing unit/physics tests. Verified with L4 Android export.
 - **Decisions and reasons:**
   - Implemented versioned atomic save system (schema v1) with temporary file staging and automated backup to prevent data loss or save file corruption on sudden process termination.
   - Built 5 hand-authored chunks with increasing challenge rather than pure random obstacles, guaranteeing jumpable hurdle spacing and slide-under clearance.

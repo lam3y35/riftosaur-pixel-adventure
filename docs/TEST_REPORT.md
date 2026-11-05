@@ -25,7 +25,7 @@
 ## 2. Level L2: Automated Unit & Physics Tests
 - **Runner:** `tests/test_runner.gd` via `tools/run_tests.ps1`
 - **Execution Mode:** Headless SceneTree (`--headless --script tests/test_runner.gd`)
-- **Overall Result:** PASSED (24 Passed, 0 Failed, 0 Skipped)
+- **Overall Result:** PASSED (28 Passed, 0 Failed, 0 Skipped)
 
 ### Detailed Suite Breakdown
 
@@ -50,11 +50,15 @@
 | **SaveServiceTest** | `test_atomic_save_and_load` | PASS | Atomic write via temp file, clean load back |
 | **SaveServiceTest** | `test_high_score_update` | PASS | Increases high score; ignores lower score |
 | **SaveServiceTest** | `test_corrupted_save_recovery` | PASS | Recovers gracefully to defaults on invalid JSON/schema |
+| **SaveServiceTest** | `test_points_addition_and_spending` | PASS | Welcome bonus, additions, and atomic spending validation |
+| **SaveServiceTest** | `test_skin_unlock_and_equip` | PASS | Unlocking, equipping, and persistence of dino skins |
+| **SaveServiceTest** | `test_challenge_service_progress_tracking` | PASS | Event tracking, milestone detection, and point reward grants |
 | **EndlessRunnerLoopTest** | `test_runner_initialization` | PASS | Player, camera, initial chunks spawned |
 | **EndlessRunnerLoopTest** | `test_distance_and_score_progression` | PASS | Distance and score accumulate with forward run |
 | **EndlessRunnerLoopTest** | `test_pause_and_resume` | PASS | `pause_game()` halts physics tick; resume restores |
 | **EndlessRunnerLoopTest** | `test_game_over_and_instant_retry` | PASS | Hazard triggers Game Over; `instant_restart()` resets in 1 tick |
 | **EndlessRunnerLoopTest** | `test_camera_ground_lock_during_jump` | PASS | Camera Y locked to 135.0 baseline on jumps; zero disconnect |
+| **EndlessRunnerLoopTest** | `test_skin_switching_and_shop_dialog` | PASS | Player skin texture swap and HUD modal visibility toggles |
 
 ---
 

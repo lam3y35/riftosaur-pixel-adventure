@@ -1,12 +1,15 @@
 class_name EndlessRunner
 extends Node2D
 
+const ChallengeService = preload("res://scripts/systems/challenge_service.gd")
+
 @onready var player: Player = $Player
 @onready var camera: GameCamera = $GameCamera
 @onready var hud: GameHUD = $GameHUD
 @onready var chunk_container: Node2D = $ChunkContainer
 
 var save_service: SaveService
+var challenge_service: ChallengeService
 var is_game_over: bool = false
 var is_paused: bool = false
 var is_game_started: bool = false
@@ -24,6 +27,8 @@ const CHUNK_WIDTH: float = 480.0
 
 func _ready() -> void:
 	save_service = SaveService.new()
+	challenge_service = ChallengeService.new(save_service)
+	hud.bind_services(save_service, challenge_service)
 
 	# Load chunk scenes
 	chunk_scenes = [
@@ -47,9 +52,14 @@ func _ready() -> void:
 	hud.resume_requested.connect(resume_game)
 	hud.retry_requested.connect(restart_run)
 	hud.menu_requested.connect(go_to_title_menu)
+	hud.skin_selected.connect(_on_skin_selected)
 
 	# Connect Player signals
 	player.died.connect(_on_player_died)
+	player.jumped.connect(_on_player_jumped)
+
+	# Apply initial skin
+	player.set_skin(save_service.get_equipped_skin())
 
 	init_title_screen()
 
@@ -84,9 +94,10 @@ func init_title_screen() -> void:
 	# Put player in idle breathing pose at start line
 	player.reset()
 	player.state_machine.change_state(PlayerStateMachine.State.IDLE)
+	player.set_skin(save_service.get_equipped_skin())
 
-	hud.show_start_menu(save_service.get_best_score())
-	hud.update_hud(0, 0.0, save_service.get_best_score())
+	hud.show_start_menu(save_service.get_best_score(), save_service.get_points())
+	hud.update_hud(0, 0.0, save_service.get_best_score(), save_service.get_points())
 
 func begin_run() -> void:
 	if is_game_started:
@@ -119,7 +130,7 @@ func start_new_run() -> void:
 	player.reset()
 	_apply_mode_settings()
 
-	hud.update_hud(0, 0.0, save_service.get_best_score())
+	hud.update_hud(0, 0.0, save_service.get_best_score(), save_service.get_points())
 
 func _reset_world_state() -> void:
 	# Immediately detach from scene tree to destroy all active colliders
@@ -162,7 +173,10 @@ func _physics_process(_delta: float) -> void:
 		2: # Freestyle: high speed with manual air control & steering
 			player.current_speed = minf(280.0 + (distance_m * 0.20), 520.0)
 
-	hud.update_hud(current_score, distance_m, save_service.get_best_score())
+	if challenge_service:
+		challenge_service.check_run_progress(distance_m, current_score, current_mode)
+
+	hud.update_hud(current_score, distance_m, save_service.get_best_score(), save_service.get_points())
 
 	# Spawn chunks ahead
 	if player.global_position.x + CHUNK_WIDTH * 2.0 > next_chunk_x:
@@ -237,8 +251,12 @@ func _on_player_died(cause: String) -> void:
 		return
 	is_game_over = true
 
+	var run_pts: int = int(distance_m * 0.5) + int(current_score * 0.1)
+	if run_pts < 1 and distance_m > 5.0:
+		run_pts = 1
+	save_service.add_points(run_pts)
 	var is_new_best = save_service.update_high_score(current_score, distance_m)
-	hud.show_game_over(cause, current_score, distance_m, save_service.get_best_score(), is_new_best)
+	hud.show_game_over(cause, current_score, distance_m, save_service.get_best_score(), is_new_best, run_pts, save_service.get_points())
 
 func toggle_pause() -> void:
 	if is_game_over or not is_game_started:
@@ -266,6 +284,13 @@ func go_to_title_menu() -> void:
 	hud.hide_game_over()
 	init_title_screen()
 
+func _on_player_jumped() -> void:
+	if challenge_service:
+		challenge_service.record_jump()
+
+func _on_skin_selected(skin_id: String) -> void:
+	player.set_skin(skin_id)
+
 func _on_hud_jump(pressed: bool) -> void:
 	if not is_game_started:
 		if pressed:
@@ -282,6 +307,8 @@ func _on_hud_slide(pressed: bool) -> void:
 		return
 	player.slide_held = pressed
 	if pressed:
+		if challenge_service:
+			challenge_service.record_slide()
 		if player.is_on_floor():
 			if player.state_machine.current_state != PlayerStateMachine.State.SLIDE:
 				player._enter_slide()

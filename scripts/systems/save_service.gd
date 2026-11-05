@@ -17,6 +17,10 @@ func get_default_data() -> Dictionary:
 		"best_score": 0,
 		"best_distance": 0.0,
 		"total_runs": 0,
+		"points": 50, # Welcome bonus for first time players
+		"unlocked_skins": ["classic"],
+		"equipped_skin": "classic",
+		"completed_challenges": [],
 		"settings": {
 			"sound_enabled": true,
 			"vibration_enabled": true,
@@ -121,6 +125,69 @@ func get_best_score() -> int:
 
 func get_best_distance() -> float:
 	return data.get("best_distance", 0.0)
+
+# Points Management
+func get_points() -> int:
+	return data.get("points", 0)
+
+func add_points(amount: int) -> int:
+	if amount <= 0:
+		return get_points()
+	var current = data.get("points", 0)
+	data["points"] = current + amount
+	save_game()
+	return data["points"]
+
+func spend_points(amount: int) -> bool:
+	var current = data.get("points", 0)
+	if current < amount:
+		return false
+	data["points"] = current - amount
+	save_game()
+	return true
+
+# Skins Management
+func get_unlocked_skins() -> Array:
+	return data.get("unlocked_skins", ["classic"])
+
+func is_skin_unlocked(skin_id: String) -> bool:
+	var skins = get_unlocked_skins()
+	return skins.has(skin_id)
+
+func unlock_skin(skin_id: String) -> bool:
+	var skins = get_unlocked_skins()
+	if not skins.has(skin_id):
+		skins.append(skin_id)
+		data["unlocked_skins"] = skins
+		save_game()
+	return true
+
+func get_equipped_skin() -> String:
+	return data.get("equipped_skin", "classic")
+
+func equip_skin(skin_id: String) -> bool:
+	if not is_skin_unlocked(skin_id):
+		return false
+	data["equipped_skin"] = skin_id
+	save_game()
+	return true
+
+# Challenges Management
+func get_completed_challenges() -> Array:
+	return data.get("completed_challenges", [])
+
+func is_challenge_completed(challenge_id: String) -> bool:
+	var comp = get_completed_challenges()
+	return comp.has(challenge_id)
+
+func complete_challenge(challenge_id: String, reward: int) -> bool:
+	var comp = get_completed_challenges()
+	if comp.has(challenge_id):
+		return false # Already claimed
+	comp.append(challenge_id)
+	data["completed_challenges"] = comp
+	add_points(reward) # Automatically awards points and saves
+	return true
 
 func _backup_corrupted_file(content: String) -> void:
 	var corrupt_path = "user://save_corrupt_%d.txt" % Time.get_unix_time_from_system()

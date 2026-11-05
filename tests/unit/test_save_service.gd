@@ -78,3 +78,85 @@ func test_corrupted_save_recovery() -> Variant:
 	service.save_game()
 
 	return true
+
+func test_points_addition_and_spending() -> Variant:
+	var service = SaveServiceScript.new()
+	service.data = service.get_default_data()
+	service.data["points"] = 50
+
+	var new_pts = service.add_points(100)
+	if new_pts != 150 or service.get_points() != 150:
+		return "Failed to add points correctly, expected 150 got %d" % service.get_points()
+
+	var spent = service.spend_points(100)
+	if not spent or service.get_points() != 50:
+		return "Failed to spend 100 points, expected balance 50 got %d" % service.get_points()
+
+	var overspent = service.spend_points(100)
+	if overspent:
+		return "Spend should have failed when points are insufficient"
+	if service.get_points() != 50:
+		return "Points balance should remain 50 after failed spend"
+
+	return true
+
+func test_skin_unlock_and_equip() -> Variant:
+	var service = SaveServiceScript.new()
+	service.data = service.get_default_data()
+
+	if not service.is_skin_unlocked("classic"):
+		return "Classic skin should be unlocked by default"
+	if service.is_skin_unlocked("emerald"):
+		return "Emerald skin should NOT be unlocked by default"
+
+	var equip_locked = service.equip_skin("emerald")
+	if equip_locked:
+		return "Should not be able to equip a locked skin"
+
+	service.unlock_skin("emerald")
+	if not service.is_skin_unlocked("emerald"):
+		return "Emerald skin should be unlocked after unlock_skin call"
+
+	var equip_ok = service.equip_skin("emerald")
+	if not equip_ok or service.get_equipped_skin() != "emerald":
+		return "Failed to equip unlocked emerald skin"
+
+	# Persistence check
+	var reader = SaveServiceScript.new()
+	reader.load_game()
+	if reader.get_equipped_skin() != "emerald":
+		return "Equipped skin did not persist across save/load"
+
+	return true
+
+func test_challenge_service_progress_tracking() -> Variant:
+	var challenge_script = preload("res://scripts/systems/challenge_service.gd")
+	var service = SaveServiceScript.new()
+	service.data = service.get_default_data()
+	service.data["points"] = 50
+
+	var cs = challenge_script.new(service)
+
+	# Simulate 5 jumps
+	for i in range(5):
+		cs.record_jump()
+
+	if not service.is_challenge_completed("jump_5"):
+		return "Challenge 'jump_5' should be completed after 5 jumps"
+	if service.get_points() != 80: # 50 welcome + 30 reward
+		return "Expected 80 points after 'jump_5' reward, got %d" % service.get_points()
+
+	# Simulate 50m distance
+	cs.check_run_progress(55.0, 80, 1)
+
+	if not service.is_challenge_completed("dist_50"):
+		return "Challenge 'dist_50' should be completed after 55m distance"
+	if service.get_points() != 130: # 80 + 50 reward
+		return "Expected 130 points after 'dist_50' reward, got %d" % service.get_points()
+
+	# Duplicate check: running again shouldn't re-reward
+	cs.check_run_progress(60.0, 90, 1)
+	if service.get_points() != 130:
+		return "Duplicate challenge completion should not award extra points"
+
+	return true

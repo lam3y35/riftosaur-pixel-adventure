@@ -23,6 +23,15 @@ var is_steer_enabled: bool = false
 var invulnerability_timer: float = 0.0 # Spawn shield protection
 var slide_timer: float = 0.0
 var run_anim_timer: float = 0.0
+var current_skin: String = "classic"
+
+const SKIN_TEXTURES: Dictionary = {
+	"classic": "res://assets/sprites/dinosaur_sheet_classic.png",
+	"emerald": "res://assets/sprites/dinosaur_sheet_emerald.png",
+	"ruby": "res://assets/sprites/dinosaur_sheet_ruby.png",
+	"cyber": "res://assets/sprites/dinosaur_sheet_cyber.png",
+	"gold": "res://assets/sprites/dinosaur_sheet_gold.png"
+}
 
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
@@ -50,6 +59,27 @@ func _ready() -> void:
 	if collision_shape:
 		collision_shape.shape = box_shape
 		collision_shape.position = config.standing_offset
+
+	# Apply initial skin
+	set_skin(current_skin)
+
+func set_skin(skin_id: String) -> bool:
+	if not SKIN_TEXTURES.has(skin_id):
+		return false
+	current_skin = skin_id
+	var tex_path: String = SKIN_TEXTURES[skin_id]
+	if ResourceLoader.exists(tex_path):
+		var tex = load(tex_path)
+		if tex and sprite:
+			sprite.texture = tex
+	elif ResourceLoader.exists("res://assets/sprites/dinosaur_sheet.png"):
+		var tex = load("res://assets/sprites/dinosaur_sheet.png")
+		if tex and sprite:
+			sprite.texture = tex
+	return true
+
+func get_skin() -> String:
+	return current_skin
 
 func _physics_process(delta: float) -> void:
 	# Update timers
