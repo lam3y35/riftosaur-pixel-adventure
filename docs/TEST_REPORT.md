@@ -25,7 +25,7 @@
 ## 2. Level L2: Automated Unit & Physics Tests
 - **Runner:** `tests/test_runner.gd` via `tools/run_tests.ps1`
 - **Execution Mode:** Headless SceneTree (`--headless --script tests/test_runner.gd`)
-- **Overall Result:** PASSED (23 Passed, 0 Failed, 0 Skipped)
+- **Overall Result:** PASSED (24 Passed, 0 Failed, 0 Skipped)
 
 ### Detailed Suite Breakdown
 
@@ -54,6 +54,7 @@
 | **EndlessRunnerLoopTest** | `test_distance_and_score_progression` | PASS | Distance and score accumulate with forward run |
 | **EndlessRunnerLoopTest** | `test_pause_and_resume` | PASS | `pause_game()` halts physics tick; resume restores |
 | **EndlessRunnerLoopTest** | `test_game_over_and_instant_retry` | PASS | Hazard triggers Game Over; `instant_restart()` resets in 1 tick |
+| **EndlessRunnerLoopTest** | `test_camera_ground_lock_during_jump` | PASS | Camera Y locked to 135.0 baseline on jumps; zero disconnect |
 
 ---
 
@@ -75,7 +76,7 @@
 - **Result:** PASSED (L4 Verified)
 - **Specification Compliance (Spec D):**
   - **File Size:** 62,273,025 bytes (59.39 MB)
-  - **SHA-256 Checksum:** `EA8F74C26D008FFD5E3B9C0DB642F8A16D82956AE7BD581483F29231B3273223`
+  - **SHA-256 Checksum:** `2B2BFE7741A2F042FACD06BA658C215C16963D013482E1B3C0116BF322D683B1`
   - **Package Identifier:** `com.riftosaur.game`
   - **Version:** `versionCode='1'`, `versionName='0.3.0'`
   - **SDK Target:** `minSdkVersion='24'`, `targetSdkVersion='36'`

@@ -19,7 +19,6 @@ motion_scale = Vector2(0.12, 0)
 motion_mirroring = Vector2(480, 0)
 
 [node name="MountainsSprite" type="Sprite2D" parent="MountainsLayer"]
-position = Vector2(0, 65)
 texture = ExtResource("2_mountains")
 centered = false
 
@@ -28,6 +27,5 @@ motion_scale = Vector2(0.28, 0)
 motion_mirroring = Vector2(480, 0)
 
 [node name="HillsSprite" type="Sprite2D" parent="HillsLayer"]
-position = Vector2(0, 105)
 texture = ExtResource("3_hills")
 centered = false

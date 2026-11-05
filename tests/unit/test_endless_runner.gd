@@ -116,3 +116,33 @@ func test_game_over_and_instant_retry() -> Variant:
 
 	_destroy_runner_world(w)
 	return true
+
+func test_camera_ground_lock_during_jump() -> Variant:
+	var w = _create_runner_world()
+	var runner: EndlessRunner = w["runner"]
+	runner.begin_run()
+
+	var cam = runner.camera
+	if cam == null:
+		_destroy_runner_world(w)
+		return "Runner camera not found"
+
+	# Baseline Y is 135.0
+	if absf(cam.global_position.y - 135.0) > 1.0:
+		_destroy_runner_world(w)
+		return "Camera baseline Y expected 135.0, got %.1f" % cam.global_position.y
+
+	# Player jumps
+	runner.player._execute_jump()
+	for _i in range(15):
+		runner.player._physics_process(1.0 / 60.0)
+		cam._physics_process(1.0 / 60.0)
+
+	# Camera Y must NOT move during mid-air jump (prevents background/ground disconnect)
+	if absf(cam.global_position.y - 135.0) > 1.0:
+		var cam_y = cam.global_position.y
+		_destroy_runner_world(w)
+		return "Camera Y moved to %.1f during jump (expected 135.0 ground lock)" % cam_y
+
+	_destroy_runner_world(w)
+	return true

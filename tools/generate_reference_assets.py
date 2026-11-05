@@ -52,41 +52,47 @@ def generate_reference_assets():
     draw_cloud(sky, 450, 75, 14)
     sky.save("assets/sprites/bg_sky.png")
 
-    # 2. Distant Snow-Capped Mountains (480x160 px)
-    mountains = Image.new("RGBA", (width, 160), (0, 0, 0, 0))
+    # 2. Distant Snow-Capped Mountains (480x270 px - full height to prevent any gaps)
+    mountains = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     M_BODY = (115, 147, 167, 255)      # Slate blue-gray mountain
     M_SHADOW = (92, 122, 140, 255)     # Mountain shadow side
     SNOW = (255, 255, 255, 255)        # Pure white snow peak
     SNOW_SHADOW = (220, 235, 245, 255) # Snow shadow
 
-    # Mountain peak centers: x=100, x=280, x=430
-    peaks = [(90, 110, 85), (260, 135, 95), (420, 120, 90)]
+    # Mountain peak centers: x=80, x=240, x=400
+    peaks = [(80, 110, 110), (240, 135, 130), (400, 120, 115)]
     for px, pw, ph in peaks:
         for x in range(px - pw, px + pw + 1):
             if 0 <= x < width:
                 dist = abs(x - px)
                 t = dist / float(pw)
                 if t <= 1.0:
-                    peak_top = 160 - int((1.0 - t) * ph)
-                    for y in range(peak_top, 160):
+                    peak_top = 200 - int((1.0 - t) * ph)
+                    for y in range(peak_top, height):
                         is_shadow = (x > px)
-                        snow_depth = ph * 0.35
+                        snow_depth = ph * 0.32
                         if y <= peak_top + snow_depth:
                             mountains.putpixel((x, y), SNOW_SHADOW if is_shadow else SNOW)
                         else:
                             mountains.putpixel((x, y), M_SHADOW if is_shadow else M_BODY)
     mountains.save("assets/sprites/bg_mountains.png")
 
-    # 3. Midground Rolling Green Hills (480x120 px)
-    hills = Image.new("RGBA", (width, 120), (0, 0, 0, 0))
+    # 3. Midground Rolling Green Hills (480x270 px - full height, seamlessly alongside ground)
+    hills = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     HILL_COLOR = (106, 176, 76, 255)
     HILL_HIGHLIGHT = (126, 196, 96, 255)
+    HILL_SHADOW = (86, 156, 56, 255)
+    TWO_PI_W = 2.0 * math.pi / float(width)
     for x in range(width):
-        h = int(35 + 18 * math.sin(x * 0.02) + 10 * math.cos(x * 0.045))
-        peak_y = 120 - h
-        for y in range(peak_y, 120):
-            if y == peak_y or y == peak_y + 1:
+        # Strictly periodic wave with 0 seam at x=0 and x=480
+        wave = 20.0 * math.sin(x * TWO_PI_W * 2.0) + 10.0 * math.cos(x * TWO_PI_W * 3.0)
+        crest_y = int(155 - wave)
+        for y in range(crest_y, height):
+            if y == crest_y or y == crest_y + 1:
                 hills.putpixel((x, y), HILL_HIGHLIGHT)
+            elif y > 230:
+                # Behind ground level: solid rich soil/grass underlay matching ground tile
+                hills.putpixel((x, y), HILL_SHADOW if (x + y) % 4 == 0 else HILL_COLOR)
             else:
                 hills.putpixel((x, y), HILL_COLOR)
     hills.save("assets/sprites/bg_hills.png")
@@ -198,21 +204,9 @@ def generate_reference_assets():
 
     crate.save("assets/sprites/obstacle_crate.png")
 
-    # 7. Overhead Jungle / Bramble Vine to slide under (24x32 px)
-    overhang = Image.new("RGBA", (24, 32), (0, 0, 0, 0))
-    VINE_DARK = (35, 45, 30, 255)
-    VINE_MID = (55, 80, 45, 255)
-    VINE_LIGHT = (85, 125, 65, 255)
-    # Upper log/vine body: y=0..16
-    for y in range(16):
-        for x in range(24):
-            overhang.putpixel((x, y), VINE_MID if (x + y) % 3 == 0 else VINE_DARK)
-    # Leaves & hanging tendrils: y=16..20 (leaves bottom 12px clear for sliding dinosaur)
-    for x in range(24):
-        tendril_len = int(2 + 3 * math.sin(x * 1.2))
-        for ty in range(16, 16 + tendril_len):
-            overhang.putpixel((x, ty), VINE_LIGHT if ty == 16 else VINE_MID)
-    overhang.save("assets/sprites/obstacle_high.png")
+    # 7. Overhead Stone Arch (calls generate_overhang_sprite)
+    from tools.generate_overhang_sprite import generate_overhang_arch
+    generate_overhang_arch()
 
     print("Successfully generated all reference matching assets (sky, mountains, hills, ground, cactus, crate, overhang).")
 

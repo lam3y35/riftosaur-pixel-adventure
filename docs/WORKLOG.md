@@ -6,7 +6,7 @@
 - **Last commit:** 9a88d6e (tagged `m2-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
-  - Setup & Baseline: L2 Automated (23 tests passing, 0 failures, 0 skips)
+  - Setup & Baseline: L2 Automated (24 tests passing, 0 failures, 0 skips)
   - Movement & Core Loop: L3 Desktop play (Endless runner scene, start menu, parallax background, hand-authored chunks, dynamic spawn/recycle, instant retry, pause/resume)
   - Silhouette / Art: L3 Verified (solid black-fill silhouettes verified at 1× and 3×, multi-layer parallax background, deadly crystal spikes)
   - Static Project Validation: L1 Static (0 errors, 0 warnings)
@@ -48,6 +48,7 @@
   - *BUG-M2-13 (Closed):* [Owner Playtest #2 - Issue 2] Instant microsecond death on "Play Again" with score 0: fixed by calling `chunk_container.remove_child(c)` before `queue_free()` to immediately detach colliders from active physics tree, adding 0.35s spawn invulnerability shield, and spawning two empty runway chunks (960px).
   - *BUG-M2-14 (Closed):* [Owner Playtest #2 - Issue 3] Inability to return to main menu to change difficulty modes: added "MAIN MENU" buttons to both Pause and GameOver menus wired to `endless_runner.go_to_title_menu()`.
   - *BUG-M2-15 (Closed):* [Owner Playtest #2 - Issue 4] Overhead slide obstacle bypassed by jumping and sliding: The overhang obstacle was only a 20×14 floating box at y = 208 with empty air above y = 201, allowing even a 30px tap jump to fly above the collision shape. Fixed by redesigning `ObstacleOverhang` into a towering 32×240 prehistoric stone archway with a 26×240 hazard collision shape and static ceiling body extending all the way off the top of the screen (y = -254) down to the 14px slide crawlspace (y = -14), making it physically and fatally impossible to jump over or dive through, strictly enforcing ground slide. Verified with automated test `test_overhang_slide_clearance_and_jump_fatal`.
+  - *BUG-M2-16 (Closed):* [Owner Playtest #2 - Issue 5] Background disconnected from ground during jump: The rolling hills texture stopped at y = 225 leaving a 5px gap before ground at y = 230, and the camera moved vertically 1:1 on every jump, dropping ground by up to 84px and revealing raw blue sky between hills and ground. Fixed by: 1) Regenerating `bg_hills.png` and `bg_mountains.png` at full 480×270 height with seamless periodic waveforms so green meadows extend all the way down behind the ground track (y = 270); 2) Locking `game_camera.gd` to `baseline_y = 135.0` with deadzone during ground jumps so the camera does not jerk vertically on jumps. Verified with automated test `test_camera_ground_lock_during_jump`.
 - **Decisions and reasons:**
   - Implemented versioned atomic save system (schema v1) with temporary file staging and automated backup to prevent data loss or save file corruption on sudden process termination.
   - Built 5 hand-authored chunks with increasing challenge rather than pure random obstacles, guaranteeing jumpable hurdle spacing and slide-under clearance.
