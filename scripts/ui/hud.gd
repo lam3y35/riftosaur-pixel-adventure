@@ -73,6 +73,7 @@ signal skin_selected(skin_id: String)
 @onready var quests_points_label: Label = $ChallengesDialog/Panel/VBox/HeaderHBox/QuestsPointsLabel
 @onready var quests_close_btn: Button = $ChallengesDialog/Panel/VBox/HeaderHBox/QuestsCloseBtn
 @onready var quests_bottom_close_btn: Button = $ChallengesDialog/Panel/VBox/QuestsBottomCloseBtn
+@onready var quests_scroll: ScrollContainer = $ChallengesDialog/Panel/VBox/ScrollContainer
 @onready var quests_list: VBoxContainer = $ChallengesDialog/Panel/VBox/ScrollContainer/QuestsList
 
 @onready var challenge_toast: PanelContainer = $ChallengeToast
@@ -83,6 +84,11 @@ var retry_debounce: bool = false
 var save_service: SaveService
 var challenge_service: ChallengeService
 var pulse_timer: float = 0.0
+
+# Quests swipe / scroll touch handling
+var _quest_scroll_dragging: bool = false
+var _quest_scroll_drag_touch_id: int = -1
+var _quest_scroll_velocity: float = 0.0
 
 # Touch gesture tracking
 var touch_start_positions: Dictionary = {}
@@ -169,6 +175,13 @@ func _ready() -> void:
 	quests_close_btn.pressed.connect(close_challenges)
 	quests_bottom_close_btn.pressed.connect(close_challenges)
 
+	if quests_list:
+		quests_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if quests_scroll:
+		quests_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		quests_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		quests_scroll.gui_input.connect(_on_quests_scroll_gui_input)
+
 	if distance_label:
 		distance_label.visible = false
 	if final_dist_label:
@@ -189,6 +202,11 @@ func _process(delta: float) -> void:
 		pulse_timer += delta * 4.5
 		var glow = 1.0 + 0.08 * sin(pulse_timer)
 		play_button.modulate = Color(glow, glow + 0.04, glow, 1.0)
+
+	if challenges_dialog.visible and quests_scroll:
+		if not _quest_scroll_dragging and abs(_quest_scroll_velocity) > 5.0:
+			quests_scroll.scroll_vertical -= int(_quest_scroll_velocity * delta)
+			_quest_scroll_velocity = move_toward(_quest_scroll_velocity, 0.0, 1600.0 * delta)
 
 # ==========================================
 # Catchy Arcade UI Theme Engine
@@ -532,10 +550,16 @@ func _on_equip_clicked(skin_id: String) -> void:
 # Challenges / Quests Implementation
 # ==========================================
 func open_challenges() -> void:
+	_quest_scroll_dragging = false
+	_quest_scroll_drag_touch_id = -1
+	_quest_scroll_velocity = 0.0
 	challenges_dialog.visible = true
 	refresh_challenges()
 
 func close_challenges() -> void:
+	_quest_scroll_dragging = false
+	_quest_scroll_drag_touch_id = -1
+	_quest_scroll_velocity = 0.0
 	challenges_dialog.visible = false
 
 func refresh_challenges() -> void:
@@ -555,20 +579,24 @@ func _create_challenge_row(ch: Dictionary) -> Control:
 	var is_comp = save_service.is_challenge_completed(ch["id"])
 
 	var panel = PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if is_comp:
 		panel.add_theme_stylebox_override("panel", _make_box(Color(0.06, 0.2, 0.16, 0.94), Color(0.28, 0.88, 0.5), 1, 2, 6, 8, 4, 1))
 	else:
 		panel.add_theme_stylebox_override("panel", _make_box(Color(0.09, 0.13, 0.22, 0.94), Color(0.28, 0.38, 0.56), 1, 2, 6, 8, 4, 1))
 
 	var hbox = HBoxContainer.new()
+	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hbox.add_theme_constant_override("separation", 8)
 	panel.add_child(hbox)
 
 	var text_vbox = VBoxContainer.new()
+	text_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_vbox.add_theme_constant_override("separation", 1)
 
 	var title_lbl = Label.new()
+	title_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_lbl.text = ("★ " if is_comp else "☆ ") + ch["title"]
 	title_lbl.add_theme_font_size_override("font_size", 10)
 	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.32))
@@ -577,6 +605,7 @@ func _create_challenge_row(ch: Dictionary) -> Control:
 	text_vbox.add_child(title_lbl)
 
 	var desc_lbl = Label.new()
+	desc_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	desc_lbl.text = ch["desc"]
 	desc_lbl.add_theme_font_size_override("font_size", 9)
 	desc_lbl.add_theme_color_override("font_color", Color(0.84, 0.9, 0.98))
@@ -585,6 +614,7 @@ func _create_challenge_row(ch: Dictionary) -> Control:
 	hbox.add_child(text_vbox)
 
 	var reward_lbl = Label.new()
+	reward_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	reward_lbl.text = "💎 +%d PTS" % ch["reward"]
 	reward_lbl.add_theme_font_size_override("font_size", 10)
 	reward_lbl.add_theme_color_override("font_color", Color(1.0, 0.86, 0.22))
@@ -593,6 +623,7 @@ func _create_challenge_row(ch: Dictionary) -> Control:
 	hbox.add_child(reward_lbl)
 
 	var status_lbl = Label.new()
+	status_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	status_lbl.add_theme_font_size_override("font_size", 9)
 	status_lbl.add_theme_constant_override("outline_size", 2)
 	status_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
@@ -605,6 +636,41 @@ func _create_challenge_row(ch: Dictionary) -> Control:
 	hbox.add_child(status_lbl)
 
 	return panel
+
+func _on_quests_scroll_gui_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_quest_scroll_dragging = true
+			_quest_scroll_drag_touch_id = event.index
+			_quest_scroll_velocity = 0.0
+		elif event.index == _quest_scroll_drag_touch_id:
+			_quest_scroll_dragging = false
+			_quest_scroll_drag_touch_id = -1
+		if quests_scroll:
+			quests_scroll.accept_event()
+	elif event is InputEventScreenDrag:
+		if _quest_scroll_dragging and event.index == _quest_scroll_drag_touch_id:
+			if quests_scroll:
+				quests_scroll.scroll_vertical -= int(event.relative.y)
+			_quest_scroll_velocity = event.velocity.y
+		if quests_scroll:
+			quests_scroll.accept_event()
+	elif event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				_quest_scroll_dragging = true
+				_quest_scroll_velocity = 0.0
+			else:
+				_quest_scroll_dragging = false
+			if quests_scroll:
+				quests_scroll.accept_event()
+	elif event is InputEventMouseMotion:
+		if _quest_scroll_dragging:
+			if quests_scroll:
+				quests_scroll.scroll_vertical -= int(event.relative.y)
+			_quest_scroll_velocity = event.velocity.y
+			if quests_scroll:
+				quests_scroll.accept_event()
 
 func _on_challenge_unlocked(_id: String, title: String, reward: int) -> void:
 	show_challenge_toast(title, reward)
@@ -624,8 +690,8 @@ func show_challenge_toast(title: String, reward: int) -> void:
 # Input & Touch Handling
 # ==========================================
 func _unhandled_input(event: InputEvent) -> void:
-	if game_over_menu.visible:
-		if event.is_action_pressed("jump"):
+	if challenges_dialog.visible or skin_shop_dialog.visible or start_menu.visible or pause_menu.visible or game_over_menu.visible:
+		if game_over_menu.visible and event.is_action_pressed("jump"):
 			_on_retry_button_pressed()
 		return
 

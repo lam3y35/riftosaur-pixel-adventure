@@ -191,3 +191,85 @@ func test_skin_switching_and_shop_dialog() -> Variant:
 
 	_destroy_runner_world(w)
 	return true
+
+func test_quests_dialog_scroll_and_touch_swipe() -> Variant:
+	var w = _create_runner_world()
+	var runner: EndlessRunner = w["runner"]
+	var hud: GameHUD = runner.hud
+
+	hud.open_challenges()
+	if not hud.challenges_dialog.visible:
+		_destroy_runner_world(w)
+		return "Challenges dialog should be visible"
+
+	var scroll = hud.quests_scroll
+	var list = hud.quests_list
+
+	if scroll == null or list == null:
+		_destroy_runner_world(w)
+		return "Quests scroll container or list is null"
+
+	if list.get_child_count() != 8:
+		_destroy_runner_world(w)
+		return "Expected 8 challenge cards, got %d" % list.get_child_count()
+
+	if list.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+		_destroy_runner_world(w)
+		return "Quests list should have mouse_filter = MOUSE_FILTER_IGNORE"
+
+	for card in list.get_children():
+		if card.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+			_destroy_runner_world(w)
+			return "Challenge card must have mouse_filter = MOUSE_FILTER_IGNORE"
+		for child in card.get_children():
+			if child.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+				_destroy_runner_world(w)
+				return "Challenge card internal container must ignore mouse filter: %s" % child.name
+
+	# Ensure scroll range allows scrolling in headless test environment
+	if scroll.get_v_scroll_bar().max_value <= 0.0:
+		scroll.get_v_scroll_bar().max_value = 500.0
+
+	var init_scroll = scroll.scroll_vertical
+
+	# Simulate touch down
+	var ev_touch_down = InputEventScreenTouch.new()
+	ev_touch_down.index = 0
+	ev_touch_down.pressed = true
+	ev_touch_down.position = Vector2(240, 180)
+	hud._on_quests_scroll_gui_input(ev_touch_down)
+
+	# Simulate drag upward (swipe up -> content moves up -> scroll_vertical increases)
+	var ev_drag = InputEventScreenDrag.new()
+	ev_drag.index = 0
+	ev_drag.position = Vector2(240, 120)
+	ev_drag.relative = Vector2(0, -60)
+	ev_drag.velocity = Vector2(0, -300)
+	hud._on_quests_scroll_gui_input(ev_drag)
+
+	var val_after_drag = scroll.scroll_vertical
+	if val_after_drag <= init_scroll:
+		_destroy_runner_world(w)
+		return "Scroll vertical did not advance on swipe up drag: %d vs %d" % [val_after_drag, init_scroll]
+
+	# Simulate touch up
+	var ev_touch_up = InputEventScreenTouch.new()
+	ev_touch_up.index = 0
+	ev_touch_up.pressed = false
+	ev_touch_up.position = Vector2(240, 120)
+	hud._on_quests_scroll_gui_input(ev_touch_up)
+
+	# Verify momentum step
+	var scroll_before_momentum = scroll.scroll_vertical
+	hud._process(0.05)
+	if scroll.scroll_vertical < scroll_before_momentum:
+		_destroy_runner_world(w)
+		return "Kinetic momentum failed to continue scrolling forward: %d vs %d" % [scroll.scroll_vertical, scroll_before_momentum]
+
+	hud.close_challenges()
+	if hud.challenges_dialog.visible:
+		_destroy_runner_world(w)
+		return "Challenges dialog failed to close"
+
+	_destroy_runner_world(w)
+	return true
