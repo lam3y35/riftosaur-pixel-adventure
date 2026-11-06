@@ -14,11 +14,16 @@ signal resume_requested()
 signal retry_requested()
 signal menu_requested()
 signal skin_selected(skin_id: String)
+signal skill_requested()
 
 @onready var score_label: Label = $TopBar/ScoreLabel
 @onready var distance_label: Label = get_node_or_null("TopBar/DistanceLabel")
 @onready var best_label: Label = $TopBar/BestLabel
 @onready var points_label: Label = $TopBar/PointsLabel
+@onready var gems_label: Label = get_node_or_null("TopBar/GemsLabel")
+@onready var skill_slot: PanelContainer = get_node_or_null("TopBar/SkillSlot")
+@onready var skill_icon: TextureRect = get_node_or_null("TopBar/SkillSlot/HBox/SkillIcon")
+@onready var skill_label: Label = get_node_or_null("TopBar/SkillSlot/HBox/SkillLabel")
 @onready var pause_button: Button = $TopBar/PauseButton
 
 @onready var touch_controls: Control = $TouchControls
@@ -26,6 +31,9 @@ signal skin_selected(skin_id: String)
 @onready var steer_left_btn: Button = $TouchControls/SteerLeftButton
 @onready var steer_right_btn: Button = $TouchControls/SteerRightButton
 @onready var jump_button: Button = $TouchControls/JumpButton
+@onready var skill_button: Button = get_node_or_null("TouchControls/SkillButton")
+@onready var skill_toast: PanelContainer = get_node_or_null("SkillToast")
+@onready var skill_toast_label: Label = get_node_or_null("SkillToast/SkillToastLabel")
 
 @onready var start_menu: Control = $StartMenu
 @onready var start_panel: PanelContainer = $StartMenu/Panel
@@ -158,6 +166,9 @@ func _ready() -> void:
 	slide_button.button_up.connect(func(): slide_requested.emit(false))
 	jump_button.button_down.connect(func(): jump_requested.emit(true))
 	jump_button.button_up.connect(func(): jump_requested.emit(false))
+	if skill_button:
+		skill_button.pressed.connect(func(): skill_requested.emit())
+		skill_button.button_down.connect(func(): skill_requested.emit())
 
 	# Freestyle steer buttons
 	steer_left_btn.button_down.connect(func(): steer_requested.emit(-1.0))
@@ -394,6 +405,50 @@ func update_hud(score: int, _distance_m: float = 0.0, best_score: int = 0, point
 	points_label.text = "💎 PTS: %05d" % points
 	if distance_label:
 		distance_label.visible = false
+
+func update_gems(count: int) -> void:
+	if gems_label:
+		gems_label.text = "💎 %d" % count
+
+func update_skill_slot(info: Dictionary, cd: float = 0.0, dur: float = 0.0, charges: int = 1) -> void:
+	if skill_slot:
+		var has_skill = info.get("name", "None") != "None"
+		skill_slot.visible = has_skill
+		if has_skill:
+			var icon_p = info.get("icon", "")
+			if skill_icon and icon_p != "" and ResourceLoader.exists(icon_p):
+				skill_icon.texture = load(icon_p)
+			update_skill_status(cd, dur, charges)
+
+func update_skill_status(cd: float, dur: float, charges: int) -> void:
+	if skill_label:
+		if cd > 0.0:
+			skill_label.text = "%.1fs" % cd
+			skill_label.add_theme_color_override("font_color", Color(1.0, 0.45, 0.35))
+		elif dur > 0.0:
+			skill_label.text = "%.1fs" % dur
+			skill_label.add_theme_color_override("font_color", Color(0.35, 1.0, 0.6))
+		elif charges > 1:
+			skill_label.text = "x%d" % charges
+			skill_label.add_theme_color_override("font_color", Color(0.45, 0.9, 1.0))
+		elif charges == 1:
+			skill_label.text = "RDY"
+			skill_label.add_theme_color_override("font_color", Color(0.95, 0.95, 1.0))
+		else:
+			skill_label.text = "--"
+			skill_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+
+func show_skill_toast(message: String) -> void:
+	if skill_toast and skill_toast_label:
+		skill_toast_label.text = message
+		skill_toast.visible = true
+		skill_toast.modulate.a = 0.0
+		var tw = create_tween()
+		if tw:
+			tw.tween_property(skill_toast, "modulate:a", 1.0, 0.15)
+			tw.tween_interval(1.8)
+			tw.tween_property(skill_toast, "modulate:a", 0.0, 0.35)
+			tw.tween_callback(func(): skill_toast.visible = false)
 
 func show_game_over(cause: String, score: int, _distance_m: float = 0.0, best_score: int = 0, is_new_best: bool = false, run_pts: int = 0, total_pts: int = 0) -> void:
 	cause_label.text = cause

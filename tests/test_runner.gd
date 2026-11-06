@@ -58,6 +58,9 @@ func _register_tests() -> void:
 	var vertical_script = load("res://tests/unit/test_vertical_platforms.gd")
 	if vertical_script:
 		test_cases.append(vertical_script.new())
+	var skills_script = load("res://tests/unit/test_skills_system.gd")
+	if skills_script:
+		test_cases.append(skills_script.new())
 
 func _run_single_test(test_obj: Object, method_name: String) -> void:
 	# Check if test object has setup

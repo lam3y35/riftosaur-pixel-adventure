@@ -1,0 +1,23 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/objects/skill_pickup.gd" id="1_pickup"]
+[ext_resource type="Texture2D" path="res://assets/sprites/pickup_skill_orb.png" id="2_orb_tex"]
+[ext_resource type="Texture2D" path="res://assets/sprites/skill_bone_blade.png" id="3_skill_tex"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_orb"]
+radius = 10.0
+
+[node name="SkillPickup" type="Area2D"]
+collision_layer = 8
+collision_mask = 1
+script = ExtResource("1_pickup")
+
+[node name="OrbSprite" type="Sprite2D" parent="."]
+texture = ExtResource("2_orb_tex")
+
+[node name="IconSprite" type="Sprite2D" parent="."]
+scale = Vector2(0.45, 0.45)
+texture = ExtResource("3_skill_tex")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_orb")

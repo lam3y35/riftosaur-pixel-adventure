@@ -88,14 +88,47 @@ vertical_alignment = 1
 
 [node name="PointsLabel" type="Label" parent="TopBar"]
 layout_mode = 0
-offset_left = 270.0
+offset_left = 240.0
 offset_top = 5.0
-offset_right = 388.0
+offset_right = 325.0
 offset_bottom = 27.0
 text = "PTS: 00050"
 label_settings = SubResource("LabelSettings_gold")
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="GemsLabel" type="Label" parent="TopBar"]
+layout_mode = 0
+offset_left = 330.0
+offset_top = 5.0
+offset_right = 390.0
+offset_bottom = 27.0
+text = "💎 0"
+label_settings = SubResource("LabelSettings_gold")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SkillSlot" type="PanelContainer" parent="TopBar"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 30.0
+offset_right = 95.0
+offset_bottom = 56.0
+
+[node name="HBox" type="HBoxContainer" parent="TopBar/SkillSlot"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SkillIcon" type="TextureRect" parent="TopBar/SkillSlot/HBox"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="SkillLabel" type="Label" parent="TopBar/SkillSlot/HBox"]
+layout_mode = 2
+text = "--"
+label_settings = SubResource("LabelSettings_hud")
 
 [node name="PauseButton" type="Button" parent="TopBar"]
 layout_mode = 1
@@ -155,6 +188,21 @@ offset_right = 122.0
 offset_bottom = -12.0
 grow_vertical = 0
 text = "▶"
+
+[node name="SkillButton" type="Button" parent="TouchControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -96.0
+offset_top = -106.0
+offset_right = -14.0
+offset_bottom = -64.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "⚡ SKILL"
 
 [node name="JumpButton" type="Button" parent="TouchControls"]
 layout_mode = 1
@@ -634,6 +682,25 @@ grow_horizontal = 2
 [node name="ToastLabel" type="Label" parent="ChallengeToast"]
 layout_mode = 2
 text = "🏆 CHALLENGE COMPLETE: Warm Up (+50 PTS)!"
+label_settings = SubResource("LabelSettings_gold")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SkillToast" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -140.0
+offset_top = 36.0
+offset_right = 140.0
+offset_bottom = 64.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="SkillToastLabel" type="Label" parent="SkillToast"]
+layout_mode = 2
+text = "Bone Blade Equipped!"
 label_settings = SubResource("LabelSettings_gold")
 horizontal_alignment = 1
 vertical_alignment = 1

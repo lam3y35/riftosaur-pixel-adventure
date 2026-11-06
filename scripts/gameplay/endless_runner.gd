@@ -43,7 +43,10 @@ func _ready() -> void:
 		preload("res://scenes/obstacles/chunks/chunk_09_mushroom_bounce.tscn"),      # 8: Mushroom bounce to high ledge
 		preload("res://scenes/obstacles/chunks/chunk_10_multi_tier_platforms.tscn"), # 9: Multi-tier one-way platforms
 		preload("res://scenes/obstacles/chunks/chunk_11_bounce_chain.tscn"),          # 10: Spring stump to launch pad chain
-		preload("res://scenes/obstacles/chunks/chunk_12_wind_vent_ascent.tscn")       # 11: Wind vent high terrace bypass
+		preload("res://scenes/obstacles/chunks/chunk_12_wind_vent_ascent.tscn"),       # 11: Wind vent high terrace bypass
+		preload("res://scenes/obstacles/chunks/chunk_13_airborne_pterodactyl.tscn"),   # 12: Airborne pterodactyl & gems
+		preload("res://scenes/obstacles/chunks/chunk_14_crawler_and_barrier.tscn"),     # 13: Crawler & breakable barrier + skill
+		preload("res://scenes/obstacles/chunks/chunk_15_skill_gem_cache.tscn")          # 14: Skill & gem platform cache
 	]
 
 	# Connect HUD signals
@@ -57,10 +60,17 @@ func _ready() -> void:
 	hud.retry_requested.connect(restart_run)
 	hud.menu_requested.connect(go_to_title_menu)
 	hud.skin_selected.connect(_on_skin_selected)
+	hud.skill_requested.connect(_on_hud_skill)
 
 	# Connect Player signals
 	player.died.connect(_on_player_died)
 	player.jumped.connect(_on_player_jumped)
+	player.gem_collected.connect(_on_player_gem_collected)
+
+	if player.skill_manager:
+		player.skill_manager.skill_equipped.connect(_on_skill_equipped)
+		player.skill_manager.skill_replaced.connect(_on_skill_replaced)
+		player.skill_manager.skill_updated.connect(_on_skill_updated)
 
 	# Apply initial skin
 	player.set_skin(save_service.get_equipped_skin())
@@ -153,6 +163,8 @@ func _reset_world_state() -> void:
 	distance_px = 0.0
 	distance_m = 0.0
 	current_score = 0
+	hud.update_gems(0)
+	hud.update_skill_slot({}, 0.0, 0.0, 0)
 
 	# Spawn initial safe chunks: 0..960px is 100% open, guaranteed safe runway!
 	_spawn_chunk_by_index(0) # Chunk 1: Safe runway (0 to 480)
@@ -214,28 +226,28 @@ func _spawn_next_procedural_chunk() -> void:
 		# Spicy Arcade Jump: intense jump patterns with escalating difficulty
 		# Chunks: 0=empty, 1=single low, 3=double low, 5=crate step, 6=triple low, 7=double crate, 8=mushroom, 9=multi-tier, 10=bounce chain
 		if distance_m < 35.0:
-			var pool = [0, 1, 1, 5, 8]
+			var pool = [0, 1, 1, 5, 8, 12]
 			chunk_idx = pool[randi() % pool.size()]
 		elif distance_m < 90.0:
-			var pool = [1, 3, 5, 7, 8, 9]
+			var pool = [1, 3, 5, 7, 8, 9, 12, 13]
 			chunk_idx = pool[randi() % pool.size()]
 		elif distance_m < 180.0:
-			var pool = [3, 5, 6, 7, 8, 9, 10]
+			var pool = [3, 5, 6, 7, 8, 9, 10, 12, 13, 14]
 			chunk_idx = pool[randi() % pool.size()]
 		else:
 			# High speed mayhem: hurdles, crates, springs, and bounce chains!
-			var pool = [3, 6, 7, 8, 9, 10, 6]
+			var pool = [3, 6, 7, 8, 9, 10, 12, 13, 14]
 			chunk_idx = pool[randi() % pool.size()]
 	else:
 		# Runner & Freestyle: full vertical platforming, slides, and bounce chains
 		if distance_m < 40.0:
-			var pool = [0, 1, 2, 5, 8]
+			var pool = [0, 1, 2, 5, 8, 12]
 			chunk_idx = pool[randi() % pool.size()]
 		elif distance_m < 120.0:
-			var pool = [1, 2, 3, 4, 5, 7, 8, 9]
+			var pool = [1, 2, 3, 4, 5, 7, 8, 9, 12, 13]
 			chunk_idx = pool[randi() % pool.size()]
 		else:
-			var pool = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+			var pool = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 			chunk_idx = pool[randi() % pool.size()]
 
 	_spawn_chunk_by_index(chunk_idx)
@@ -324,3 +336,23 @@ func _on_hud_slide(pressed: bool) -> void:
 func _on_hud_steer(dir: float) -> void:
 	if is_game_started and not is_game_over and not is_paused:
 		player.steer_input = dir
+
+func _on_hud_skill() -> void:
+	if not is_game_started or is_game_over or is_paused:
+		return
+	player.use_skill()
+
+func _on_player_gem_collected(count: int, bonus: int) -> void:
+	current_score += bonus
+	hud.update_gems(count)
+	save_service.add_points(1)
+
+func _on_skill_equipped(_type: int, info: Dictionary) -> void:
+	hud.update_skill_slot(info, 0.0, 0.0, player.skill_manager.current_charges)
+	hud.show_skill_toast("%s Equipped!" % info.get("name", "Skill"))
+
+func _on_skill_replaced(old_name: String, new_name: String) -> void:
+	hud.show_skill_toast("Replaced %s with %s!" % [old_name, new_name])
+
+func _on_skill_updated(cd: float, dur: float, charges: int) -> void:
+	hud.update_skill_status(cd, dur, charges)

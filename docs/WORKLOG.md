@@ -1,25 +1,95 @@
 # Riftosaur Worklog & Session Tracking
 
 ## Current state
-- **Session:** Session 4 (Completed)
-- **Milestone:** M3 (Vertical movement, platforms, springs, camera, Validator V1)
-- **Last commit:** c8d8ed3 (tagged `m3-complete`)
+- **Session:** Session 5 (Completed)
+- **Milestone:** M4 (Skills and collectibles)
+- **Last commit:** pending (tag: `m4-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
-  - Setup & Baseline: L2 Automated (35 tests passing, 0 failures, 0 skips)
-  - Movement & Core Loop: L3 Desktop play (Endless runner scene, vertical platforms, one-way drop-through, spring pads, multi-tier routes)
-  - Silhouette / Art: L3 Verified (solid black-fill silhouettes verified, pixel-art solid & one-way platforms, 4 distinct spring/boost objects)
-  - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 (Analytic reach/rise fairness across all 12 chunks, 0 errors)
-  - Android Build: L4 Static APK Verification (aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
+  - Setup & Baseline: L2 Automated (45 tests passing, 0 failures, 0 skips)
+  - Movement & Core Loop: L3 Desktop play (Endless runner scene, single active skill slot with 8 skills, collectibles, air dash, ground slam shockwave, stone shield absorption, HUD skill slot and dedicated on-screen button)
+  - Silhouette / Art: L3 Verified (8 distinct 32x32 skill icons, amber gem collectible, floating skill orb pickup, pterodactyl airborne hazard, crawler hazard)
+  - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 (Analytic reach/rise fairness across all 15 chunks, 0 errors)
+  - Android Build: L4 Static APK Verification (67,382,478 bytes, SHA-256 `F269B6026965238029B94F4090E104BC0FB35DBD2F60687D878ABC4FB6B11500`, aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
   - Physical Android Play: L5 Owner Playtest #1 & #2 complete
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with vertical platforms, spring bounces, and dynamic camera tracking, or approve launch of Session 5.
-- **Next action:** Execute Session 5 — Skills and collectibles (M4).
+- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with 8 active skills, amber gems, airborne & crawler enemies, and dedicated touch skill button, or approve launch of Session 6.
+- **Next action:** Execute Session 6 — Flight (M5).
 
 ---
 
 ## Session entries
+
+### Session 5 — Skills and collectibles (M4)
+- **Date:** 2026-11-06
+- **Milestone:** M4
+- **Start commit:** 4dadf27 (`m3-complete`)
+- **End commit:** pending (tag: `m4-complete`)
+- **Evidence levels reached:**
+  - L1 Static: Zero script/parse errors, all scenes instantiable, clean project validation via `tools/validate_l1.gd`.
+  - Validator V1: Analytic reach and rise fairness validation via `tools/validate_v1.gd` on all 15 chunks. All vertical platform rises conform to <= 80% maximum jump rise; all gaps conform to <= 80% horizontal reach; minimum reaction window verified.
+  - L2 Automated: 45 passing automated unit and physics tests in `tests/test_runner.gd` (5 smoke + 1 replay + 9 movement + 4 save service + 8 endless runner loop + 5 vertical platform & springs + 10 skills & collectibles system tests).
+  - L3 Desktop play: Live verified via `tools/verify_session5_skills_run.gd`: collection and usage of all 8 skills (Bone Blade, Boomerang, Stone Shield, Ground Slam, Time Shard, Magnet Relic, Air Dash, Bounce Power), collectible gems with magnet pull, animated replacement notices, and cooldown/charge HUD updates.
+  - L4 Android Build Verification: Debug APK exported to `releases/Riftosaur-debug.apk` (67,382,478 bytes, SHA-256 `F269B6026965238029B94F4090E104BC0FB35DBD2F60687D878ABC4FB6B11500`). Verified via `tools/verify_apk.ps1` with `aapt2`, `zipalign`, and `apksigner`.
+- **Delivered components:**
+  - `SkillManager` (`scripts/systems/skill_manager.gd`): Single active skill slot managing duration, cooldown, charges, activation preconditions, and replacement notices.
+  - 8 Tunable Skills:
+    1. *Bone Blade:* 0.3s slash, 0.5s cooldown; destroys `BREAKABLE` hazards.
+    2. *Boomerang:* Ranged looping projectile destroying `AIRBORNE` and `CRAWLER` hazards.
+    3. *Stone Shield:* Absorbs 1 hit from `AIRBORNE`, `CRAWLER`, or `PROJECTILE` hazard, then breaks; never blocks `SOLID` or `ENVIRONMENTAL`.
+    4. *Ground Slam:* Mid-air dive creating a 140px landing shockwave destroying `BREAKABLE` and `CRAWLER` hazards.
+    5. *Time Shard:* 4.0s slow (50% speed) applied to moving, airborne, and crawler hazards.
+    6. *Magnet Relic:* 6.0s magnetic aura pulling nearby amber gems directly into dinosaur.
+    7. *Air Dash:* 2 charges (0.18s horizontal burst, 0.6s cooldown) refilled upon touching the ground.
+    8. *Bounce Power:* 8.0s booster increasing spring launch force by +35% with cushioned bouncy landings.
+  - Hazard Categories in `scripts/obstacles/hazard.gd`: Enum `Category { SOLID, BREAKABLE, AIRBORNE, CRAWLER, PROJECTILE, ENVIRONMENTAL }` with `destroy_hazard()` and `set_time_scale()`.
+  - Collectibles & Pickups: `Collectible` (`scripts/objects/collectible.gd`, `scenes/objects/collectible_gem.tscn`) and `SkillPickup` (`scripts/objects/skill_pickup.gd`, `scenes/objects/skill_pickup.tscn`).
+  - New Hazard Scenes: `obstacle_pterodactyl.tscn` (AIRBORNE), `obstacle_crawler.tscn` (CRAWLER), `obstacle_wooden_barrier.tscn` (BREAKABLE).
+  - 3 New Hand-Authored Chunks: `chunk_13_airborne_pterodactyl.tscn`, `chunk_14_crawler_and_barrier.tscn`, `chunk_15_skill_gem_cache.tscn`.
+  - Skill UI & Controls: Dedicated `SkillButton` on mobile touch overlay, HUD active skill slot with charges and cooldown overlay, gem counter label, and replacement notice toast.
+  - Automated Tests: 10 new comprehensive unit tests in `tests/unit/test_skills_system.gd` registered in `tests/test_runner.gd`.
+- **Bugs opened & closed:**
+  - *BUG-M4-01 (Closed):* GDScript 4 primitive variable capture in test lambda prevented detection of `skill_replaced` signal. Fixed by using reference dictionary container.
+  - *BUG-M4-02 (Closed):* Non-existent texture resource reference `crate_platform.png` in barrier scene. Fixed by referencing `obstacle_crate.png`.
+  - *BUG-M4-03 (Closed):* Platform rise in `chunk_15` exceeded 80% maximum single jump rise in Validator V1. Fixed by adjusting platform Y to 188.0 (42px rise).
+- **Files created or modified:**
+  - `assets/sprites/skill_bone_blade.png`
+  - `assets/sprites/skill_boomerang.png`
+  - `assets/sprites/skill_stone_shield.png`
+  - `assets/sprites/skill_ground_slam.png`
+  - `assets/sprites/skill_time_shard.png`
+  - `assets/sprites/skill_magnet_relic.png`
+  - `assets/sprites/skill_air_dash.png`
+  - `assets/sprites/skill_bounce_power.png`
+  - `assets/sprites/collectible_gem.png`
+  - `assets/sprites/pickup_skill_orb.png`
+  - `assets/sprites/obstacle_pterodactyl.png`
+  - `assets/sprites/obstacle_crawler.png`
+  - `scripts/systems/skill_manager.gd`
+  - `scripts/obstacles/hazard.gd`
+  - `scripts/player/player.gd`
+  - `scripts/objects/boomerang_projectile.gd`
+  - `scripts/objects/collectible.gd`
+  - `scripts/objects/skill_pickup.gd`
+  - `scripts/gameplay/endless_runner.gd`
+  - `scripts/ui/hud.gd`
+  - `scenes/ui/hud.tscn`
+  - `scenes/objects/collectible_gem.tscn`
+  - `scenes/objects/skill_pickup.tscn`
+  - `scenes/obstacles/obstacle_pterodactyl.tscn`
+  - `scenes/obstacles/obstacle_crawler.tscn`
+  - `scenes/obstacles/obstacle_wooden_barrier.tscn`
+  - `scenes/obstacles/chunks/chunk_13_airborne_pterodactyl.tscn`
+  - `scenes/obstacles/chunks/chunk_14_crawler_and_barrier.tscn`
+  - `scenes/obstacles/chunks/chunk_15_skill_gem_cache.tscn`
+  - `tests/unit/test_skills_system.gd`
+  - `tests/test_runner.gd`
+  - `tools/verify_session5_skills_run.gd`
+- **Changes to plan:** None.
+- **Blockers:** None.
+
+---
 
 ### Session 4 — Vertical movement and platforms (M3)
 - **Date:** 2026-11-06

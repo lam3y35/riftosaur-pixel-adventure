@@ -5,6 +5,9 @@ signal state_changed(old_state: int, new_state: int)
 signal jumped()
 signal landed()
 signal died(cause: String)
+signal gem_collected(count: int, score_bonus: int)
+signal skill_used(type: int)
+signal shield_broken()
 
 var last_cause_of_death: String = "Collision"
 
@@ -25,6 +28,15 @@ var slide_timer: float = 0.0
 var run_anim_timer: float = 0.0
 var current_skin: String = "classic"
 
+# Session 5 Skills & Collectibles State
+var skill_manager: SkillManager
+var gems_collected: int = 0
+var is_magnet_active: bool = false
+var bounce_multiplier: float = 1.0
+var is_ground_slamming: bool = false
+var is_air_dashing: bool = false
+var air_dash_timer: float = 0.0
+
 const SKIN_TEXTURES: Dictionary = {
 	"classic": "res://assets/sprites/dinosaur_sheet_classic.png",
 	"emerald": "res://assets/sprites/dinosaur_sheet_emerald.png",
@@ -43,8 +55,10 @@ var box_shape: RectangleShape2D
 func _init() -> void:
 	state_machine.state_changed.connect(_on_state_machine_state_changed)
 	state_machine.change_state(PlayerStateMachine.State.RUN)
+	skill_manager = SkillManager.new(self)
 
 func _ready() -> void:
+	add_to_group("player")
 	if config == null:
 		config = load("res://resources/gameplay_config/gameplay_config.tres")
 		if config == null:
@@ -90,7 +104,9 @@ func _physics_process(delta: float) -> void:
 
 	# Horizontal speed progression
 	if state_machine.current_state != PlayerStateMachine.State.DEAD and state_machine.current_state != PlayerStateMachine.State.IDLE:
-		if is_steer_enabled:
+		if state_machine.current_state == PlayerStateMachine.State.AIR_DASH:
+			velocity.x = current_speed + 320.0
+		elif is_steer_enabled:
 			var kb_steer = Input.get_axis("ui_left", "ui_right")
 			var final_steer = steer_input if absf(steer_input) > 0.1 else kb_steer
 			velocity.x = maxf(current_speed + (final_steer * 150.0), 60.0)
@@ -111,6 +127,9 @@ func _physics_process(delta: float) -> void:
 func _update_timers(delta: float) -> void:
 	state_machine.update(delta)
 
+	if skill_manager:
+		skill_manager.update(delta)
+
 	if invulnerability_timer > 0.0:
 		invulnerability_timer = maxf(invulnerability_timer - delta, 0.0)
 
@@ -128,6 +147,10 @@ func _process_state(delta: float) -> void:
 	if state == PlayerStateMachine.State.DEAD:
 		velocity.y += config.gravity * delta
 		return
+
+	# Skill activation input
+	if Input.is_action_just_pressed("skill"):
+		use_skill()
 
 	# Buffer jump input
 	if Input.is_action_just_pressed("jump"):
@@ -162,6 +185,9 @@ func _process_state(delta: float) -> void:
 		PlayerStateMachine.State.DIVE:
 			_handle_dive_state(delta)
 
+		PlayerStateMachine.State.AIR_DASH:
+			_handle_air_dash_state(delta)
+
 func _is_slide_pressed() -> bool:
 	return Input.is_action_pressed("slide") or slide_held
 
@@ -192,7 +218,7 @@ func bounce_launch(force: float, forward_boost: float = 0.0) -> void:
 	coyote_timer = 0.0
 	jump_hold_timer = 0.0
 	is_jump_holding = false
-	velocity.y = force
+	velocity.y = force * bounce_multiplier
 	if forward_boost > 0.0:
 		velocity.x += forward_boost
 	state_machine.change_state(PlayerStateMachine.State.JUMP_RISE)
@@ -304,7 +330,17 @@ func _handle_slide_state(delta: float) -> void:
 		# If ceiling is blocked, stay sliding safely
 
 func _handle_dive_state(_delta: float) -> void:
-	velocity.y = config.dive_velocity
+	if is_ground_slamming:
+		velocity.y = 700.0
+	else:
+		velocity.y = config.dive_velocity
+
+func _handle_air_dash_state(delta: float) -> void:
+	air_dash_timer -= delta
+	velocity.y = 0.0
+	if air_dash_timer <= 0.0:
+		is_air_dashing = false
+		state_machine.change_state(PlayerStateMachine.State.JUMP_FALL)
 
 func _execute_jump() -> void:
 	jump_buffer_timer = 0.0
@@ -339,12 +375,19 @@ func _exit_slide() -> void:
 func _post_movement_check(_delta: float) -> void:
 	if is_on_floor():
 		var st = state_machine.current_state
-		if st == PlayerStateMachine.State.JUMP_FALL or st == PlayerStateMachine.State.JUMP_RISE or st == PlayerStateMachine.State.JUMP_APEX or st == PlayerStateMachine.State.DIVE:
+		if st == PlayerStateMachine.State.JUMP_FALL or st == PlayerStateMachine.State.JUMP_RISE or st == PlayerStateMachine.State.JUMP_APEX or st == PlayerStateMachine.State.DIVE or st == PlayerStateMachine.State.AIR_DASH:
 			# Just landed
 			velocity.y = 0.0
 			landed.emit()
 			_spawn_dust_puff()
 			_apply_landing_squash()
+
+			if is_ground_slamming:
+				_execute_ground_slam_shockwave()
+				is_ground_slamming = false
+
+			if skill_manager:
+				skill_manager.on_player_landed()
 
 			# Check if jump was buffered during fall
 			if jump_buffer_timer > 0.0:
@@ -378,15 +421,132 @@ func _spawn_dust_puff() -> void:
 	dust.global_position = global_position + Vector2(-6, 12)
 	get_parent().add_child(dust)
 
-func hit_hazard(cause: String = "Collision", force: bool = false) -> void:
+func hit_hazard(cause: String = "Collision", force: bool = false, hazard: Hazard = null) -> void:
 	if state_machine.current_state == PlayerStateMachine.State.DEAD:
 		return
 	if invulnerability_timer > 0.0 and not force:
 		return
+
+	# Stone Shield absorption check
+	if not force and skill_manager and skill_manager.has_shield:
+		if skill_manager.absorb_shield_hit(hazard):
+			_play_shield_break_fx()
+			shield_broken.emit()
+			return # Absorbed hit!
+
 	last_cause_of_death = cause
 	state_machine.change_state(PlayerStateMachine.State.DEAD)
 	velocity = Vector2.ZERO
 	died.emit(cause)
+
+func _play_shield_break_fx() -> void:
+	# Visual shield break sparkle / flash
+	if sprite:
+		var tw = create_tween()
+		if tw:
+			tw.tween_property(sprite, "modulate", Color(2.0, 2.0, 2.0), 0.08)
+			tw.tween_property(sprite, "modulate", Color.WHITE, 0.12)
+
+# --- Skill Actions ---
+
+func use_skill() -> bool:
+	if skill_manager:
+		var success = skill_manager.activate()
+		if success:
+			skill_used.emit(skill_manager.current_skill)
+		return success
+	return false
+
+func execute_bone_blade() -> void:
+	# Forward slash attack: queries hazards in front of dinosaur
+	_play_attack_anim()
+	if not is_inside_tree():
+		return
+
+	var hazards = get_tree().get_nodes_in_group("hazards")
+	for h in hazards:
+		if h is Hazard and not h.is_destroyed:
+			var dx = h.global_position.x - global_position.x
+			var dy = absf(h.global_position.y - global_position.y)
+			# Front reach 0..65px, height diff < 35px
+			if dx >= -5.0 and dx <= 65.0 and dy <= 35.0:
+				if h.category == Hazard.Category.BREAKABLE:
+					h.destroy_hazard()
+
+func execute_boomerang() -> void:
+	_play_attack_anim()
+	var boom = BoomerangProjectile.new()
+	boom.origin_player = self
+	boom.global_position = global_position + Vector2(16, -6)
+	var col = CollisionShape2D.new()
+	var circ = CircleShape2D.new()
+	circ.radius = 12.0
+	col.shape = circ
+	boom.add_child(col)
+
+	var spr = Sprite2D.new()
+	if ResourceLoader.exists("res://assets/sprites/skill_boomerang.png"):
+		spr.texture = load("res://assets/sprites/skill_boomerang.png")
+		spr.scale = Vector2(0.5, 0.5)
+	boom.add_child(spr)
+
+	if get_parent():
+		get_parent().add_child(boom)
+	elif is_inside_tree():
+		get_tree().current_scene.add_child(boom)
+
+func execute_ground_slam() -> void:
+	is_ground_slamming = true
+	state_machine.change_state(PlayerStateMachine.State.DIVE)
+	velocity.y = 700.0
+
+func _execute_ground_slam_shockwave() -> void:
+	if not is_inside_tree():
+		return
+	var hazards = get_tree().get_nodes_in_group("hazards")
+	for h in hazards:
+		if h is Hazard and not h.is_destroyed:
+			var dist = global_position.distance_to(h.global_position)
+			if dist <= 140.0:
+				if h.category == Hazard.Category.BREAKABLE or h.category == Hazard.Category.CRAWLER:
+					h.destroy_hazard()
+
+	# Shockwave ground flash
+	if sprite:
+		var tw = create_tween()
+		if tw:
+			tw.tween_property(sprite, "modulate", Color(1.5, 1.2, 0.5), 0.1)
+			tw.tween_property(sprite, "modulate", Color.WHITE, 0.15)
+
+func execute_air_dash() -> void:
+	is_air_dashing = true
+	air_dash_timer = 0.18
+	velocity = Vector2(current_speed + 320.0, 0.0)
+	state_machine.change_state(PlayerStateMachine.State.AIR_DASH)
+	_apply_takeoff_stretch()
+
+func set_magnet_active(active: bool) -> void:
+	is_magnet_active = active
+
+func set_bounce_multiplier(mult: float) -> void:
+	bounce_multiplier = mult
+
+func add_gems(amount: int = 1, score_bonus: int = 15) -> void:
+	gems_collected += amount
+	gem_collected.emit(gems_collected, score_bonus)
+	# Subtle collect hop / flash
+	if sprite:
+		var tw = create_tween()
+		if tw:
+			tw.tween_property(sprite, "modulate", Color(1.3, 1.3, 1.0), 0.06)
+			tw.tween_property(sprite, "modulate", Color.WHITE, 0.08)
+
+func _play_attack_anim() -> void:
+	if sprite:
+		var tw = create_tween()
+		if tw:
+			tw.tween_property(sprite, "rotation_degrees", 15.0, 0.08)
+			tw.tween_property(sprite, "rotation_degrees", 0.0, 0.12)
 
 func reset() -> void:
 	if state_machine.current_state == PlayerStateMachine.State.DEAD:
@@ -403,10 +563,18 @@ func reset() -> void:
 	jump_hold_timer = 0.0
 	slide_timer = 0.0
 	invulnerability_timer = 0.35 # Spawn shield against stale overlaps
+	gems_collected = 0
+	is_magnet_active = false
+	bounce_multiplier = 1.0
+	is_ground_slamming = false
+	is_air_dashing = false
+	if skill_manager:
+		skill_manager.clear_skill()
 	_exit_slide()
 	if sprite:
 		sprite.rotation_degrees = 0.0
 		sprite.scale = Vector2.ONE
+		sprite.modulate = Color.WHITE
 
 func _on_state_machine_state_changed(old_st: PlayerStateMachine.State, new_st: PlayerStateMachine.State) -> void:
 	state_changed.emit(old_st, new_st)
@@ -449,6 +617,10 @@ func _update_presentation(delta: float) -> void:
 		PlayerStateMachine.State.DIVE:
 			sprite.frame = 15
 			sprite.rotation_degrees = 0.0
+
+		PlayerStateMachine.State.AIR_DASH:
+			sprite.frame = 8
+			sprite.scale = Vector2(1.25, 0.8)
 
 		PlayerStateMachine.State.HURT:
 			sprite.frame = 16
