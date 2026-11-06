@@ -18,7 +18,7 @@ This directory stores locally generated build artifacts (Android APKs, packages,
 
 | File | Target | Version Code | Version Name | Size | SHA-256 Checksum | Evidence Level |
 |---|---|---|---|---|---|---|
-| `Riftosaur-debug.apk` | Android (arm64-v8a, x86_64) | 1 | 0.3.0 | 67,426,369 bytes (64.30 MB) | `436FC7D4C9748BB0AA48271F48F2AC3967520C00FE2B944FF16F9B9EF0A3801C` | L4 Static APK Verification (M5) |
+| `Riftosaur-debug.apk` | Android (arm64-v8a, x86_64) | 1 | 0.3.0 | 67,468,006 bytes (64.34 MB) | `7782A8CB37E24E5371C71BFCA33D232CB40192F0FE767BF4907A039B0FDCD81A` | L4 Static APK Verification (M6) |
 
 ---
 

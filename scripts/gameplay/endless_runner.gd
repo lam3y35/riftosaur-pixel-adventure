@@ -7,6 +7,7 @@ const ChallengeService = preload("res://scripts/systems/challenge_service.gd")
 @onready var camera: GameCamera = $GameCamera
 @onready var hud: GameHUD = $GameHUD
 @onready var chunk_container: Node2D = $ChunkContainer
+@onready var parallax_bg = get_node_or_null("ParallaxBackground")
 
 var save_service: SaveService
 var challenge_service: ChallengeService
@@ -14,6 +15,11 @@ var is_game_over: bool = false
 var is_paused: bool = false
 var is_game_started: bool = false
 var current_mode: int = 1 # 0 = Casual, 1 = Runner, 2 = Freestyle
+
+# Session 7 World Themes & Transitions
+var world_themes: Array[WorldTheme] = []
+var current_world_index: int = 0
+var next_transition_distance_m: float = 250.0
 
 var start_x: float = 100.0
 var distance_px: float = 0.0
@@ -81,6 +87,14 @@ func _ready() -> void:
 
 	# Apply initial skin
 	player.set_skin(save_service.get_equipped_skin())
+
+	# Load world themes
+	world_themes = [
+		load("res://resources/themes/theme_01_plains.tres"),
+		load("res://resources/themes/theme_02_jungle.tres"),
+		load("res://resources/themes/theme_03_frozen.tres"),
+		load("res://resources/themes/theme_04_volcanic.tres")
+	]
 
 	init_title_screen()
 
@@ -174,6 +188,15 @@ func _reset_world_state() -> void:
 	hud.update_skill_slot({}, 0.0, 0.0, 0)
 	hud.hide_flight_hud()
 
+	# Reset world theme to World 1 (Plains)
+	current_world_index = 0
+	if not world_themes.is_empty():
+		var t0 = world_themes[0]
+		next_transition_distance_m = t0.transition_distance_m
+		if parallax_bg:
+			parallax_bg.apply_theme_immediate(t0)
+		hud.update_world_name(t0.world_name)
+
 	# Spawn initial safe chunks: 0..960px is 100% open, guaranteed safe runway!
 	_spawn_chunk_by_index(0) # Chunk 1: Safe runway (0 to 480)
 	_spawn_chunk_by_index(0) # Chunk 2: Safe runway (480 to 960)
@@ -199,6 +222,10 @@ func _physics_process(_delta: float) -> void:
 
 	if challenge_service:
 		challenge_service.check_run_progress(distance_m, current_score, current_mode)
+
+	# Check World Transition
+	if distance_m >= next_transition_distance_m and current_world_index < world_themes.size() - 1:
+		_trigger_world_transition()
 
 	hud.update_hud(current_score, distance_m, save_service.get_best_score(), save_service.get_points())
 
@@ -364,3 +391,28 @@ func _on_skill_replaced(old_name: String, new_name: String) -> void:
 
 func _on_skill_updated(cd: float, dur: float, charges: int) -> void:
 	hud.update_skill_status(cd, dur, charges)
+
+# --- Session 7 World Transitions ---
+
+func _trigger_world_transition() -> void:
+	current_world_index += 1
+	if current_world_index >= world_themes.size():
+		return
+	var new_theme = world_themes[current_world_index]
+	next_transition_distance_m = new_theme.transition_distance_m
+
+	# 1. Spawn safe transition runway ahead (zero hazards, safe landing area)
+	var trans_scene = preload("res://scenes/obstacles/chunks/chunk_00_world_transition.tscn")
+	var trans_chunk = trans_scene.instantiate() as Node2D
+	trans_chunk.position = Vector2(next_chunk_x, 0.0)
+	chunk_container.add_child(trans_chunk)
+	chunk_pool.append(trans_chunk)
+	next_chunk_x += CHUNK_WIDTH
+
+	# 2. Smooth cross-fade of parallax background over 1.5s
+	if parallax_bg:
+		parallax_bg.transition_to_theme(new_theme, 1.5)
+
+	# 3. HUD announcement & label update
+	hud.update_world_name(new_theme.world_name)
+	hud.show_world_transition_card(new_theme.world_name, new_theme.mechanic_intro)

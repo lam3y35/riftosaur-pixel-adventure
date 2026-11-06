@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WorldTheme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/world_theme.gd" id="1_theme"]
+
+[resource]
+script = ExtResource("1_theme")
+world_id = "plains"
+world_name = "Prehistoric Plains"
+mechanic_intro = "Clear silhouettes, cactus hurdles, and high-speed running"
+sky_texture_path = "res://assets/sprites/bg_sky.png"
+distant_texture_path = "res://assets/sprites/bg_mountains.png"
+mid_texture_path = "res://assets/sprites/bg_hills.png"
+ground_tile_path = "res://assets/sprites/ground_tile.png"
+ambient_tint = Color(1, 1, 1, 1)
+gameplay_modifier = "NONE"
+transition_distance_m = 250.0

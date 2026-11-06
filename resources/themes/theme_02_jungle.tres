@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WorldTheme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/world_theme.gd" id="1_theme"]
+
+[resource]
+script = ExtResource("1_theme")
+world_id = "jungle"
+world_name = "Overgrown Jungle"
+mechanic_intro = "Dense vegetation with elevated canopy routes and bonus pickups"
+sky_texture_path = "res://assets/sprites/bg_jungle_sky.png"
+distant_texture_path = "res://assets/sprites/bg_jungle_canopy.png"
+mid_texture_path = "res://assets/sprites/bg_jungle_trees.png"
+ground_tile_path = "res://assets/sprites/ground_tile_jungle.png"
+ambient_tint = Color(0.85, 1.05, 0.9, 1)
+gameplay_modifier = "CANOPY_ROUTES"
+transition_distance_m = 500.0

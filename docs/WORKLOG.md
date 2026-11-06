@@ -1,25 +1,62 @@
 # Riftosaur Worklog & Session Tracking
 
 ## Current state
-- **Session:** Session 6 (Completed)
-- **Milestone:** M5 (Flight pickups, controls, routes, warnings, and safe landings)
-- **Last commit:** pending (tag: `m5-complete`)
+- **Session:** Session 7 (Completed)
+- **Milestone:** M6 (Four launch worlds, visual identities, transitions, safe chunks, and extensible themes)
+- **Last commit:** pending (tag: `m6-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
-  - Setup & Baseline: L2 Automated (50 tests passing, 0 failures, 0 skips)
-  - Movement & Core Loop: L3 Desktop play (Endless runner scene, vertical flight controls, Mechanical Wings, Rocket Relic, 4-frame flight animations, 2s landing warning, gentle glide landing transition, airborne storm clouds)
-  - Silhouette / Art: L3 Verified (4-frame mechanical wings anim, 4-frame rocket thruster anim, storm cloud sky obstacle, wings & rocket pickup orbs)
-  - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 (Analytic reach/rise fairness across all 17 chunks, 0 errors)
-  - Android Build: L4 Static APK Verification (67,426,369 bytes, SHA-256 `436FC7D4C9748BB0AA48271F48F2AC3967520C00FE2B944FF16F9B9EF0A3801C`, aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
+  - Setup & Baseline: L2 Automated (54 tests passing, 0 failures, 0 skips)
+  - Movement & Core Loop: L3 Desktop play (Endless runner scene, dynamic world transitions, 4 distinct biomes, parallax cross-fades, safe transition runway)
+  - Silhouette / Art: L3 Verified (13 world environment assets: 4 distinct world palettes, 3 parallax background layers per world, ground tilesets, lava hazards)
+  - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 (Analytic reach/rise fairness across all 18 chunks, 0 errors)
+  - Android Build: L4 Static APK Verification (67,468,006 bytes, SHA-256 `7782A8CB37E24E5371C71BFCA33D232CB40192F0FE767BF4907A039B0FDCD81A`, aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
   - Physical Android Play: L5 Owner Playtest #1 & #2 complete
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with flight routes, mechanical wings gliding, rocket thrust, and flight HUD, or approve launch of Session 7.
-- **Next action:** Execute Session 7 — Worlds and transitions (M6).
+- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with 4 distinct biomes and smooth transitions, or proceed with Session 8.
+- **Next action:** Execute Session 8 — Procedural generation and fairness (M7).
 
 ---
 
 ## Session entries
+
+### Session 7 — Worlds and Transitions (M6)
+- **Date:** 2026-11-06
+- **Milestone:** M6
+- **Start commit:** 752b1b6 (`m5-complete`)
+- **End commit:** pending (tag: `m6-complete`)
+- **Evidence levels reached:**
+  - L1 Static: Zero script/parse errors, all scenes instantiable, clean project validation via `tools/validate_l1.gd`.
+  - Validator V1: Analytic reach and rise fairness validation via `tools/validate_v1.gd` on all 18 chunks. Safe transition chunk contains 0 hazards and passes all reach/rise rules.
+  - L2 Automated: 54 passing automated unit and physics tests in `tests/test_runner.gd` (5 smoke + 1 replay + 9 movement + 4 save service + 8 endless runner loop + 5 vertical platform & springs + 10 skills & collectibles + 5 flight system + 4 world themes & transitions tests).
+  - L3 Desktop play: Live verified via `tools/verify_session7_worlds_run.gd`: sequential progression through Prehistoric Plains (0-250m), Overgrown Jungle (250-500m), Frozen Ruins (500-750m), and Volcanic Underworld (750m+), with HUD updates, 1.5s parallax cross-fade tweens, and guaranteed hazard-free runway chunks during transitions.
+  - L4 Android Build Verification: Debug APK exported to `releases/Riftosaur-debug.apk` (67,468,006 bytes, SHA-256 `7782A8CB37E24E5371C71BFCA33D232CB40192F0FE767BF4907A039B0FDCD81A`). Verified via `tools/verify_apk.ps1` with `aapt2`, `zipalign`, and `apksigner`.
+- **Delivered components:**
+  - 4 Launch Worlds and Theme Resources:
+    1. *World 1: Prehistoric Plains:* Sunlit amber sky, distant volcanic peaks, rolling hills, prehistoric dirt/grass.
+    2. *World 2: Overgrown Jungle:* Emerald canopy sky, ancient vine trees, mossy jungle foliage, overgrown ancient earth.
+    3. *World 3: Frozen Ruins:* Pale glacier sky, frosted jagged peaks, icy stone ruins, permafrost ground.
+    4. *World 4: Volcanic Underworld:* Smoldering ash sky, obsidian crater cliffs, cracked glowing magma hills, volcanic bedrock & lava pool hazards.
+  - WorldTheme Resource System (`scripts/world/world_theme.gd`):
+    - Data-driven `.tres` resources for theme definitions: id, display name, sky/distant/midground textures, ground tileset, ambient tint, ground y position.
+    - Full extensibility demonstrated and unit tested (`test_extensibility_custom_world_theme`).
+  - Parallax Layer Controller (`scripts/world/parallax_controller.gd`):
+    - Multi-layer parallax handling with separate scroll scale speeds (sky: 0.05, mountains: 0.15, hills: 0.35).
+    - Smooth 1.5-second cross-fade tween transitioning between themes without sudden pop or visual tear.
+  - Safe Transition Chunk (`scenes/obstacles/chunks/chunk_00_world_transition.tscn`):
+    - Guaranteed hazard-free 480px flat transition runway spawned at every world boundary.
+  - World Transition HUD:
+    - Current world label in TopBar (`WorldLabel`).
+    - Cinematic transition announcement card (`WorldTransitionCard`) displaying world entrance titles.
+- **Verification evidence:**
+  - L1: 0 errors across all scripts and scenes.
+  - Validator V1: 18 chunks validated, 0 errors.
+  - L2: 54/54 automated tests passed in `test_runner.gd`.
+  - L3: `tools/verify_session7_worlds_run.gd` passed with all 4 biomes.
+  - L4: APK export verified clean (67,468,006 bytes, SHA-256 `7782A8CB37E24E5371C71BFCA33D232CB40192F0FE767BF4907A039B0FDCD81A`).
+
+---
 
 ### Session 6 — Flight (M5)
 - **Date:** 2026-11-06

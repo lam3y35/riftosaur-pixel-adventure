@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WorldTheme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/world_theme.gd" id="1_theme"]
+
+[resource]
+script = ExtResource("1_theme")
+world_id = "frozen"
+world_name = "Frozen Ruins"
+mechanic_intro = "Sub-zero glaciers, frost platforms, and icy slide segments"
+sky_texture_path = "res://assets/sprites/bg_ice_sky.png"
+distant_texture_path = "res://assets/sprites/bg_ice_peaks.png"
+mid_texture_path = "res://assets/sprites/bg_ice_ruins.png"
+ground_tile_path = "res://assets/sprites/ground_tile_ice.png"
+ambient_tint = Color(0.9, 0.95, 1.15, 1)
+gameplay_modifier = "SLIPPERY_SURFACES"
+transition_distance_m = 750.0

@@ -26,6 +26,7 @@ signal flight_down_requested(pressed: bool)
 @onready var skill_slot: PanelContainer = get_node_or_null("TopBar/SkillSlot")
 @onready var skill_icon: TextureRect = get_node_or_null("TopBar/SkillSlot/HBox/SkillIcon")
 @onready var skill_label: Label = get_node_or_null("TopBar/SkillSlot/HBox/SkillLabel")
+@onready var world_label: Label = get_node_or_null("TopBar/WorldLabel")
 @onready var pause_button: Button = $TopBar/PauseButton
 
 @onready var touch_controls: Control = $TouchControls
@@ -44,6 +45,9 @@ signal flight_down_requested(pressed: bool)
 @onready var flight_icon_label: Label = get_node_or_null("FlightTimerBar/HBox/FlightIconLabel")
 @onready var flight_timer_label: Label = get_node_or_null("FlightTimerBar/HBox/FlightTimerLabel")
 @onready var flight_warning_label: Label = get_node_or_null("FlightTimerBar/HBox/FlightWarningLabel")
+@onready var world_card: PanelContainer = get_node_or_null("WorldTransitionCard")
+@onready var world_title_label: Label = get_node_or_null("WorldTransitionCard/VBox/WorldTitleLabel")
+@onready var world_intro_label: Label = get_node_or_null("WorldTransitionCard/VBox/WorldIntroLabel")
 
 @onready var start_menu: Control = $StartMenu
 @onready var start_panel: PanelContainer = $StartMenu/Panel
@@ -507,6 +511,25 @@ func hide_flight_hud() -> void:
 		skill_button.visible = true
 	if flight_timer_bar:
 		flight_timer_bar.visible = false
+
+# --- Session 7 World Transitions HUD ---
+
+func update_world_name(w_name: String) -> void:
+	if world_label:
+		world_label.text = "🌍 " + w_name.to_upper()
+
+func show_world_transition_card(w_name: String, intro: String) -> void:
+	if world_card and world_title_label and world_intro_label:
+		world_title_label.text = "ENTERING %s" % w_name.to_upper()
+		world_intro_label.text = intro
+		world_card.visible = true
+		world_card.modulate.a = 0.0
+		var tw = create_tween()
+		if tw:
+			tw.tween_property(world_card, "modulate:a", 1.0, 0.3)
+			tw.tween_interval(2.0)
+			tw.tween_property(world_card, "modulate:a", 0.0, 0.5)
+			tw.tween_callback(func(): world_card.visible = false)
 
 func show_game_over(cause: String, score: int, _distance_m: float = 0.0, best_score: int = 0, is_new_best: bool = false, run_pts: int = 0, total_pts: int = 0) -> void:
 	cause_label.text = cause

@@ -64,6 +64,9 @@ func _register_tests() -> void:
 	var flight_script = load("res://tests/unit/test_flight_system.gd")
 	if flight_script:
 		test_cases.append(flight_script.new())
+	var themes_script = load("res://tests/unit/test_world_themes.gd")
+	if themes_script:
+		test_cases.append(themes_script.new())
 
 func _run_single_test(test_obj: Object, method_name: String) -> void:
 	# Check if test object has setup
