@@ -5,9 +5,11 @@
 releases/*.apk
 releases/*.aab
 releases/*.idsig
+releases/*.zip
 *.apk
 *.aab
 *.idsig
+*.zip
 
 # Keystores and signing credentials
 *.keystore
