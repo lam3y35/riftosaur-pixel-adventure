@@ -165,15 +165,52 @@ func _process_state(delta: float) -> void:
 func _is_slide_pressed() -> bool:
 	return Input.is_action_pressed("slide") or slide_held
 
+func is_standing_on_one_way_platform() -> bool:
+	if not is_on_floor():
+		return false
+	for i in range(get_slide_collision_count()):
+		var col = get_slide_collision(i)
+		var collider = col.get_collider()
+		if collider and (collider.is_in_group("one_way_platform") or (collider.has_method("get") and collider.get("is_one_way") == true)):
+			if col.get_normal().y < -0.6:
+				return true
+	return false
+
+func drop_through_one_way_platform() -> void:
+	if state_machine.current_state == PlayerStateMachine.State.SLIDE:
+		_exit_slide()
+	position.y += 4.0
+	velocity.y = maxf(velocity.y, 80.0)
+	state_machine.change_state(PlayerStateMachine.State.JUMP_FALL)
+
+func bounce_launch(force: float, forward_boost: float = 0.0) -> void:
+	if state_machine.current_state == PlayerStateMachine.State.DEAD:
+		return
+	if state_machine.current_state == PlayerStateMachine.State.SLIDE:
+		_exit_slide()
+	jump_buffer_timer = 0.0
+	coyote_timer = 0.0
+	jump_hold_timer = 0.0
+	is_jump_holding = false
+	velocity.y = force
+	if forward_boost > 0.0:
+		velocity.x += forward_boost
+	state_machine.change_state(PlayerStateMachine.State.JUMP_RISE)
+	_apply_takeoff_stretch()
+	jumped.emit()
+
 func _handle_ground_state(_delta: float) -> void:
 	# Check for buffered or immediate jump
 	if jump_buffer_timer > 0.0:
 		_execute_jump()
 		return
 
-	# Check for slide
+	# Check for slide or drop-through
 	if _is_slide_pressed():
-		_enter_slide()
+		if is_standing_on_one_way_platform():
+			drop_through_one_way_platform()
+		else:
+			_enter_slide()
 		return
 
 	# Check if walked off a ledge
@@ -235,7 +272,10 @@ func _handle_land_state(_delta: float) -> void:
 		return
 
 	if _is_slide_pressed():
-		_enter_slide()
+		if is_standing_on_one_way_platform():
+			drop_through_one_way_platform()
+		else:
+			_enter_slide()
 		return
 
 	# Land state plays squash, then transitions back to run
@@ -310,7 +350,10 @@ func _post_movement_check(_delta: float) -> void:
 			if jump_buffer_timer > 0.0:
 				_execute_jump()
 			elif _is_slide_pressed():
-				_enter_slide()
+				if is_standing_on_one_way_platform():
+					drop_through_one_way_platform()
+				else:
+					_enter_slide()
 			else:
 				state_machine.change_state(PlayerStateMachine.State.LAND)
 

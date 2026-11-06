@@ -55,6 +55,9 @@ func _register_tests() -> void:
 	var runner_script = load("res://tests/unit/test_endless_runner.gd")
 	if runner_script:
 		test_cases.append(runner_script.new())
+	var vertical_script = load("res://tests/unit/test_vertical_platforms.gd")
+	if vertical_script:
+		test_cases.append(vertical_script.new())
 
 func _run_single_test(test_obj: Object, method_name: String) -> void:
 	# Check if test object has setup

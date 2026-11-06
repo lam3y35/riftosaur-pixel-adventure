@@ -19,6 +19,13 @@ if (-not $L2Only) {
         Write-Error "L1 Validation failed!"
         $exitCode = 1
     }
+
+    Write-Host "`n>>> Running Validator V1 (Analytic Reach/Rise Fairness) <<<" -ForegroundColor Cyan
+    & $godot --headless --path . --script tools/validate_v1.gd
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Validator V1 failed!"
+        $exitCode = 1
+    }
 }
 
 if (-not $L1Only -and $exitCode -eq 0) {

@@ -1,25 +1,75 @@
 # Riftosaur Worklog & Session Tracking
 
 ## Current state
-- **Session:** Session 3 (Completed)
-- **Milestone:** M2 (Endless run loop + first Android debug APK)
-- **Last commit:** 9a88d6e (tagged `m2-complete`)
+- **Session:** Session 4 (Completed)
+- **Milestone:** M3 (Vertical movement, platforms, springs, camera, Validator V1)
+- **Last commit:** pending (tagged `m3-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
-  - Setup & Baseline: L2 Automated (28 tests passing, 0 failures, 0 skips)
-  - Movement & Core Loop: L3 Desktop play (Endless runner scene, start menu, parallax background, hand-authored chunks, dynamic spawn/recycle, instant retry, pause/resume, skin shop, challenges)
-  - Silhouette / Art: L3 Verified (solid black-fill silhouettes verified at 1× and 3×, multi-layer parallax background, deadly crystal spikes, 5 distinct dino skins)
-  - Static Project Validation: L1 Static (0 errors, 0 warnings)
+  - Setup & Baseline: L2 Automated (35 tests passing, 0 failures, 0 skips)
+  - Movement & Core Loop: L3 Desktop play (Endless runner scene, vertical platforms, one-way drop-through, spring pads, multi-tier routes)
+  - Silhouette / Art: L3 Verified (solid black-fill silhouettes verified, pixel-art solid & one-way platforms, 4 distinct spring/boost objects)
+  - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 (Analytic reach/rise fairness across all 12 chunks, 0 errors)
   - Android Build: L4 Static APK Verification (aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
-  - Physical Android Play: L5 Owner Playtest #1 & #2 complete (All reported issues resolved: layout deconfliction, instant restart fix, main menu return button, 3 difficulty modes, pro art overhaul; challenges, points currency, and 5-skin shop added; latest APK verified)
+  - Physical Android Play: L5 Owner Playtest #1 & #2 complete
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with Challenges, Points, and Skin Shop, or approve launch of Session 4.
-- **Next action:** Execute Session 4 — Build vertical movement, platforms, spring objects, vertical camera tracking, and Validator V1 upon owner instruction.
+- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with vertical platforms, spring bounces, and dynamic camera tracking, or approve launch of Session 5.
+- **Next action:** Execute Session 5 — Skills and collectibles (M4).
 
 ---
 
 ## Session entries
+
+### Session 4 — Vertical movement and platforms (M3)
+- **Date:** 2026-11-06
+- **Milestone:** M3
+- **Start commit:** 00718ae (`m2-complete`)
+- **End commit:** pending (tag: `m3-complete`)
+- **Evidence levels reached:**
+  - L1 Static: Zero script/parse errors, all scenes instantiable, clean project validation via `tools/validate_l1.gd`.
+  - Validator V1: Analytic reach and rise fairness validation via `tools/validate_v1.gd` on all 12 chunks. All vertical platform rises conform to <= 80% maximum jump rise; all gaps conform to <= 80% horizontal reach; minimum reaction window verified.
+  - L2 Automated: 35 passing automated unit and physics tests in `tests/test_runner.gd` (5 smoke + 1 replay + 9 movement + 4 save service + 8 endless runner loop + 5 vertical platform & springs).
+  - L3 Desktop play: Full vertical movement, landing on elevated solid platforms, passing through and landing on one-way platforms, drop-through on down input, spring bounce pads with squash & stretch (mushrooms, stumps, launch pads, wind vents), and vertical camera tracking with dead zone.
+  - L4 Android Build Verification: Debug APK exported to `releases/Riftosaur-debug.apk` (67,307,109 bytes, SHA-256 `727B3554B8A56C07ABA421A0B6EEA995A1916F1BD0542763B9F199B966E614B0`). Verified via `tools/verify_apk.ps1` with `aapt2`, `zipalign`, and `apksigner`.
+- **Delivered components:**
+  - `Platform` (`scripts/world/platform.gd`): Solid stone platforms (`scenes/objects/platform_solid.tscn`) and one-way wooden platforms (`scenes/objects/platform_one_way.tscn`).
+  - `BouncePad` (`scripts/objects/bounce_pad.gd`): Interactive boost objects with 4 states (`IDLE`, `COMPRESSED`, `LAUNCHING`, `COOLDOWN`) across 4 variants (`scenes/objects/bounce_mushroom.tscn`, `bounce_stump.tscn`, `bounce_launchpad.tscn`, `boost_wind_vent.tscn`).
+  - Contextual Descent in `scripts/player/player.gd`: Drop-through on one-way platforms via `drop_through_one_way_platform()`, slide on solid ground, and dive in mid-air.
+  - Full Vertical Camera Tracking in `scripts/world/game_camera.gd`: Ground dead zone anchoring camera at baseline Y (135.0), smooth vertical follow with easing when ascending onto elevated ledges, upper camera bounds, and impact camera shake with reduce-motion option.
+  - Validator V1 (`tools/validate_v1.gd`): Automated analytic verification of reach, rise, and reaction windows.
+  - 4 New Hand-Authored Chunks: `chunk_09_mushroom_bounce.tscn`, `chunk_10_multi_tier_platforms.tscn`, `chunk_11_bounce_chain.tscn`, `chunk_12_wind_vent_ascent.tscn`.
+- **Bugs opened & closed:**
+  - *BUG-M3-01 (Closed):* Container node `Platforms` at (0,0) in `chunk_10` was matched by string name prefix in initial validator scan. Fixed by filtering for `child is Platform` or `StaticBody2D`.
+  - *BUG-M3-02 (Closed):* Validator evaluated local `p.position.y` instead of chunk-relative global position for nested platforms. Fixed by using `p.global_position.y - chunk.global_position.y`.
+- **Files created or modified:**
+  - `assets/sprites/platform_solid.png`
+  - `assets/sprites/platform_oneway.png`
+  - `assets/sprites/boost_mushroom.png`
+  - `assets/sprites/boost_stump.png`
+  - `assets/sprites/boost_launchpad.png`
+  - `assets/sprites/boost_wind_vent.png`
+  - `scripts/world/platform.gd`
+  - `scripts/objects/bounce_pad.gd`
+  - `scripts/world/game_camera.gd`
+  - `scripts/player/player.gd`
+  - `scripts/gameplay/endless_runner.gd`
+  - `scenes/objects/platform_solid.tscn`
+  - `scenes/objects/platform_one_way.tscn`
+  - `scenes/objects/bounce_mushroom.tscn`
+  - `scenes/objects/bounce_stump.tscn`
+  - `scenes/objects/bounce_launchpad.tscn`
+  - `scenes/objects/boost_wind_vent.tscn`
+  - `scenes/obstacles/chunks/chunk_09_mushroom_bounce.tscn`
+  - `scenes/obstacles/chunks/chunk_10_multi_tier_platforms.tscn`
+  - `scenes/obstacles/chunks/chunk_11_bounce_chain.tscn`
+  - `scenes/obstacles/chunks/chunk_12_wind_vent_ascent.tscn`
+  - `tools/validate_v1.gd`
+  - `tools/run_tests.ps1`
+  - `tests/unit/test_vertical_platforms.gd`
+  - `tests/test_runner.gd`
+- **Changes to plan:** None.
+- **Blockers:** None.
 
 ### Session 3 — Endless run loop + first Android debug APK (M2)
 - **Date:** 2026-11-05

@@ -32,14 +32,18 @@ func _ready() -> void:
 
 	# Load chunk scenes
 	chunk_scenes = [
-		preload("res://scenes/obstacles/chunks/chunk_01_empty.tscn"),        # 0: Safe breather
-		preload("res://scenes/obstacles/chunks/chunk_02_single_low.tscn"),    # 1: Single cactus hop
-		preload("res://scenes/obstacles/chunks/chunk_03_overhang.tscn"),      # 2: Stone arch slide
-		preload("res://scenes/obstacles/chunks/chunk_04_double_low.tscn"),    # 3: Double low rhythm
-		preload("res://scenes/obstacles/chunks/chunk_05_jump_and_slide.tscn"),# 4: Hop + slide combo
-		preload("res://scenes/obstacles/chunks/chunk_06_crate_step.tscn"),    # 5: Stepping crate + cactus
-		preload("res://scenes/obstacles/chunks/chunk_07_triple_low.tscn"),    # 6: Triple rhythm hurdles
-		preload("res://scenes/obstacles/chunks/chunk_08_double_crate.tscn")   # 7: Double crate stairway
+		preload("res://scenes/obstacles/chunks/chunk_01_empty.tscn"),                # 0: Safe breather
+		preload("res://scenes/obstacles/chunks/chunk_02_single_low.tscn"),            # 1: Single cactus hop
+		preload("res://scenes/obstacles/chunks/chunk_03_overhang.tscn"),              # 2: Stone arch slide
+		preload("res://scenes/obstacles/chunks/chunk_04_double_low.tscn"),            # 3: Double low rhythm
+		preload("res://scenes/obstacles/chunks/chunk_05_jump_and_slide.tscn"),        # 4: Hop + slide combo
+		preload("res://scenes/obstacles/chunks/chunk_06_crate_step.tscn"),            # 5: Stepping crate + cactus
+		preload("res://scenes/obstacles/chunks/chunk_07_triple_low.tscn"),            # 6: Triple rhythm hurdles
+		preload("res://scenes/obstacles/chunks/chunk_08_double_crate.tscn"),          # 7: Double crate stairway
+		preload("res://scenes/obstacles/chunks/chunk_09_mushroom_bounce.tscn"),      # 8: Mushroom bounce to high ledge
+		preload("res://scenes/obstacles/chunks/chunk_10_multi_tier_platforms.tscn"), # 9: Multi-tier one-way platforms
+		preload("res://scenes/obstacles/chunks/chunk_11_bounce_chain.tscn"),          # 10: Spring stump to launch pad chain
+		preload("res://scenes/obstacles/chunks/chunk_12_wind_vent_ascent.tscn")       # 11: Wind vent high terrace bypass
 	]
 
 	# Connect HUD signals
@@ -208,30 +212,30 @@ func _spawn_next_procedural_chunk() -> void:
 	var chunk_idx: int
 	if current_mode == 0:
 		# Spicy Arcade Jump: intense jump patterns with escalating difficulty
-		# Chunks: 0=empty, 1=single low, 3=double low, 5=crate step, 6=triple low, 7=double crate
+		# Chunks: 0=empty, 1=single low, 3=double low, 5=crate step, 6=triple low, 7=double crate, 8=mushroom, 9=multi-tier, 10=bounce chain
 		if distance_m < 35.0:
-			var pool = [0, 1, 1, 5]
+			var pool = [0, 1, 1, 5, 8]
 			chunk_idx = pool[randi() % pool.size()]
 		elif distance_m < 90.0:
-			var pool = [1, 3, 5, 7, 1, 5]
+			var pool = [1, 3, 5, 7, 8, 9]
 			chunk_idx = pool[randi() % pool.size()]
 		elif distance_m < 180.0:
-			var pool = [3, 5, 6, 7, 3, 6]
+			var pool = [3, 5, 6, 7, 8, 9, 10]
 			chunk_idx = pool[randi() % pool.size()]
 		else:
-			# High speed mayhem: triple rhythm hurdles, double hurdles, and crate leaps!
-			var pool = [3, 6, 6, 7, 6, 3]
+			# High speed mayhem: hurdles, crates, springs, and bounce chains!
+			var pool = [3, 6, 7, 8, 9, 10, 6]
 			chunk_idx = pool[randi() % pool.size()]
 	else:
-		# Runner & Freestyle: jump, slide, and platform variety
+		# Runner & Freestyle: full vertical platforming, slides, and bounce chains
 		if distance_m < 40.0:
-			var pool = [0, 1, 2, 5]
+			var pool = [0, 1, 2, 5, 8]
 			chunk_idx = pool[randi() % pool.size()]
 		elif distance_m < 120.0:
-			var pool = [1, 2, 3, 4, 5, 7]
+			var pool = [1, 2, 3, 4, 5, 7, 8, 9]
 			chunk_idx = pool[randi() % pool.size()]
 		else:
-			var pool = [2, 3, 4, 5, 6, 7]
+			var pool = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 			chunk_idx = pool[randi() % pool.size()]
 
 	_spawn_chunk_by_index(chunk_idx)
