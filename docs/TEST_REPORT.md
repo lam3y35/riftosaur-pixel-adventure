@@ -7,7 +7,7 @@
 - **Java Runtime:** JDK 17 HotSpot 64-bit (`C:\Program Files\Eclipse Adoptium\jdk-17.0.12.7-hotspot`)
 - **Android SDK:** API 34 (`platforms;android-34`, `build-tools;34.0.0`, `platform-tools` ADB 1.0.41)
 - **Report Date:** 2026-11-06
-- **Milestone:** M7 (Session 8 Complete)
+- **Milestone:** M8 part 2 (Session 10 Complete)
 
 ---
 
@@ -54,7 +54,20 @@
 ## 4. Level L2: Automated Unit & Physics Tests
 - **Runner:** `tests/test_runner.gd` via `tools/run_tests.ps1`
 - **Execution Mode:** Headless SceneTree (`--headless --script tests/test_runner.gd`)
-- **Overall Result:** PASSED (60 Passed, 0 Failed, 0 Skipped)
+- **Overall Result:** PASSED (71 Passed, 0 Failed, 0 Skipped)
+- **Suite Breakdown:**
+  1. `SmokeTest`: 5 tests
+  2. `ReplayDeterministicTest`: 1 test
+  3. `PlayerMovementTest`: 9 tests
+  4. `SaveServiceTest`: 4 tests
+  5. `EndlessRunnerLoopTest`: 8 tests
+  6. `VerticalPlatformSpringTest`: 5 tests
+  7. `SkillsAndCollectiblesTest`: 10 tests
+  8. `FlightSystemTest`: 5 tests
+  9. `WorldThemesAndTransitionsTest`: 4 tests
+  10. `ProceduralGenerationAndFairnessTest`: 6 tests
+  11. `UIAndScreensTest`: 6 tests
+  12. `ProgressionAndLifecycleTest`: 8 tests (Schema v2 migration, missing save fallback, pause on focus loss, resume retention, input release on focus loss, back button closes dialogs, back button pauses running game, back button unpauses).
 
 ---
 

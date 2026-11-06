@@ -73,6 +73,9 @@ func _register_tests() -> void:
 	var ui_script = load("res://tests/unit/test_ui_and_screens.gd")
 	if ui_script:
 		test_cases.append(ui_script.new())
+	var prog_script = load("res://tests/unit/test_progression_and_lifecycle.gd")
+	if prog_script:
+		test_cases.append(prog_script.new())
 
 func _run_single_test(test_obj: Object, method_name: String) -> void:
 	# Check if test object has setup

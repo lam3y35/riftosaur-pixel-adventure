@@ -63,6 +63,18 @@ Write-Host "   arm64-v8a native binary   : $hasArm64"
 Write-Host "   x86_64 native binary      : $hasX86"
 Write-Host "   assets/ archive bundled   : $hasPck"
 
+# 6. Permissions Verification (Session 10 / Spec B)
+Write-Host "`n6. Android Permissions Verification:" -ForegroundColor Yellow
+$permissions = & $aapt2 dump permissions $apkPath
+$hasVibrate = ($permissions -match "android.permission.VIBRATE").Count -gt 0
+$hasInternet = ($permissions -match "android.permission.INTERNET").Count -gt 0
+Write-Host "   android.permission.VIBRATE   : $hasVibrate"
+Write-Host "   android.permission.INTERNET  : $hasInternet"
+if ($hasInternet) {
+    Write-Error "Security/Spec violation: INTERNET permission found in offline build!"
+    exit 1
+}
+
 Write-Host "`n==================================================" -ForegroundColor Green
 Write-Host "APK Static Verification: PASSED (L4 Level Achieved)" -ForegroundColor Green
 Write-Host "==================================================" -ForegroundColor Green

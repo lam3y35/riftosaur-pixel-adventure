@@ -4,7 +4,7 @@ extends RefCounted
 const SAVE_PATH: String = "user://save_game.json"
 const TEMP_PATH: String = "user://save_game.tmp"
 const BACKUP_PATH: String = "user://save_game.bak"
-const CURRENT_VERSION: int = 1
+const CURRENT_VERSION: int = 2
 
 var data: Dictionary = {}
 
@@ -21,6 +21,12 @@ func get_default_data() -> Dictionary:
 		"unlocked_skins": ["classic"],
 		"equipped_skin": "classic",
 		"completed_challenges": [],
+		"mastery_challenges": [],
+		"milestones": {
+			"gems_collected_total": 0,
+			"hazards_broken_total": 0,
+			"max_world_reached": 1
+		},
 		"settings": {
 			"sound_enabled": true,
 			"vibration_enabled": true,
@@ -34,6 +40,30 @@ func get_default_data() -> Dictionary:
 		},
 		"unlocks": ["classic_desert"]
 	}
+
+func migrate_data(loaded_data: Dictionary) -> Dictionary:
+	var ver = int(loaded_data.get("version", 1))
+
+	# Migration: Version 1 -> Version 2
+	if ver < 2:
+		if not loaded_data.has("mastery_challenges"):
+			loaded_data["mastery_challenges"] = []
+		if not loaded_data.has("milestones"):
+			loaded_data["milestones"] = {
+				"gems_collected_total": 0,
+				"hazards_broken_total": 0,
+				"max_world_reached": 1
+			}
+		if not loaded_data.has("settings") or typeof(loaded_data["settings"]) != TYPE_DICTIONARY:
+			loaded_data["settings"] = get_default_data()["settings"]
+		else:
+			var defaults = get_default_data()["settings"]
+			for k in defaults:
+				if not loaded_data["settings"].has(k):
+					loaded_data["settings"][k] = defaults[k]
+		loaded_data["version"] = 2
+
+	return loaded_data
 
 func load_game() -> Dictionary:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -64,7 +94,7 @@ func load_game() -> Dictionary:
 		data = get_default_data()
 		return data
 
-	data = loaded_data
+	data = migrate_data(loaded_data)
 	return data
 
 func save_game() -> bool:
@@ -193,6 +223,34 @@ func complete_challenge(challenge_id: String, reward: int) -> bool:
 	data["completed_challenges"] = comp
 	add_points(reward) # Automatically awards points and saves
 	return true
+
+# Mastery Challenges & Milestones (Session 10)
+func get_mastery_challenges() -> Array:
+	return data.get("mastery_challenges", [])
+
+func is_mastery_completed(challenge_id: String) -> bool:
+	var comp = get_mastery_challenges()
+	return comp.has(challenge_id)
+
+func complete_mastery_challenge(challenge_id: String, reward: int = 50) -> bool:
+	var comp = get_mastery_challenges()
+	if comp.has(challenge_id):
+		return false
+	comp.append(challenge_id)
+	data["mastery_challenges"] = comp
+	add_points(reward)
+	return true
+
+func record_milestone(key: String, amount: int = 1) -> void:
+	if not data.has("milestones") or typeof(data["milestones"]) != TYPE_DICTIONARY:
+		data["milestones"] = get_default_data()["milestones"]
+	data["milestones"][key] = int(data["milestones"].get(key, 0)) + amount
+	save_game()
+
+func get_milestone(key: String) -> int:
+	if not data.has("milestones") or typeof(data["milestones"]) != TYPE_DICTIONARY:
+		return 0
+	return int(data["milestones"].get(key, 0))
 
 # Settings & Accessibility Management
 func get_setting(key: String, default_val = null) -> Variant:

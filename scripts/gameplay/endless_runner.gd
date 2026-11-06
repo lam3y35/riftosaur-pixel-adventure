@@ -271,6 +271,38 @@ func _unhandled_input(event: InputEvent) -> void:
 		toggle_pause()
 	elif event.is_action_pressed("jump") and is_game_over:
 		restart_run()
+	elif event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and event.keycode == KEY_BACK):
+		_handle_back_action()
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT:
+			# Android lifecycle: auto-pause on background/focus loss
+			if is_game_started and not is_game_over and not is_paused:
+				pause_game()
+				if player:
+					player.jump_held = false
+					player.slide_held = false
+					player.steer_input = 0.0
+
+func _handle_back_action() -> void:
+	if hud.settings_dialog and hud.settings_dialog.visible:
+		hud.close_settings()
+	elif hud.credits_dialog and hud.credits_dialog.visible:
+		hud.close_credits()
+	elif hud.tutorial_dialog and hud.tutorial_dialog.visible:
+		hud.close_tutorial()
+	elif hud.skin_shop_dialog and hud.skin_shop_dialog.visible:
+		hud.close_skin_shop()
+	elif hud.challenges_dialog and hud.challenges_dialog.visible:
+		hud.close_challenges()
+	elif is_game_started and not is_game_over:
+		if is_paused:
+			resume_game()
+		else:
+			pause_game()
+	elif is_game_over:
+		go_to_title_menu()
 
 func _spawn_chunk_by_index(idx: int) -> void:
 	var scene = chunk_scenes[idx % chunk_scenes.size()]

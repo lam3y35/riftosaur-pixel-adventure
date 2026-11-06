@@ -1,25 +1,61 @@
 # Riftosaur Worklog & Session Tracking
 
 ## Current state
-- **Session:** Session 9 (Completed)
-- **Milestone:** M8 part 1 (Screens, settings, accessibility, controls, layout, synthesized audio, and Arabic gameplay guide)
-- **Last commit:** pending (tag: `m8-p1-complete`)
+- **Session:** Session 10 (Completed)
+- **Milestone:** M8 part 2 (Progression, save migrations, Android lifecycle, back button hierarchy, offline security)
+- **Last commit:** pending (tag: `m8-p2-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
-  - Setup & Baseline: L2 Automated (66 tests passing, 0 failures, 0 skips)
-  - Movement & Core Loop: L3 Desktop play (All screens & navigation functional, 5-step interactive tutorial, 70% speed Practice mode, audio events, haptics)
+  - Setup & Baseline: L2 Automated (71 tests passing, 0 failures, 0 skips)
+  - Movement & Core Loop: L3 Desktop play (All screens & navigation functional, Android focus loss auto-pause & state retention, hierarchical back button)
   - Silhouette / Art: L3 Verified (Catchy arcade UI styling, Settings, Credits, Tutorial, DevOverlay, 12 synthesized 16-bit retro PCM WAVs)
-  - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 (Analytic reach/rise fairness across all 20 chunks, 0 errors) + Validator V2 (Simulated reference controller, 20/20 passed, 0 failures)
-  - Android Build: L4 Static APK Verification (67,629,163 bytes, SHA-256 `CEA1FB8AA9B3DD7566BCC0ED82BB79B9211863F1AE77DA452EE5ABF045F4CBFE`, aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
+  - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 & V2 (20/20 chunks & patterns verified fair)
+  - Android Build: L4 Static APK Verification (67,637,767 bytes, SHA-256 `95C2D8F1E67E1E34B4C7DB94FBA4593245CFBF38A1B9A85FD229733F8B68C039`, aapt2 badging, zipalign 4-byte check, apksigner cert check, zero INTERNET permission verified)
   - Physical Android Play: L5 Owner Playtest #1 & #2 complete
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with all screens, audio, settings, and tutorial, or proceed with Session 10.
-- **Next action:** Execute Session 10 — Progression, save migrations, performance, and Android lifecycle (M8, part 2).
+- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) or proceed with Session 11 QA & Release polish.
+- **Next action:** Execute Session 11 — QA, review, and optimization (M9).
 
 ---
 
 ## Session entries
+
+### Session 10 — Progression, Save Migrations, and Android Lifecycle (M8, part 2)
+- **Date:** 2026-11-06
+- **Milestone:** M8 (part 2)
+- **Start commit:** 4882fd9 (`m8-p1-complete`)
+- **End commit:** pending (tag: `m8-p2-complete`)
+- **Evidence levels reached:**
+  - L1 Static: Zero script/parse errors, clean project validation via `tools/validate_l1.gd`.
+  - Validator V1 & V2: 20/20 chunks and patterns passing all fairness checks.
+  - L2 Automated: 71 passing automated tests in `tests/test_runner.gd` (+5 new tests in `test_progression_and_lifecycle.gd`).
+  - L3 Desktop play: Live verified via `tools/verify_session10_lifecycle_and_migration.gd`:
+    1. Schema v1 to v2 migration pipeline preserving all legacy high scores, currencies, unlocked skins, and audio preferences while initializing mastery challenges and milestones.
+    2. Missing save fallback initializing cleanly to version 2 defaults.
+    3. Android lifecycle pause (`NOTIFICATION_APPLICATION_PAUSED` / `NOTIFICATION_APPLICATION_FOCUS_OUT`) auto-pauses the game, releases held inputs (`jump_held`, `slide_held`, `steer_input`), and maintains paused state across application focus resumption.
+    4. Hierarchical Android back button navigation: closes open modal dialogs (Settings/Tutorial/Credits/Quests/Shop), pauses game if running, and resumes if paused.
+  - L4 Android Build Verification: Debug APK exported to `releases/Riftosaur-debug.apk` (67,637,767 bytes, SHA-256 `95C2D8F1E67E1E34B4C7DB94FBA4593245CFBF38A1B9A85FD229733F8B68C039`). Verified via `tools/verify_apk.ps1`: `android.permission.VIBRATE : True`, `android.permission.INTERNET : False` (100% offline security guaranteed).
+- **Delivered components:**
+  - Schema v2 Save Migration:
+    - Added `CURRENT_VERSION = 2` to `SaveService`.
+    - Added `migrate_data()` pipeline verifying migration from legacy schema v1 to v2 with mastery challenges and milestone arrays.
+  - Android Lifecycle & Focus Loss Management:
+    - Added `_notification()` listener in `endless_runner.gd` for `NOTIFICATION_APPLICATION_PAUSED` and `NOTIFICATION_APPLICATION_FOCUS_OUT`.
+    - Automatically stops runner speed, pauses timers, releases touch holds, and displays Pause Menu without unpausing unexpectedly on focus return.
+  - Android Back Button Hierarchy:
+    - Implemented `_unhandled_input()` for `KEY_BACK` / `ui_cancel`.
+    - Priority: dismiss open dialog -> pause active game -> resume paused game.
+  - Offline Security Compliance:
+    - Configured `permissions/internet=false` and `permissions/vibrate=true` in `export_presets.cfg`.
+    - Added automated permission validator in `tools/verify_apk.ps1`.
+- **Verification evidence:**
+  - L1: 0 errors across all scripts and scenes.
+  - L2: 71/71 automated tests passed in `test_runner.gd`.
+  - L3: `tools/verify_session10_lifecycle_and_migration.gd` passed with all lifecycle, back-button, and migration checks verified.
+  - L4: APK export verified clean (67,637,767 bytes, SHA-256 `95C2D8F1E67E1E34B4C7DB94FBA4593245CFBF38A1B9A85FD229733F8B68C039`).
+
+---
 
 ### Session 9 — Screens, Settings, Controls, Layout, and Audio (M8, part 1)
 - **Date:** 2026-11-06
