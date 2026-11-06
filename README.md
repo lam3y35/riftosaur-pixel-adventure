@@ -8,12 +8,15 @@
 
 ## Overview
 
-**Riftosaur** is an original endless-runner platformer built in Godot Engine 4.x. It reimagines the classic desert runner with dynamic verticality, jumping/sliding/diving mechanics, active elemental abilities, and dimension-shifting rifts into alien, volcanic, and neon worlds.
+**Riftosaur** is an original endless-runner platformer built in Godot Engine 4.x. It reimagines the classic desert runner with dynamic verticality, jumping/sliding/diving mechanics, active elemental abilities, flight pickups, and procedural generation across 4 distinct worlds (Plains, Jungle, Frozen, Volcanic).
 
+- **Current Version:** `v1.0.0` (Production Release)
 - **Root Directory:** `C:\Users\Tweety\Desktop\DINO`
 - **Target Engine:** Godot Engine 4.7.2-stable official (`ed1daf0bf`)
 - **Render Mode:** `gl_compatibility` (OpenGL ES 3.0 compatible for broad mobile and desktop support)
 - **Logical Viewport:** 480 × 270 (16:9 pixel-perfect logical grid with nearest-neighbor scaling)
+- **Automated Test Suite:** 71 passing tests (100% pass rate) + 20/20 verified procedural patterns.
+- **Android Release:** `releases/Riftosaur-release.apk` (60.07 MB, SHA-256: `7E7E3A6DA48AA33913FDA77C9D3FEE654619F0ED32A47188458FBDE65D726204`)
 
 ---
 

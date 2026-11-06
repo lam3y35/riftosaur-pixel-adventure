@@ -1,25 +1,62 @@
 # Riftosaur Worklog & Session Tracking
 
 ## Current state
-- **Session:** Session 11 (Completed)
-- **Milestone:** M9 (QA, review, performance profiling, multi-layout verification, acceptance criteria closeout)
-- **Last commit:** pending (tag: `m9-complete`)
+- **Session:** Session 12 (Completed)
+- **Milestone:** M10 (Release, Production Keystore Signing, Release APK, Source ZIP, and Final Handoff)
+- **Last commit:** pending (tag: `v1.0.0`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
   - Setup & Baseline: L2 Automated (71 tests passing, 0 failures, 0 skips)
   - Movement & Core Loop: L3 Desktop play (All 12 Spec B scenarios passing, 0 leaks, 0 orphan nodes)
   - Silhouette / Art: L3 Verified (Classic recognizable silhouette, sharp nearest-neighbor integer scaling, 4 distinct biomes)
   - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 & V2 (20/20 chunks & patterns verified fair)
-  - Android Build: L4 Static APK Verification (67,637,767 bytes, SHA-256 `95C2D8F1E67E1E34B4C7DB94FBA4593245CFBF38A1B9A85FD229733F8B68C039`, aapt2 badging, zipalign 4-byte check, apksigner cert check, zero INTERNET permission verified)
+  - Android Build: L4 Static Release APK Verification (62,987,449 bytes, SHA-256 `7E7E3A6DA48AA33913FDA77C9D3FEE654619F0ED32A47188458FBDE65D726204`, production signed, 4-byte aligned, zero INTERNET permission verified)
   - Physical Android Play: L5 Owner Playtest #1 & #2 complete
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** Session 12 Owner Gate confirmation (repository visibility, license, package name) before release keystore generation and final release tag.
-- **Next action:** Execute Session 12 — Release and final handoff (M10).
+- **Owner actions:** Install `releases/Riftosaur-release.apk` on your phone and enjoy playing Riftosaur!
+- **Next action:** Final handoff complete.
 
 ---
 
 ## Session entries
+
+### Session 12 — Release and Final Handoff (M10)
+- **Date:** 2026-11-06
+- **Milestone:** M10
+- **Start commit:** 9436877 (`m9-complete`)
+- **End commit:** pending (tag: `v1.0.0`)
+- **Evidence levels reached:**
+  - L1 Static: Zero script/parse errors, clean project validation via `tools/validate_l1.gd`.
+  - Validator V1 & V2: 20/20 chunks and patterns passing all fairness checks.
+  - L2 Automated: 71 passing automated tests in `tests/test_runner.gd` (0 failures, 0 skips).
+  - L3 Desktop play & Spec B Scenarios: 12/12 scenarios passing.
+  - L4 Android Release Build Verification:
+    - Production APK: `releases/Riftosaur-release.apk` (62,987,449 bytes, 60.07 MB).
+    - SHA-256: `7E7E3A6DA48AA33913FDA77C9D3FEE654619F0ED32A47188458FBDE65D726204`.
+    - Signed via production release keystore `C:\Users\Tweety\.android\riftosaur-release.keystore` (RSA 2048-bit, 10,000 days validity).
+    - Verified via `tools/verify_apk.ps1`:
+      - Package name: `com.riftosaur.game`, versionCode: 1, versionName: 1.0.0.
+      - 4-byte zipalign verified.
+      - Apksigner v2 & v3 signatures verified.
+      - Permissions: `android.permission.VIBRATE : True`, `android.permission.INTERNET : False` (100% offline).
+    - Debug APK: `releases/Riftosaur-debug.apk` (67,654,686 bytes, SHA-256 `1F5E33E3DB9CA82F3A04A5F6C1E97B78C2682EEBADF93811BDEC85372FFB3D55`).
+  - Source Archive:
+    - Generated clean git source distribution: `releases/Riftosaur-source-v1.0.0.zip` via `git archive`.
+- **Delivered components:**
+  - Release keystore created outside repository (`C:\Users\Tweety\.android\riftosaur-release.keystore`).
+  - Android Release preset configured in `export_presets.cfg`.
+  - Production signed APK `releases/Riftosaur-release.apk` and updated `releases/SHA256SUMS.txt`.
+  - `LICENSE` file (MIT License).
+  - `docs/TROUBLESHOOTING_AR.md` (Arabic troubleshooting guide).
+  - Finalized `START_HERE_AR.md`, `CHANGELOG.md`, `README.md`, `docs/RELEASE_CHECKLIST.md`.
+  - Pre-push security & credential audit passed.
+- **Verification evidence:**
+  - L1: 0 errors across all scripts and scenes.
+  - L2: 71/71 automated tests passed in `test_runner.gd`.
+  - L4: Production APK verified clean.
+
+---
 
 ### Session 11 — QA, Review, and Optimization (M9)
 - **Date:** 2026-11-06

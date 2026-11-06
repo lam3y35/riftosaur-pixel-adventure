@@ -1,6 +1,8 @@
 # Spec D: Full APK Verification Script for Riftosaur
-$apkPath = "releases/Riftosaur-debug.apk"
-$buildTools = "C:\Users\Tweety\AppData\Local\Android\Sdk\build-tools\34.0.0"
+param(
+    [string]$apkPath = "releases/Riftosaur-release.apk"
+)
+$buildTools = "C:\Users\Tweety\AppData\Local\Android\Sdk\build-tools\36.0.0"
 $aapt2 = "$buildTools\aapt2.exe"
 $zipalign = "$buildTools\zipalign.exe"
 $apksigner = "$buildTools\apksigner.bat"
