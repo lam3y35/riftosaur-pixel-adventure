@@ -1,25 +1,62 @@
 # Riftosaur Worklog & Session Tracking
 
 ## Current state
-- **Session:** Session 7 (Completed)
-- **Milestone:** M6 (Four launch worlds, visual identities, transitions, safe chunks, and extensible themes)
-- **Last commit:** pending (tag: `m6-complete`)
+- **Session:** Session 8 (Completed)
+- **Milestone:** M7 (Procedural generation, pattern library, deterministic seeding, connectors, difficulty bands, Validator V2, and long-run stability)
+- **Last commit:** pending (tag: `m7-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
-  - Setup & Baseline: L2 Automated (54 tests passing, 0 failures, 0 skips)
-  - Movement & Core Loop: L3 Desktop play (Endless runner scene, dynamic world transitions, 4 distinct biomes, parallax cross-fades, safe transition runway)
-  - Silhouette / Art: L3 Verified (13 world environment assets: 4 distinct world palettes, 3 parallax background layers per world, ground tilesets, lava hazards)
-  - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 (Analytic reach/rise fairness across all 18 chunks, 0 errors)
-  - Android Build: L4 Static APK Verification (67,468,006 bytes, SHA-256 `7782A8CB37E24E5371C71BFCA33D232CB40192F0FE767BF4907A039B0FDCD81A`, aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
+  - Setup & Baseline: L2 Automated (60 tests passing, 0 failures, 0 skips)
+  - Movement & Core Loop: L3 Desktop play (Deterministic seed playback, procedural chunk sequencer, 20 chunk patterns, 5 difficulty bands, long-run 53km stability)
+  - Silhouette / Art: L3 Verified (20 chunk patterns, two 960px double-screen chunks, route classes: safe, challenging, optional-reward)
+  - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 (Analytic reach/rise fairness across all 20 chunks, 0 errors) + Validator V2 (Simulated reference controller, 20/20 passed, 0 failures)
+  - Android Build: L4 Static APK Verification (67,535,910 bytes, SHA-256 `50B0213665552DB782F2FC43EB427D7BBF17510EEFB4469808ED0E915044FE8E`, aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
   - Physical Android Play: L5 Owner Playtest #1 & #2 complete
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with 4 distinct biomes and smooth transitions, or proceed with Session 8.
-- **Next action:** Execute Session 8 — Procedural generation and fairness (M7).
+- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with procedural generation and deterministic seeds, or proceed with Session 9.
+- **Next action:** Execute Session 9 — Screens, settings, controls, layout, and audio (M8, part 1).
 
 ---
 
 ## Session entries
+
+### Session 8 — Procedural Generation and Fairness (M7)
+- **Date:** 2026-11-06
+- **Milestone:** M7
+- **Start commit:** 93792ab (`m6-complete`)
+- **End commit:** pending (tag: `m7-complete`)
+- **Evidence levels reached:**
+  - L1 Static: Zero script/parse errors, all scenes instantiable, clean project validation via `tools/validate_l1.gd`.
+  - Validator V1: Analytic reach and rise fairness validation via `tools/validate_v1.gd` on all 20 chunks (including 960px chunks `chunk_18_grand_ruins_gauntlet` and `chunk_19_volcanic_aerial_chasm`). All chunks conform to 80% physical reach & rise fairness constraints.
+  - Validator V2: Simulated reference controller validation via `tools/validate_v2.gd` with 0.25s reaction window and max speed simulation. 20/20 patterns verified fair with 0 failures or exclusions. Full report stored at `tests/validator_v2_report.json` and summarized in `docs/TEST_REPORT.md`.
+  - L2 Automated: 60 passing automated unit and physics tests in `tests/test_runner.gd` (5 smoke + 1 replay + 9 movement + 4 save service + 8 endless runner loop + 5 vertical platform & springs + 10 skills & collectibles + 5 flight system + 4 world themes & transitions + 6 procedural generation & fairness tests).
+  - L3 Desktop play: Headless 10-minute long-run stability simulation via `tools/verify_session8_stability.gd`: 600.0s game time, 53,117.1m run, max chunks in memory bounded strictly to <= 5, static memory stable at 69.02 MB with zero leak.
+  - L4 Android Build Verification: Debug APK exported to `releases/Riftosaur-debug.apk` (67,535,910 bytes, SHA-256 `50B0213665552DB782F2FC43EB427D7BBF17510EEFB4469808ED0E915044FE8E`). Verified via `tools/verify_apk.ps1` with `aapt2`, `zipalign`, and `apksigner`.
+- **Delivered components:**
+  - Chunk & Pattern Library (`scripts/world/level_pattern.gd` & `resources/patterns/`):
+    - 20 hand-authored pattern resources covering all single-screen (480px) and double-screen (960px) chunks.
+    - Tagged with world compatibility, difficulty bands (1 to 5), speed ranges, required movement tags, and route classes (`safe`, `challenging`, `optional_reward`).
+    - Explicit entry and exit physical connectors (`entry_height: 230`, `entry_surface: "solid"`, `exit_height: 230`, `exit_surface: "solid"`) ensuring seamless continuity.
+  - Procedural Level Generator (`scripts/world/level_generator.gd`):
+    - Deterministic seeding with reproducible chunk sequencing (`rng.seed = current_seed`).
+    - Difficulty bands progression: Band 1 (Teaching, 0-150m), Band 2 (150-350m), Band 3 (350-600m), Band 4 (600-900m), Band 5 (900m+).
+    - Connector continuity matching between adjacent chunks.
+    - Hard rules enforcement: no overlapping hazards, no unavoidable traps, no consecutive challenging patterns without breathing room, guaranteed safe world transition runways.
+    - Generation ahead of camera and strict memory pruning behind camera cutoff.
+  - HUD / Overlay Seed Indicator:
+    - `SeedLabel` in HUD TopBar showing active run seed (`🎲 <seed>`), keeping deterministic seeds clearly visible for testing and player reference.
+  - Validator V2 Tool (`tools/validate_v2.gd`):
+    - Headless automated reference controller validating all patterns with 0.25s reaction delay at maximum band speed.
+- **Verification evidence:**
+  - L1: 0 errors across all scripts and scenes.
+  - Validator V1: 20 chunks validated, 0 errors.
+  - Validator V2: 20/20 patterns passed, 0 failures, report saved to `tests/validator_v2_report.json`.
+  - L2: 60/60 automated tests passed in `test_runner.gd`.
+  - L3: `tools/verify_session8_stability.gd` 10-minute long-run passed (53,117.1m run, max 5 chunks in memory, 69.02 MB stable memory).
+  - L4: APK export verified clean (67,535,910 bytes, SHA-256 `50B0213665552DB782F2FC43EB427D7BBF17510EEFB4469808ED0E915044FE8E`).
+
+---
 
 ### Session 7 — Worlds and Transitions (M6)
 - **Date:** 2026-11-06

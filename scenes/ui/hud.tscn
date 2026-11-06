@@ -140,6 +140,16 @@ text = "🌍 PLAINS"
 label_settings = SubResource("LabelSettings_hud")
 vertical_alignment = 1
 
+[node name="SeedLabel" type="Label" parent="TopBar"]
+layout_mode = 0
+offset_left = 245.0
+offset_top = 32.0
+offset_right = 350.0
+offset_bottom = 54.0
+text = "SEED: 000000"
+label_settings = SubResource("LabelSettings_hud")
+vertical_alignment = 1
+
 [node name="PauseButton" type="Button" parent="TopBar"]
 layout_mode = 1
 anchors_preset = 1

@@ -1,0 +1,141 @@
+{
+  "by_band": {
+    "1": 3,
+    "2": 4,
+    "3": 5,
+    "4": 6,
+    "5": 2
+  },
+  "by_world": {
+    "frozen": 20,
+    "jungle": 20,
+    "plains": 20,
+    "volcanic": 20
+  },
+  "failed": 0,
+  "failures": [],
+  "passed": 20,
+  "patterns": [
+    {
+      "band": 1,
+      "id": "p00_world_transition",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 1,
+      "id": "p01_safe_breather",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 1,
+      "id": "p02_single_low_hop",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 2,
+      "id": "p03_stone_arch_slide",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 2,
+      "id": "p04_double_low_rhythm",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 3,
+      "id": "p05_jump_and_slide",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 2,
+      "id": "p06_crate_step_hurdle",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 3,
+      "id": "p07_triple_low_hurdles",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 2,
+      "id": "p08_double_crate_stair",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 3,
+      "id": "p09_mushroom_bounce",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 4,
+      "id": "p10_multi_tier_platforms",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 4,
+      "id": "p11_bounce_pad_chain",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 4,
+      "id": "p12_wind_vent_ascent",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 3,
+      "id": "p13_airborne_pterodactyl",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 3,
+      "id": "p14_crawler_and_barrier",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 4,
+      "id": "p15_skill_gem_cache",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 4,
+      "id": "p16_flight_wings_route",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 5,
+      "id": "p17_flight_rocket_route",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 4,
+      "id": "p18_grand_ruins_gauntlet",
+      "status": "PASSED",
+      "width": 960.0
+    },
+    {
+      "band": 5,
+      "id": "p19_volcanic_aerial_chasm",
+      "status": "PASSED",
+      "width": 960.0
+    }
+  ],
+  "total_patterns": 20
+}

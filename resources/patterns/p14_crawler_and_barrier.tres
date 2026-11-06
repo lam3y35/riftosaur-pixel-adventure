@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="LevelPattern" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/level_pattern.gd" id="1_pattern"]
+
+[resource]
+script = ExtResource("1_pattern")
+pattern_id = "p14_crawler_and_barrier"
+chunk_scene_path = "res://scenes/obstacles/chunks/chunk_14_crawler_and_barrier.tscn"
+chunk_width = 480.0
+world_ids = ["plains", "jungle", "frozen", "volcanic"]
+difficulty_band = 3
+speed_range = Vector2(350.0, 480.0)
+required_movement = ["run_and_jump"]
+route_class = "challenging"
+entry_height = 230.0
+entry_surface = "solid"
+exit_height = 230.0
+exit_surface = "solid"
+requires_skill = false
+skill_type = ""

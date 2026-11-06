@@ -1,0 +1,314 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/ground_chunk.gd" id="1_chunk"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground_tile.png" id="2_tile"]
+[ext_resource type="PackedScene" path="res://scenes/objects/bounce_mushroom.tscn" id="3_bounce"]
+[ext_resource type="PackedScene" path="res://scenes/objects/platform_one_way.tscn" id="4_oneway"]
+[ext_resource type="PackedScene" path="res://scenes/obstacles/obstacle_ground_low.tscn" id="5_low"]
+[ext_resource type="PackedScene" path="res://scenes/objects/collectible_gem.tscn" id="6_gem"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground"]
+size = Vector2(960, 40)
+
+[node name="ChunkVolcanicAerialChasm" type="Node2D"]
+script = ExtResource("1_chunk")
+pattern_name = "volcanic_aerial_chasm_960"
+difficulty = 5
+chunk_width = 960.0
+entry_height = 230.0
+entry_surface = "solid"
+exit_height = 230.0
+exit_surface = "solid"
+route_class = "optional_reward"
+difficulty_band = 5
+required_movement = ["run_and_jump", "bounce"]
+allowed_worlds = ["plains", "jungle", "frozen", "volcanic"]
+
+[node name="Ground" type="StaticBody2D" parent="."] 
+position = Vector2(0, 230)
+collision_layer = 2
+collision_mask = 1
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
+position = Vector2(480, 20)
+shape = SubResource("RectangleShape2D_ground")
+
+[node name="Tiles" type="Node2D" parent="Ground"]
+[node name="Tile_0" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(8, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_1" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(24, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_2" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(40, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_3" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(56, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_4" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(72, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_5" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(88, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_6" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(104, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_7" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(120, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_8" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(136, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_9" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(152, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_10" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(168, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_11" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(184, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_12" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(200, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_13" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(216, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_14" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(232, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_15" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(248, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_16" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(264, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_17" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(280, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_18" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(296, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_19" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(312, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_20" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(328, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_21" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(344, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_22" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(360, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_23" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(376, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_24" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(392, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_25" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(408, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_26" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(424, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_27" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(440, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_28" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(456, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_29" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(472, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_30" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(488, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_31" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(504, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_32" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(520, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_33" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(536, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_34" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(552, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_35" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(568, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_36" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(584, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_37" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(600, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_38" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(616, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_39" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(632, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_40" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(648, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_41" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(664, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_42" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(680, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_43" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(696, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_44" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(712, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_45" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(728, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_46" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(744, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_47" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(760, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_48" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(776, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_49" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(792, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_50" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(808, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_51" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(824, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_52" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(840, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_53" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(856, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_54" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(872, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_55" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(888, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_56" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(904, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_57" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(920, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_58" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(936, 8)
+texture = ExtResource("2_tile")
+
+[node name="Tile_59" type="Sprite2D" parent="Ground/Tiles"]
+position = Vector2(952, 8)
+texture = ExtResource("2_tile")
+
+[node name="BouncePad" parent="." instance=ExtResource("3_bounce")]
+position = Vector2(160, 230)
+
+[node name="HighPlatform1" parent="." instance=ExtResource("4_oneway")]
+position = Vector2(280, 160)
+
+[node name="BouncePad2" parent="." instance=ExtResource("3_bounce")]
+position = Vector2(380, 230)
+
+[node name="HighPlatform2" parent="." instance=ExtResource("4_oneway")]
+position = Vector2(480, 160)
+
+[node name="StepPlatform" parent="." instance=ExtResource("4_oneway")]
+position = Vector2(680, 188)
+
+[node name="Hazard1" parent="." instance=ExtResource("5_low")]
+position = Vector2(380, 230)
+
+[node name="Hazard2" parent="." instance=ExtResource("5_low")]
+position = Vector2(580, 230)
+
+[node name="Hazard3" parent="." instance=ExtResource("5_low")]
+position = Vector2(820, 230)
+
+[node name="Gem_280" parent="." instance=ExtResource("6_gem")]
+position = Vector2(280, 130)
+
+[node name="Gem_380" parent="." instance=ExtResource("6_gem")]
+position = Vector2(380, 130)
+
+[node name="Gem_480" parent="." instance=ExtResource("6_gem")]
+position = Vector2(480, 130)
+
+[node name="Gem_580" parent="." instance=ExtResource("6_gem")]
+position = Vector2(580, 130)
+
+[node name="Gem_680" parent="." instance=ExtResource("6_gem")]
+position = Vector2(680, 130)

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="LevelPattern" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/level_pattern.gd" id="1_pattern"]
+
+[resource]
+script = ExtResource("1_pattern")
+pattern_id = "p17_flight_rocket_route"
+chunk_scene_path = "res://scenes/obstacles/chunks/chunk_17_flight_rocket_route.tscn"
+chunk_width = 480.0
+world_ids = ["plains", "jungle", "frozen", "volcanic"]
+difficulty_band = 5
+speed_range = Vector2(420.0, 520.0)
+required_movement = ["flight"]
+route_class = "optional_reward"
+entry_height = 230.0
+entry_surface = "solid"
+exit_height = 230.0
+exit_surface = "solid"
+requires_skill = false
+skill_type = ""

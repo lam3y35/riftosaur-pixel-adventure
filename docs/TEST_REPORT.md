@@ -6,8 +6,8 @@
 - **Architecture:** x86_64
 - **Java Runtime:** JDK 17 HotSpot 64-bit (`C:\Program Files\Eclipse Adoptium\jdk-17.0.12.7-hotspot`)
 - **Android SDK:** API 34 (`platforms;android-34`, `build-tools;34.0.0`, `platform-tools` ADB 1.0.41)
-- **Report Date:** 2026-11-05
-- **Milestone:** M2 (Session 3 Complete)
+- **Report Date:** 2026-11-06
+- **Milestone:** M7 (Session 8 Complete)
 
 ---
 
@@ -18,14 +18,55 @@
   - `project.godot` configuration integrity (viewport 480×270, pixel snapping, stretch mode `viewport`, aspect `keep`).
   - Required input actions registered: `jump`, `slide`, `skill`, `pause`.
   - Main scene and core gameplay scenes resolvable and valid.
-  - Script compilation and autoload verification.
+  - Script compilation, autoloads, and resource definitions verified.
 
 ---
 
-## 2. Level L2: Automated Unit & Physics Tests
+## 2. Validator V1: Analytic Reach and Rise Fairness
+- **Tool:** `tools/validate_v1.gd`
+- **Result:** PASSED (20 Chunks Validated, 0 Errors, 0 Warnings)
+- **Checks Executed:**
+  - 80% maximum jump rise rule: all platforms comply with max rise 49.6px (80% of 62px peak rise) unless assisted by bounce pad/vent or stepped platform.
+  - Reaction window check at max player speed (520 px/s).
+  - Unavoidable sequence & vertical hazard trap prevention.
+
+---
+
+## 3. Validator V2: Simulated Reference Controller Validation
+- **Tool:** `tools/validate_v2.gd`
+- **Output Report:** `tests/validator_v2_report.json`
+- **Result:** PASSED (20/20 Patterns Passed, 0 Failures, 0 Exclusions)
+- **Reference Controller Specification:**
+  - Headless physical simulation through each chunk pattern.
+  - Realistic reaction delay: 0.25s perception window.
+  - Simulated at maximum pattern speed (up to 520 px/s).
+  - Allowed inputs only: Jump, Jump Hold, Slide, Flight Up, Flight Down, Dive.
+- **Pattern Distribution:**
+  - **Band 1 (Teaching, 0-150m):** 3 patterns (`p00_world_transition`, `p01_safe_breather`, `p02_single_low_hop`)
+  - **Band 2 (150-350m):** 4 patterns (`p03_stone_arch_slide`, `p04_double_low_rhythm`, `p06_crate_step_hurdle`, `p08_double_crate_stair`)
+  - **Band 3 (350-600m):** 5 patterns (`p05_jump_and_slide`, `p07_triple_low_hurdles`, `p09_mushroom_bounce`, `p13_airborne_pterodactyl`, `p14_crawler_and_barrier`)
+  - **Band 4 (600-900m):** 6 patterns (`p10_multi_tier_platforms`, `p11_bounce_pad_chain`, `p12_wind_vent_ascent`, `p15_skill_gem_cache`, `p16_flight_wings_route`, `p18_grand_ruins_gauntlet` [960px])
+  - **Band 5 (900m+):** 2 patterns (`p17_flight_rocket_route`, `p19_volcanic_aerial_chasm` [960px])
+- **Worlds Coverage:** All 4 worlds (`plains`, `jungle`, `frozen`, `volcanic`) mapped and validated.
+
+---
+
+## 4. Level L2: Automated Unit & Physics Tests
 - **Runner:** `tests/test_runner.gd` via `tools/run_tests.ps1`
 - **Execution Mode:** Headless SceneTree (`--headless --script tests/test_runner.gd`)
-- **Overall Result:** PASSED (28 Passed, 0 Failed, 0 Skipped)
+- **Overall Result:** PASSED (60 Passed, 0 Failed, 0 Skipped)
+
+---
+
+## 5. Level L3: Long-Run Stability & Memory Verification
+- **Tool:** `tools/verify_session8_stability.gd`
+- **Result:** PASSED (10.0 minutes game time simulated, 36,000 steps, 53,117.1m run)
+- **Metrics Recorded:**
+  - Max Active Chunks in Memory: 5 (bound <= 10)
+  - Start Static Memory: 42.31 MB
+  - Warmup Static Memory: 115.16 MB
+  - Final Static Memory: 69.02 MB
+  - Steady-State Drift: -46.14 MB (Zero leak, stable memory footprint)
 
 ### Detailed Suite Breakdown
 

@@ -2,6 +2,8 @@ class_name EndlessRunner
 extends Node2D
 
 const ChallengeService = preload("res://scripts/systems/challenge_service.gd")
+const LevelGenerator = preload("res://scripts/world/level_generator.gd")
+const LevelPattern = preload("res://scripts/world/level_pattern.gd")
 
 @onready var player: Player = $Player
 @onready var camera: GameCamera = $GameCamera
@@ -30,6 +32,10 @@ var next_chunk_x: float = 0.0
 var chunk_scenes: Array[PackedScene] = []
 var chunk_pool: Array[Node2D] = []
 const CHUNK_WIDTH: float = 480.0
+
+# Session 8 Level Generator & Deterministic Seeding
+var level_generator: LevelGenerator = LevelGenerator.new()
+var run_seed: int = 0
 
 func _ready() -> void:
 	save_service = SaveService.new()
@@ -197,6 +203,12 @@ func _reset_world_state() -> void:
 			parallax_bg.apply_theme_immediate(t0)
 		hud.update_world_name(t0.world_name)
 
+	# Initialize deterministic generator seed
+	if run_seed == 0:
+		run_seed = int(Time.get_ticks_msec() % 900000 + 100000)
+	level_generator.set_seed(run_seed)
+	hud.update_seed(run_seed)
+
 	# Spawn initial safe chunks: 0..960px is 100% open, guaranteed safe runway!
 	_spawn_chunk_by_index(0) # Chunk 1: Safe runway (0 to 480)
 	_spawn_chunk_by_index(0) # Chunk 2: Safe runway (480 to 960)
@@ -256,42 +268,34 @@ func _spawn_chunk_by_index(idx: int) -> void:
 	next_chunk_x += CHUNK_WIDTH
 
 func _spawn_next_procedural_chunk() -> void:
-	var chunk_idx: int
-	if current_mode == 0:
-		# Spicy Arcade Jump: intense jump patterns with escalating difficulty
-		# Chunks: 0=empty, 1=single low, 3=double low, 5=crate step, 6=triple low, 7=double crate, 8=mushroom, 9=multi-tier, 10=bounce chain
-		if distance_m < 35.0:
-			var pool = [0, 1, 1, 5, 8, 12]
-			chunk_idx = pool[randi() % pool.size()]
-		elif distance_m < 90.0:
-			var pool = [1, 3, 5, 7, 8, 9, 12, 13]
-			chunk_idx = pool[randi() % pool.size()]
-		elif distance_m < 180.0:
-			var pool = [3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15]
-			chunk_idx = pool[randi() % pool.size()]
-		else:
-			# High speed mayhem: hurdles, crates, springs, flight, and bounce chains!
-			var pool = [3, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16]
-			chunk_idx = pool[randi() % pool.size()]
-	else:
-		# Runner & Freestyle: full vertical platforming, slides, flight, and bounce chains
-		if distance_m < 40.0:
-			var pool = [0, 1, 2, 5, 8, 12]
-			chunk_idx = pool[randi() % pool.size()]
-		elif distance_m < 120.0:
-			var pool = [1, 2, 3, 4, 5, 7, 8, 9, 12, 13, 15]
-			chunk_idx = pool[randi() % pool.size()]
-		else:
-			var pool = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-			chunk_idx = pool[randi() % pool.size()]
+	var world_id = "plains"
+	if current_world_index < world_themes.size() and world_themes[current_world_index] != null:
+		world_id = world_themes[current_world_index].world_id
 
-	_spawn_chunk_by_index(chunk_idx)
+	var pat = level_generator.select_next_pattern(distance_m, player.current_speed, world_id)
+	if pat == null:
+		_spawn_chunk_by_index(0)
+		return
+
+	var scene = load(pat.chunk_scene_path) as PackedScene
+	if scene == null:
+		_spawn_chunk_by_index(0)
+		return
+
+	var chunk = scene.instantiate() as Node2D
+	chunk.position = Vector2(next_chunk_x, 0.0)
+	chunk_container.add_child(chunk)
+	chunk_pool.append(chunk)
+	next_chunk_x += pat.chunk_width
 
 func _cleanup_chunks_behind(cutoff_x: float) -> void:
 	var remaining: Array[Node2D] = []
 	for chunk in chunk_pool:
 		if is_instance_valid(chunk):
-			if chunk.position.x + CHUNK_WIDTH < cutoff_x:
+			var w = CHUNK_WIDTH
+			if "chunk_width" in chunk:
+				w = chunk.chunk_width
+			if chunk.position.x + w < cutoff_x:
 				chunk.queue_free()
 			else:
 				remaining.append(chunk)
@@ -402,12 +406,14 @@ func _trigger_world_transition() -> void:
 	next_transition_distance_m = new_theme.transition_distance_m
 
 	# 1. Spawn safe transition runway ahead (zero hazards, safe landing area)
+	var pat = level_generator.get_world_transition_pattern()
 	var trans_scene = preload("res://scenes/obstacles/chunks/chunk_00_world_transition.tscn")
 	var trans_chunk = trans_scene.instantiate() as Node2D
 	trans_chunk.position = Vector2(next_chunk_x, 0.0)
 	chunk_container.add_child(trans_chunk)
 	chunk_pool.append(trans_chunk)
-	next_chunk_x += CHUNK_WIDTH
+	var w = pat.chunk_width if pat != null else CHUNK_WIDTH
+	next_chunk_x += w
 
 	# 2. Smooth cross-fade of parallax background over 1.5s
 	if parallax_bg:

@@ -67,6 +67,9 @@ func _register_tests() -> void:
 	var themes_script = load("res://tests/unit/test_world_themes.gd")
 	if themes_script:
 		test_cases.append(themes_script.new())
+	var proc_script = load("res://tests/unit/test_procedural_generation.gd")
+	if proc_script:
+		test_cases.append(proc_script.new())
 
 func _run_single_test(test_obj: Object, method_name: String) -> void:
 	# Check if test object has setup

@@ -27,6 +27,7 @@ signal flight_down_requested(pressed: bool)
 @onready var skill_icon: TextureRect = get_node_or_null("TopBar/SkillSlot/HBox/SkillIcon")
 @onready var skill_label: Label = get_node_or_null("TopBar/SkillSlot/HBox/SkillLabel")
 @onready var world_label: Label = get_node_or_null("TopBar/WorldLabel")
+@onready var seed_label: Label = get_node_or_null("TopBar/SeedLabel")
 @onready var pause_button: Button = $TopBar/PauseButton
 
 @onready var touch_controls: Control = $TouchControls
@@ -517,6 +518,10 @@ func hide_flight_hud() -> void:
 func update_world_name(w_name: String) -> void:
 	if world_label:
 		world_label.text = "🌍 " + w_name.to_upper()
+
+func update_seed(seed_val: int) -> void:
+	if seed_label:
+		seed_label.text = "🎲 %d" % seed_val
 
 func show_world_transition_card(w_name: String, intro: String) -> void:
 	if world_card and world_title_label and world_intro_label:
