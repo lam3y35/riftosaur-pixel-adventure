@@ -8,6 +8,10 @@ signal died(cause: String)
 signal gem_collected(count: int, score_bonus: int)
 signal skill_used(type: int)
 signal shield_broken()
+signal flight_started(flight_type: int, duration: float)
+signal flight_warning(remaining_time: float)
+signal flight_ended()
+signal flight_time_updated(remaining_time: float, total_time: float)
 
 var last_cause_of_death: String = "Collision"
 
@@ -36,6 +40,18 @@ var bounce_multiplier: float = 1.0
 var is_ground_slamming: bool = false
 var is_air_dashing: bool = false
 var air_dash_timer: float = 0.0
+
+# Session 6 Flight State (M5)
+var is_flying: bool = false
+var flight_type: int = 0 # 1 = Mechanical Wings, 2 = Rocket Relic
+var flight_duration_total: float = 0.0
+var flight_timer: float = 0.0
+var flight_warning_time: float = 2.0
+var flight_warning_triggered: bool = false
+var flight_up_input: bool = false
+var flight_down_input: bool = false
+var flight_anim_timer: float = 0.0
+var flight_overlay: Sprite2D = null
 
 const SKIN_TEXTURES: Dictionary = {
 	"classic": "res://assets/sprites/dinosaur_sheet_classic.png",
@@ -187,6 +203,9 @@ func _process_state(delta: float) -> void:
 
 		PlayerStateMachine.State.AIR_DASH:
 			_handle_air_dash_state(delta)
+
+		PlayerStateMachine.State.FLIGHT:
+			_handle_flight_state(delta)
 
 func _is_slide_pressed() -> bool:
 	return Input.is_action_pressed("slide") or slide_held
@@ -341,6 +360,47 @@ func _handle_air_dash_state(delta: float) -> void:
 	if air_dash_timer <= 0.0:
 		is_air_dashing = false
 		state_machine.change_state(PlayerStateMachine.State.JUMP_FALL)
+
+func _handle_flight_state(delta: float) -> void:
+	flight_timer = maxf(flight_timer - delta, 0.0)
+	flight_time_updated.emit(flight_timer, flight_duration_total)
+
+	if flight_timer <= flight_warning_time and not flight_warning_triggered:
+		flight_warning_triggered = true
+		flight_warning.emit(flight_timer)
+
+	if flight_timer <= 0.0:
+		end_flight()
+		return
+
+	# Vertical control with up and down input
+	var kb_up = Input.is_action_pressed("jump") or Input.is_action_pressed("ui_up")
+	var kb_down = Input.is_action_pressed("slide") or Input.is_action_pressed("ui_down")
+	var up = kb_up or flight_up_input
+	var down = kb_down or flight_down_input
+
+	# Mechanical wings: steady lift & gliding (210 px/s / 130 px/s)
+	# Rocket relic: strong thrust (340 px/s / 160 px/s)
+	var up_speed = 210.0 if flight_type == 1 else 340.0
+	var down_speed = 130.0 if flight_type == 1 else 160.0
+
+	if up and not down:
+		velocity.y = -up_speed
+	elif down and not up:
+		# Spec: in flight, down input gives gradual descent, NEVER a grounded action
+		velocity.y = down_speed
+	else:
+		# Gentle float hover oscillation
+		velocity.y = sin(state_machine.time_in_state * 4.0) * 15.0
+
+	# Ceiling bound (y=40)
+	if position.y < 40.0 and velocity.y < 0.0:
+		velocity.y = 0.0
+		position.y = 40.0
+
+	# Floor touch during flight cushioned without crash
+	if is_on_floor() and velocity.y > 0.0:
+		velocity.y = 0.0
 
 func _execute_jump() -> void:
 	jump_buffer_timer = 0.0
@@ -548,6 +608,68 @@ func _play_attack_anim() -> void:
 			tw.tween_property(sprite, "rotation_degrees", 15.0, 0.08)
 			tw.tween_property(sprite, "rotation_degrees", 0.0, 0.12)
 
+# --- Session 6 Flight System ---
+
+func start_flight(type: int, duration: float = 0.0) -> void:
+	if state_machine.current_state == PlayerStateMachine.State.DEAD:
+		return
+	if state_machine.current_state == PlayerStateMachine.State.SLIDE:
+		_exit_slide()
+
+	flight_type = type
+	if duration <= 0.0:
+		duration = 7.0 if type == 1 else 5.0
+	flight_duration_total = duration
+	flight_timer = duration
+	flight_warning_triggered = false
+	is_flying = true
+	_setup_flight_overlay()
+	state_machine.change_state(PlayerStateMachine.State.FLIGHT)
+	flight_started.emit(flight_type, flight_duration_total)
+
+func end_flight() -> void:
+	if not is_flying:
+		return
+	is_flying = false
+	flight_timer = 0.0
+	flight_up_input = false
+	flight_down_input = false
+	if flight_overlay:
+		flight_overlay.visible = false
+
+	# Spec: Return to normal physics gradually, with no sudden drop, and support landing.
+	velocity.y = 60.0 # Gentle forward glide descent
+	state_machine.change_state(PlayerStateMachine.State.JUMP_FALL)
+	flight_ended.emit()
+
+func set_flight_input(up: bool, down: bool) -> void:
+	flight_up_input = up
+	flight_down_input = down
+
+func _setup_flight_overlay() -> void:
+	if flight_overlay == null:
+		flight_overlay = Sprite2D.new()
+		flight_overlay.name = "FlightOverlay"
+		flight_overlay.hframes = 4
+		add_child(flight_overlay)
+
+	if flight_type == 1:
+		# Mechanical wings
+		if ResourceLoader.exists("res://assets/sprites/flight_wings_anim.png"):
+			flight_overlay.texture = load("res://assets/sprites/flight_wings_anim.png")
+			flight_overlay.position = Vector2(0, -6)
+			flight_overlay.scale = Vector2.ONE
+	elif flight_type == 2:
+		# Rocket thruster flame
+		if ResourceLoader.exists("res://assets/sprites/flight_flame_anim.png"):
+			flight_overlay.texture = load("res://assets/sprites/flight_flame_anim.png")
+			flight_overlay.position = Vector2(-16, 4)
+			flight_overlay.rotation_degrees = -90.0
+			flight_overlay.scale = Vector2.ONE
+
+	flight_overlay.visible = true
+	flight_anim_timer = 0.0
+
 func reset() -> void:
 	if state_machine.current_state == PlayerStateMachine.State.DEAD:
 		state_machine.change_state(PlayerStateMachine.State.RESPAWN)
@@ -568,6 +690,12 @@ func reset() -> void:
 	bounce_multiplier = 1.0
 	is_ground_slamming = false
 	is_air_dashing = false
+	is_flying = false
+	flight_timer = 0.0
+	flight_up_input = false
+	flight_down_input = false
+	if flight_overlay:
+		flight_overlay.visible = false
 	if skill_manager:
 		skill_manager.clear_skill()
 	_exit_slide()
@@ -621,6 +749,13 @@ func _update_presentation(delta: float) -> void:
 		PlayerStateMachine.State.AIR_DASH:
 			sprite.frame = 8
 			sprite.scale = Vector2(1.25, 0.8)
+
+		PlayerStateMachine.State.FLIGHT:
+			sprite.frame = 8
+			sprite.rotation_degrees = -6.0 if velocity.y < -30.0 else (8.0 if velocity.y > 30.0 else 0.0)
+			if flight_overlay and flight_overlay.visible:
+				flight_anim_timer += delta * 12.0
+				flight_overlay.frame = int(flight_anim_timer) % 4
 
 		PlayerStateMachine.State.HURT:
 			sprite.frame = 16

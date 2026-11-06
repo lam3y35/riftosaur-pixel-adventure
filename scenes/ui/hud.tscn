@@ -219,6 +219,46 @@ grow_horizontal = 0
 grow_vertical = 0
 text = "▲ JUMP"
 
+[node name="FlightControls" type="Control" parent="TouchControls"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="FlightUpButton" type="Button" parent="TouchControls/FlightControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -96.0
+offset_top = -106.0
+offset_right = -14.0
+offset_bottom = -64.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "▲ ASCEND"
+
+[node name="FlightDownButton" type="Button" parent="TouchControls/FlightControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -96.0
+offset_top = -54.0
+offset_right = -14.0
+offset_bottom = -12.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "▼ DESCEND"
+
 [node name="StartMenu" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 15
@@ -704,3 +744,36 @@ text = "Bone Blade Equipped!"
 label_settings = SubResource("LabelSettings_gold")
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="FlightTimerBar" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -110.0
+offset_top = 4.0
+offset_right = 110.0
+offset_bottom = 28.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="HBox" type="HBoxContainer" parent="FlightTimerBar"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="FlightIconLabel" type="Label" parent="FlightTimerBar/HBox"]
+layout_mode = 2
+text = "✈"
+label_settings = SubResource("LabelSettings_gold")
+
+[node name="FlightTimerLabel" type="Label" parent="FlightTimerBar/HBox"]
+layout_mode = 2
+text = "FLIGHT: 7.0s"
+label_settings = SubResource("LabelSettings_hud")
+
+[node name="FlightWarningLabel" type="Label" parent="FlightTimerBar/HBox"]
+visible = false
+layout_mode = 2
+text = "⚠ LANDING SOON!"
+label_settings = SubResource("LabelSettings_gold")

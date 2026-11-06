@@ -1,31 +1,86 @@
 # Riftosaur Worklog & Session Tracking
 
 ## Current state
-- **Session:** Session 5 (Completed)
-- **Milestone:** M4 (Skills and collectibles)
-- **Last commit:** pending (tag: `m4-complete`)
+- **Session:** Session 6 (Completed)
+- **Milestone:** M5 (Flight pickups, controls, routes, warnings, and safe landings)
+- **Last commit:** pending (tag: `m5-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
-  - Setup & Baseline: L2 Automated (45 tests passing, 0 failures, 0 skips)
-  - Movement & Core Loop: L3 Desktop play (Endless runner scene, single active skill slot with 8 skills, collectibles, air dash, ground slam shockwave, stone shield absorption, HUD skill slot and dedicated on-screen button)
-  - Silhouette / Art: L3 Verified (8 distinct 32x32 skill icons, amber gem collectible, floating skill orb pickup, pterodactyl airborne hazard, crawler hazard)
-  - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 (Analytic reach/rise fairness across all 15 chunks, 0 errors)
-  - Android Build: L4 Static APK Verification (67,382,478 bytes, SHA-256 `F269B6026965238029B94F4090E104BC0FB35DBD2F60687D878ABC4FB6B11500`, aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
+  - Setup & Baseline: L2 Automated (50 tests passing, 0 failures, 0 skips)
+  - Movement & Core Loop: L3 Desktop play (Endless runner scene, vertical flight controls, Mechanical Wings, Rocket Relic, 4-frame flight animations, 2s landing warning, gentle glide landing transition, airborne storm clouds)
+  - Silhouette / Art: L3 Verified (4-frame mechanical wings anim, 4-frame rocket thruster anim, storm cloud sky obstacle, wings & rocket pickup orbs)
+  - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 (Analytic reach/rise fairness across all 17 chunks, 0 errors)
+  - Android Build: L4 Static APK Verification (67,426,369 bytes, SHA-256 `436FC7D4C9748BB0AA48271F48F2AC3967520C00FE2B944FF16F9B9EF0A3801C`, aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
   - Physical Android Play: L5 Owner Playtest #1 & #2 complete
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with 8 active skills, amber gems, airborne & crawler enemies, and dedicated touch skill button, or approve launch of Session 6.
-- **Next action:** Execute Session 6 — Flight (M5).
+- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with flight routes, mechanical wings gliding, rocket thrust, and flight HUD, or approve launch of Session 7.
+- **Next action:** Execute Session 7 — Worlds and transitions (M6).
 
 ---
 
 ## Session entries
 
+### Session 6 — Flight (M5)
+- **Date:** 2026-11-06
+- **Milestone:** M5
+- **Start commit:** 7d41118 (`m4-complete`)
+- **End commit:** pending (tag: `m5-complete`)
+- **Evidence levels reached:**
+  - L1 Static: Zero script/parse errors, all scenes instantiable, clean project validation via `tools/validate_l1.gd`.
+  - Validator V1: Analytic reach and rise fairness validation via `tools/validate_v1.gd` on all 17 chunks. All flight route platforms and clear strips conform to reach/rise limits.
+  - L2 Automated: 50 passing automated unit and physics tests in `tests/test_runner.gd` (5 smoke + 1 replay + 9 movement + 4 save service + 8 endless runner loop + 5 vertical platform & springs + 10 skills & collectibles + 5 flight system tests).
+  - L3 Desktop play: Live verified via `tools/verify_session6_flight_run.gd`: pickup of Mechanical Wings & Rocket Relic, vertical ascent/descent, automatic horizontal progress, down input giving gradual descent without grounded actions, 2s landing warning with flashing HUD indicator, smooth landing glide, and timer preservation during pause/resume.
+  - L4 Android Build Verification: Debug APK exported to `releases/Riftosaur-debug.apk` (67,426,369 bytes, SHA-256 `436FC7D4C9748BB0AA48271F48F2AC3967520C00FE2B944FF16F9B9EF0A3801C`). Verified via `tools/verify_apk.ps1` with `aapt2`, `zipalign`, and `apksigner`.
+- **Delivered components:**
+  - Two Flight Pickups:
+    1. *Mechanical Wings:* Steady lift (up 210 px/s, glide 130 px/s), 7.0s duration with 4-frame flapping wing overlay animation (`scenes/objects/flight_pickup_wings.tscn`).
+    2. *Rocket Relic:* Strong thrust (up 340 px/s, descent 160 px/s), 5.0s duration with 4-frame animated fiery rocket thruster flame (`scenes/objects/flight_pickup_rocket.tscn`).
+  - Flight Controls & Physics:
+    - Vertical control with up and down inputs (W/S, Up/Down, plus dedicated on-screen `FlightUpButton` and `FlightDownButton`).
+    - Flight controls shown *ONLY* during flight.
+    - Down input provides gradual descent, never a slide or dive.
+    - Gentle landing support: initial exit velocity is 60 px/s glide, smoothly returning to normal physics without a sudden drop.
+  - Flight HUD:
+    - Flight duration indicator (`FlightTimerBar` in HUD TopBar).
+    - 2-second pre-expiry warning indicator flashing yellow/red.
+  - Sky Hazard:
+    - `ObstacleStormCloud` (`scenes/obstacles/obstacle_storm_cloud.tscn`): Airborne electrical cloud obstacle.
+  - 2 New Hand-Authored Chunks:
+    - `chunk_16_flight_wings_route.tscn`: Wings flight path with sky gem arcs and cloud hazards.
+    - `chunk_17_flight_rocket_route.tscn`: Rocket thrust path with high gems and pterodactyl gauntlet leading to an elevated landing terrace.
+  - Automated Tests: 5 comprehensive tests in `tests/unit/test_flight_system.gd` registered in `tests/test_runner.gd`.
+- **Bugs opened & closed:**
+  - *BUG-M5-01 (Closed):* GDScript 4 primitive boolean capture in test lambda prevented detection of `flight_ended` signal. Fixed by using reference dictionary container.
+- **Files created or modified:**
+  - `assets/sprites/pickup_flight_wings.png`
+  - `assets/sprites/pickup_flight_rocket.png`
+  - `assets/sprites/flight_wings_anim.png`
+  - `assets/sprites/flight_flame_anim.png`
+  - `assets/sprites/obstacle_storm_cloud.png`
+  - `scripts/objects/flight_pickup.gd`
+  - `scenes/objects/flight_pickup_wings.tscn`
+  - `scenes/objects/flight_pickup_rocket.tscn`
+  - `scenes/obstacles/obstacle_storm_cloud.tscn`
+  - `scenes/obstacles/chunks/chunk_16_flight_wings_route.tscn`
+  - `scenes/obstacles/chunks/chunk_17_flight_rocket_route.tscn`
+  - `scripts/player/player.gd`
+  - `scripts/gameplay/endless_runner.gd`
+  - `scripts/ui/hud.gd`
+  - `scenes/ui/hud.tscn`
+  - `tests/unit/test_flight_system.gd`
+  - `tests/test_runner.gd`
+  - `tools/verify_session6_flight_run.gd`
+- **Changes to plan:** None.
+- **Blockers:** None.
+
+---
+
 ### Session 5 — Skills and collectibles (M4)
 - **Date:** 2026-11-06
 - **Milestone:** M4
 - **Start commit:** 4dadf27 (`m3-complete`)
-- **End commit:** pending (tag: `m4-complete`)
+- **End commit:** 7d41118 (tag: `m4-complete`)
 - **Evidence levels reached:**
   - L1 Static: Zero script/parse errors, all scenes instantiable, clean project validation via `tools/validate_l1.gd`.
   - Validator V1: Analytic reach and rise fairness validation via `tools/validate_v1.gd` on all 15 chunks. All vertical platform rises conform to <= 80% maximum jump rise; all gaps conform to <= 80% horizontal reach; minimum reaction window verified.

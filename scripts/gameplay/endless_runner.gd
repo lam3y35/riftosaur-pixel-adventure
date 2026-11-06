@@ -46,7 +46,9 @@ func _ready() -> void:
 		preload("res://scenes/obstacles/chunks/chunk_12_wind_vent_ascent.tscn"),       # 11: Wind vent high terrace bypass
 		preload("res://scenes/obstacles/chunks/chunk_13_airborne_pterodactyl.tscn"),   # 12: Airborne pterodactyl & gems
 		preload("res://scenes/obstacles/chunks/chunk_14_crawler_and_barrier.tscn"),     # 13: Crawler & breakable barrier + skill
-		preload("res://scenes/obstacles/chunks/chunk_15_skill_gem_cache.tscn")          # 14: Skill & gem platform cache
+		preload("res://scenes/obstacles/chunks/chunk_15_skill_gem_cache.tscn"),         # 14: Skill & gem platform cache
+		preload("res://scenes/obstacles/chunks/chunk_16_flight_wings_route.tscn"),      # 15: Mechanical wings flight route
+		preload("res://scenes/obstacles/chunks/chunk_17_flight_rocket_route.tscn")      # 16: Rocket relic flight route
 	]
 
 	# Connect HUD signals
@@ -61,11 +63,16 @@ func _ready() -> void:
 	hud.menu_requested.connect(go_to_title_menu)
 	hud.skin_selected.connect(_on_skin_selected)
 	hud.skill_requested.connect(_on_hud_skill)
+	hud.flight_up_requested.connect(func(p): player.flight_up_input = p)
+	hud.flight_down_requested.connect(func(p): player.flight_down_input = p)
 
 	# Connect Player signals
 	player.died.connect(_on_player_died)
 	player.jumped.connect(_on_player_jumped)
 	player.gem_collected.connect(_on_player_gem_collected)
+	player.flight_started.connect(func(t, d): hud.show_flight_hud(t, d))
+	player.flight_time_updated.connect(func(r, tot): hud.update_flight_timer(r, tot))
+	player.flight_ended.connect(func(): hud.hide_flight_hud())
 
 	if player.skill_manager:
 		player.skill_manager.skill_equipped.connect(_on_skill_equipped)
@@ -165,6 +172,7 @@ func _reset_world_state() -> void:
 	current_score = 0
 	hud.update_gems(0)
 	hud.update_skill_slot({}, 0.0, 0.0, 0)
+	hud.hide_flight_hud()
 
 	# Spawn initial safe chunks: 0..960px is 100% open, guaranteed safe runway!
 	_spawn_chunk_by_index(0) # Chunk 1: Safe runway (0 to 480)
@@ -232,22 +240,22 @@ func _spawn_next_procedural_chunk() -> void:
 			var pool = [1, 3, 5, 7, 8, 9, 12, 13]
 			chunk_idx = pool[randi() % pool.size()]
 		elif distance_m < 180.0:
-			var pool = [3, 5, 6, 7, 8, 9, 10, 12, 13, 14]
+			var pool = [3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15]
 			chunk_idx = pool[randi() % pool.size()]
 		else:
-			# High speed mayhem: hurdles, crates, springs, and bounce chains!
-			var pool = [3, 6, 7, 8, 9, 10, 12, 13, 14]
+			# High speed mayhem: hurdles, crates, springs, flight, and bounce chains!
+			var pool = [3, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16]
 			chunk_idx = pool[randi() % pool.size()]
 	else:
-		# Runner & Freestyle: full vertical platforming, slides, and bounce chains
+		# Runner & Freestyle: full vertical platforming, slides, flight, and bounce chains
 		if distance_m < 40.0:
 			var pool = [0, 1, 2, 5, 8, 12]
 			chunk_idx = pool[randi() % pool.size()]
 		elif distance_m < 120.0:
-			var pool = [1, 2, 3, 4, 5, 7, 8, 9, 12, 13]
+			var pool = [1, 2, 3, 4, 5, 7, 8, 9, 12, 13, 15]
 			chunk_idx = pool[randi() % pool.size()]
 		else:
-			var pool = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+			var pool = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 			chunk_idx = pool[randi() % pool.size()]
 
 	_spawn_chunk_by_index(chunk_idx)

@@ -15,6 +15,8 @@ signal retry_requested()
 signal menu_requested()
 signal skin_selected(skin_id: String)
 signal skill_requested()
+signal flight_up_requested(pressed: bool)
+signal flight_down_requested(pressed: bool)
 
 @onready var score_label: Label = $TopBar/ScoreLabel
 @onready var distance_label: Label = get_node_or_null("TopBar/DistanceLabel")
@@ -32,8 +34,16 @@ signal skill_requested()
 @onready var steer_right_btn: Button = $TouchControls/SteerRightButton
 @onready var jump_button: Button = $TouchControls/JumpButton
 @onready var skill_button: Button = get_node_or_null("TouchControls/SkillButton")
+@onready var flight_controls: Control = get_node_or_null("TouchControls/FlightControls")
+@onready var flight_up_btn: Button = get_node_or_null("TouchControls/FlightControls/FlightUpButton")
+@onready var flight_down_btn: Button = get_node_or_null("TouchControls/FlightControls/FlightDownButton")
+
 @onready var skill_toast: PanelContainer = get_node_or_null("SkillToast")
 @onready var skill_toast_label: Label = get_node_or_null("SkillToast/SkillToastLabel")
+@onready var flight_timer_bar: PanelContainer = get_node_or_null("FlightTimerBar")
+@onready var flight_icon_label: Label = get_node_or_null("FlightTimerBar/HBox/FlightIconLabel")
+@onready var flight_timer_label: Label = get_node_or_null("FlightTimerBar/HBox/FlightTimerLabel")
+@onready var flight_warning_label: Label = get_node_or_null("FlightTimerBar/HBox/FlightWarningLabel")
 
 @onready var start_menu: Control = $StartMenu
 @onready var start_panel: PanelContainer = $StartMenu/Panel
@@ -169,6 +179,14 @@ func _ready() -> void:
 	if skill_button:
 		skill_button.pressed.connect(func(): skill_requested.emit())
 		skill_button.button_down.connect(func(): skill_requested.emit())
+
+	# Flight up and down buttons (shown only during flight)
+	if flight_up_btn:
+		flight_up_btn.button_down.connect(func(): flight_up_requested.emit(true))
+		flight_up_btn.button_up.connect(func(): flight_up_requested.emit(false))
+	if flight_down_btn:
+		flight_down_btn.button_down.connect(func(): flight_down_requested.emit(true))
+		flight_down_btn.button_up.connect(func(): flight_down_requested.emit(false))
 
 	# Freestyle steer buttons
 	steer_left_btn.button_down.connect(func(): steer_requested.emit(-1.0))
@@ -449,6 +467,46 @@ func show_skill_toast(message: String) -> void:
 			tw.tween_interval(1.8)
 			tw.tween_property(skill_toast, "modulate:a", 0.0, 0.35)
 			tw.tween_callback(func(): skill_toast.visible = false)
+
+# --- Session 6 Flight HUD ---
+
+func show_flight_hud(f_type: int, total_duration: float) -> void:
+	if flight_controls:
+		flight_controls.visible = true
+	if jump_button:
+		jump_button.visible = false
+	if skill_button:
+		skill_button.visible = false
+
+	if flight_timer_bar:
+		flight_timer_bar.visible = true
+	if flight_icon_label:
+		flight_icon_label.text = "✈ WINGS" if f_type == 1 else "🚀 ROCKET"
+	if flight_warning_label:
+		flight_warning_label.visible = false
+	update_flight_timer(total_duration, total_duration)
+
+func update_flight_timer(remaining: float, _total: float) -> void:
+	if flight_timer_label:
+		flight_timer_label.text = "FLIGHT: %.1fs" % maxf(remaining, 0.0)
+	if remaining <= 2.0 and remaining > 0.0:
+		if flight_warning_label:
+			flight_warning_label.visible = true
+			var flash = int(remaining * 6.0) % 2 == 0
+			flight_warning_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.2) if flash else Color(1.0, 0.9, 0.2))
+	else:
+		if flight_warning_label:
+			flight_warning_label.visible = false
+
+func hide_flight_hud() -> void:
+	if flight_controls:
+		flight_controls.visible = false
+	if jump_button:
+		jump_button.visible = true
+	if skill_button:
+		skill_button.visible = true
+	if flight_timer_bar:
+		flight_timer_bar.visible = false
 
 func show_game_over(cause: String, score: int, _distance_m: float = 0.0, best_score: int = 0, is_new_best: bool = false, run_pts: int = 0, total_pts: int = 0) -> void:
 	cause_label.text = cause
