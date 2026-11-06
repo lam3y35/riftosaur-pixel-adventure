@@ -3,7 +3,7 @@
 ## Current state
 - **Session:** Session 4 (Completed)
 - **Milestone:** M3 (Vertical movement, platforms, springs, camera, Validator V1)
-- **Last commit:** pending (tagged `m3-complete`)
+- **Last commit:** c8d8ed3 (tagged `m3-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
   - Setup & Baseline: L2 Automated (35 tests passing, 0 failures, 0 skips)
@@ -25,7 +25,7 @@
 - **Date:** 2026-11-06
 - **Milestone:** M3
 - **Start commit:** 00718ae (`m2-complete`)
-- **End commit:** pending (tag: `m3-complete`)
+- **End commit:** c8d8ed3 (tag: `m3-complete`)
 - **Evidence levels reached:**
   - L1 Static: Zero script/parse errors, all scenes instantiable, clean project validation via `tools/validate_l1.gd`.
   - Validator V1: Analytic reach and rise fairness validation via `tools/validate_v1.gd` on all 12 chunks. All vertical platform rises conform to <= 80% maximum jump rise; all gaps conform to <= 80% horizontal reach; minimum reaction window verified.
