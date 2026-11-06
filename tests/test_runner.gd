@@ -70,6 +70,9 @@ func _register_tests() -> void:
 	var proc_script = load("res://tests/unit/test_procedural_generation.gd")
 	if proc_script:
 		test_cases.append(proc_script.new())
+	var ui_script = load("res://tests/unit/test_ui_and_screens.gd")
+	if ui_script:
+		test_cases.append(ui_script.new())
 
 func _run_single_test(test_obj: Object, method_name: String) -> void:
 	# Check if test object has setup

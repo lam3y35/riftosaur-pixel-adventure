@@ -24,8 +24,13 @@ func get_default_data() -> Dictionary:
 		"settings": {
 			"sound_enabled": true,
 			"vibration_enabled": true,
+			"master_volume": 1.0,
 			"volume_sfx": 1.0,
-			"volume_music": 1.0
+			"volume_music": 1.0,
+			"reduce_motion": false,
+			"high_contrast": false,
+			"left_handed": false,
+			"auto_hold_jump": false
 		},
 		"unlocks": ["classic_desert"]
 	}
@@ -188,6 +193,22 @@ func complete_challenge(challenge_id: String, reward: int) -> bool:
 	data["completed_challenges"] = comp
 	add_points(reward) # Automatically awards points and saves
 	return true
+
+# Settings & Accessibility Management
+func get_setting(key: String, default_val = null) -> Variant:
+	var s = data.get("settings", {})
+	if s.has(key):
+		return s[key]
+	var defaults = get_default_data()["settings"]
+	if defaults.has(key):
+		return defaults[key]
+	return default_val
+
+func set_setting(key: String, val) -> void:
+	if not data.has("settings") or typeof(data["settings"]) != TYPE_DICTIONARY:
+		data["settings"] = get_default_data()["settings"]
+	data["settings"][key] = val
+	save_game()
 
 func _backup_corrupted_file(content: String) -> void:
 	var corrupt_path = "user://save_corrupt_%d.txt" % Time.get_unix_time_from_system()

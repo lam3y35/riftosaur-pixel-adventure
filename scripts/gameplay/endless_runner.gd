@@ -4,6 +4,7 @@ extends Node2D
 const ChallengeService = preload("res://scripts/systems/challenge_service.gd")
 const LevelGenerator = preload("res://scripts/world/level_generator.gd")
 const LevelPattern = preload("res://scripts/world/level_pattern.gd")
+const AudioManager = preload("res://scripts/systems/audio_manager.gd")
 
 @onready var player: Player = $Player
 @onready var camera: GameCamera = $GameCamera
@@ -13,6 +14,7 @@ const LevelPattern = preload("res://scripts/world/level_pattern.gd")
 
 var save_service: SaveService
 var challenge_service: ChallengeService
+var audio_manager: AudioManager = AudioManager.new()
 var is_game_over: bool = false
 var is_paused: bool = false
 var is_game_started: bool = false
@@ -40,6 +42,8 @@ var run_seed: int = 0
 func _ready() -> void:
 	save_service = SaveService.new()
 	challenge_service = ChallengeService.new(save_service)
+	add_child(audio_manager)
+	audio_manager.bind_save_service(save_service)
 	hud.bind_services(save_service, challenge_service)
 
 	# Load chunk scenes
@@ -118,6 +122,13 @@ func _apply_mode_settings() -> void:
 		2: # Freestyle: steering enabled
 			player.is_steer_enabled = true
 			player.current_speed = 280.0
+		3: # Practice mode: 70% speed, 1.5x coyote/buffer, free hit shield
+			player.is_steer_enabled = false
+			player.current_speed = 196.0
+			player.config.coyote_time = 0.12
+			player.config.jump_buffer_time = 0.20
+			if player.skill_manager:
+				player.skill_manager.equip_skill(SkillManager.SkillType.STONE_SHIELD)
 
 func init_title_screen() -> void:
 	is_game_started = false
@@ -231,6 +242,8 @@ func _physics_process(_delta: float) -> void:
 			player.current_speed = minf(280.0 + (distance_m * 0.22), 520.0)
 		2: # Freestyle: high speed with manual air control & steering
 			player.current_speed = minf(280.0 + (distance_m * 0.20), 520.0)
+		3: # Practice mode: gentle progression
+			player.current_speed = minf(196.0 + (distance_m * 0.10), 320.0)
 
 	if challenge_service:
 		challenge_service.check_run_progress(distance_m, current_score, current_mode)
@@ -288,6 +301,15 @@ func _spawn_next_procedural_chunk() -> void:
 	chunk_pool.append(chunk)
 	next_chunk_x += pat.chunk_width
 
+func _process(_delta: float) -> void:
+	if hud:
+		var state_str = "RUN"
+		if is_game_over: state_str = "DEAD"
+		elif is_paused: state_str = "PAUSED"
+		elif not is_game_started: state_str = "TITLE"
+		elif player.is_flying: state_str = "FLYING"
+		hud.update_dev_overlay(int(Engine.get_frames_per_second()), player.current_speed, state_str, run_seed)
+
 func _cleanup_chunks_behind(cutoff_x: float) -> void:
 	var remaining: Array[Node2D] = []
 	for chunk in chunk_pool:
@@ -310,7 +332,11 @@ func _on_player_died(cause: String) -> void:
 	if run_pts < 1 and distance_m > 5.0:
 		run_pts = 1
 	save_service.add_points(run_pts)
-	var is_new_best = save_service.update_high_score(current_score, distance_m)
+	var is_new_best = false
+	if current_mode != 3: # Practice mode never updates best score
+		is_new_best = save_service.update_high_score(current_score, distance_m)
+	audio_manager.play_damage()
+	audio_manager.play_game_over()
 	hud.show_game_over(cause, current_score, distance_m, save_service.get_best_score(), is_new_best, run_pts, save_service.get_points())
 
 func toggle_pause() -> void:
@@ -340,6 +366,7 @@ func go_to_title_menu() -> void:
 	init_title_screen()
 
 func _on_player_jumped() -> void:
+	audio_manager.play_jump()
 	if challenge_service:
 		challenge_service.record_jump()
 
@@ -353,7 +380,8 @@ func _on_hud_jump(pressed: bool) -> void:
 		return
 	if is_game_over or is_paused:
 		return
-	player.jump_held = pressed
+	var auto_hold = save_service.get_setting("auto_hold_jump", false) if save_service else false
+	player.jump_held = pressed or auto_hold
 	if pressed and player.is_on_floor():
 		player._execute_jump()
 
@@ -362,6 +390,7 @@ func _on_hud_slide(pressed: bool) -> void:
 		return
 	player.slide_held = pressed
 	if pressed:
+		audio_manager.play_slide()
 		if challenge_service:
 			challenge_service.record_slide()
 		if player.is_on_floor():
@@ -380,15 +409,18 @@ func _on_hud_skill() -> void:
 	if not is_game_started or is_game_over or is_paused:
 		return
 	player.use_skill()
+	audio_manager.play_skill_activation()
 
 func _on_player_gem_collected(count: int, bonus: int) -> void:
 	current_score += bonus
 	hud.update_gems(count)
 	save_service.add_points(1)
+	audio_manager.play_collect()
 
 func _on_skill_equipped(_type: int, info: Dictionary) -> void:
 	hud.update_skill_slot(info, 0.0, 0.0, player.skill_manager.current_charges)
 	hud.show_skill_toast("%s Equipped!" % info.get("name", "Skill"))
+	audio_manager.play_skill_activation()
 
 func _on_skill_replaced(old_name: String, new_name: String) -> void:
 	hud.show_skill_toast("Replaced %s with %s!" % [old_name, new_name])
@@ -422,3 +454,4 @@ func _trigger_world_transition() -> void:
 	# 3. HUD announcement & label update
 	hud.update_world_name(new_theme.world_name)
 	hud.show_world_transition_card(new_theme.world_name, new_theme.mechanic_intro)
+	audio_manager.play_world_enter()

@@ -59,15 +59,20 @@ signal flight_down_requested(pressed: bool)
 @onready var mode_casual_btn: Button = $StartMenu/Panel/VBox/ModeHBox/ModeCasualBtn
 @onready var mode_runner_btn: Button = $StartMenu/Panel/VBox/ModeHBox/ModeRunnerBtn
 @onready var mode_freestyle_btn: Button = $StartMenu/Panel/VBox/ModeHBox/ModeFreestyleBtn
+@onready var mode_practice_btn: Button = get_node_or_null("StartMenu/Panel/VBox/ModeHBox/ModePracticeBtn")
 @onready var mode_desc_label: Label = $StartMenu/Panel/VBox/ModeDescLabel
 @onready var start_shop_btn: Button = $StartMenu/Panel/VBox/ShopQuestsHBox/StartShopBtn
 @onready var start_quests_btn: Button = $StartMenu/Panel/VBox/ShopQuestsHBox/StartQuestsBtn
+@onready var start_settings_btn: Button = get_node_or_null("StartMenu/Panel/VBox/ExtraMenuHBox/StartSettingsBtn")
+@onready var start_tutorial_btn: Button = get_node_or_null("StartMenu/Panel/VBox/ExtraMenuHBox/StartTutorialBtn")
+@onready var start_credits_btn: Button = get_node_or_null("StartMenu/Panel/VBox/ExtraMenuHBox/StartCreditsBtn")
 @onready var play_button: Button = $StartMenu/Panel/VBox/PlayButton
 
 @onready var pause_menu: Control = $PauseMenu
 @onready var pause_panel: PanelContainer = $PauseMenu/Panel
 @onready var resume_button: Button = $PauseMenu/Panel/VBox/ResumeButton
 @onready var restart_button: Button = $PauseMenu/Panel/VBox/RestartButton
+@onready var pause_settings_btn: Button = get_node_or_null("PauseMenu/Panel/VBox/PauseSettingsBtn")
 @onready var pause_menu_button: Button = $PauseMenu/Panel/VBox/PauseMenuButton
 
 @onready var game_over_menu: Control = $GameOverMenu
@@ -101,6 +106,35 @@ signal flight_down_requested(pressed: bool)
 
 @onready var challenge_toast: PanelContainer = $ChallengeToast
 @onready var toast_label: Label = $ChallengeToast/ToastLabel
+
+# Settings Dialog
+@onready var settings_dialog: Control = get_node_or_null("SettingsDialog")
+@onready var settings_close_btn: Button = get_node_or_null("SettingsDialog/Panel/VBox/HeaderHBox/SettingsCloseBtn")
+@onready var sound_toggle_btn: Button = get_node_or_null("SettingsDialog/Panel/VBox/SoundToggleBtn")
+@onready var vibration_toggle_btn: Button = get_node_or_null("SettingsDialog/Panel/VBox/VibrationToggleBtn")
+@onready var motion_toggle_btn: Button = get_node_or_null("SettingsDialog/Panel/VBox/MotionToggleBtn")
+@onready var contrast_toggle_btn: Button = get_node_or_null("SettingsDialog/Panel/VBox/ContrastToggleBtn")
+@onready var handed_toggle_btn: Button = get_node_or_null("SettingsDialog/Panel/VBox/HandedToggleBtn")
+@onready var auto_hold_toggle_btn: Button = get_node_or_null("SettingsDialog/Panel/VBox/AutoHoldToggleBtn")
+
+# Credits Dialog
+@onready var credits_dialog: Control = get_node_or_null("CreditsDialog")
+@onready var credits_close_btn: Button = get_node_or_null("CreditsDialog/Panel/VBox/HeaderHBox/CreditsCloseBtn")
+
+# Tutorial Dialog
+@onready var tutorial_dialog: Control = get_node_or_null("TutorialDialog")
+@onready var tutorial_step_label: Label = get_node_or_null("TutorialDialog/Panel/VBox/HeaderHBox/TutorialStepLabel")
+@onready var tutorial_desc_label: Label = get_node_or_null("TutorialDialog/Panel/VBox/TutorialDescLabel")
+@onready var tutorial_close_btn: Button = get_node_or_null("TutorialDialog/Panel/VBox/HeaderHBox/TutorialCloseBtn")
+@onready var tutorial_prev_btn: Button = get_node_or_null("TutorialDialog/Panel/VBox/TutorialActionHBox/TutorialPrevBtn")
+@onready var tutorial_next_btn: Button = get_node_or_null("TutorialDialog/Panel/VBox/TutorialActionHBox/TutorialNextBtn")
+
+# Developer Overlay
+@onready var dev_overlay: PanelContainer = get_node_or_null("DevOverlay")
+@onready var dev_text: Label = get_node_or_null("DevOverlay/DevText")
+
+var tutorial_step: int = 0
+var prev_menu_before_settings: String = "start"
 
 var current_mode: int = 1 # 0 = Casual, 1 = Runner, 2 = Freestyle
 var retry_debounce: bool = false
@@ -209,6 +243,43 @@ func _ready() -> void:
 	quests_close_btn.pressed.connect(close_challenges)
 	quests_bottom_close_btn.pressed.connect(close_challenges)
 
+	if mode_practice_btn:
+		mode_practice_btn.pressed.connect(func(): select_mode(3))
+
+	if start_settings_btn:
+		start_settings_btn.pressed.connect(func(): open_settings("start"))
+	if pause_settings_btn:
+		pause_settings_btn.pressed.connect(func(): open_settings("pause"))
+	if settings_close_btn:
+		settings_close_btn.pressed.connect(close_settings)
+
+	if sound_toggle_btn:
+		sound_toggle_btn.pressed.connect(_on_sound_toggle_pressed)
+	if vibration_toggle_btn:
+		vibration_toggle_btn.pressed.connect(_on_vibration_toggle_pressed)
+	if motion_toggle_btn:
+		motion_toggle_btn.pressed.connect(_on_motion_toggle_pressed)
+	if contrast_toggle_btn:
+		contrast_toggle_btn.pressed.connect(_on_contrast_toggle_pressed)
+	if handed_toggle_btn:
+		handed_toggle_btn.pressed.connect(_on_handed_toggle_pressed)
+	if auto_hold_toggle_btn:
+		auto_hold_toggle_btn.pressed.connect(_on_auto_hold_toggle_pressed)
+
+	if start_credits_btn:
+		start_credits_btn.pressed.connect(open_credits)
+	if credits_close_btn:
+		credits_close_btn.pressed.connect(close_credits)
+
+	if start_tutorial_btn:
+		start_tutorial_btn.pressed.connect(open_tutorial)
+	if tutorial_close_btn:
+		tutorial_close_btn.pressed.connect(close_tutorial)
+	if tutorial_prev_btn:
+		tutorial_prev_btn.pressed.connect(_on_tutorial_prev_pressed)
+	if tutorial_next_btn:
+		tutorial_next_btn.pressed.connect(_on_tutorial_next_pressed)
+
 	if quests_list:
 		quests_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if quests_scroll:
@@ -229,6 +300,9 @@ func _ready() -> void:
 	start_menu.visible = false
 	skin_shop_dialog.visible = false
 	challenges_dialog.visible = false
+	if settings_dialog: settings_dialog.visible = false
+	if credits_dialog: credits_dialog.visible = false
+	if tutorial_dialog: tutorial_dialog.visible = false
 	challenge_toast.visible = false
 
 func _process(delta: float) -> void:
@@ -382,6 +456,8 @@ func select_mode(mode: int) -> void:
 	_style_arcade_button(mode_casual_btn, active_bg if mode == 0 else idle_bg, active_border if mode == 0 else idle_border, 9)
 	_style_arcade_button(mode_runner_btn, active_bg if mode == 1 else idle_bg, active_border if mode == 1 else idle_border, 9)
 	_style_arcade_button(mode_freestyle_btn, active_bg if mode == 2 else idle_bg, active_border if mode == 2 else idle_border, 9)
+	if mode_practice_btn:
+		_style_arcade_button(mode_practice_btn, active_bg if mode == 3 else idle_bg, active_border if mode == 3 else idle_border, 9)
 
 	match mode:
 		0: # Arcade Jump (Spicy)
@@ -415,11 +491,17 @@ func show_start_menu(best_score: int, points: int = 0) -> void:
 	touch_controls.visible = false
 	skin_shop_dialog.visible = false
 	challenges_dialog.visible = false
+	if settings_dialog: settings_dialog.visible = false
+	if credits_dialog: credits_dialog.visible = false
+	if tutorial_dialog: tutorial_dialog.visible = false
 
 func hide_start_menu() -> void:
 	start_menu.visible = false
 	skin_shop_dialog.visible = false
 	challenges_dialog.visible = false
+	if settings_dialog: settings_dialog.visible = false
+	if credits_dialog: credits_dialog.visible = false
+	if tutorial_dialog: tutorial_dialog.visible = false
 	touch_controls.visible = true
 
 func update_hud(score: int, _distance_m: float = 0.0, best_score: int = 0, points: int = 0) -> void:
@@ -549,12 +631,18 @@ func show_game_over(cause: String, score: int, _distance_m: float = 0.0, best_sc
 	touch_controls.visible = false
 	skin_shop_dialog.visible = false
 	challenges_dialog.visible = false
+	if settings_dialog: settings_dialog.visible = false
+	if credits_dialog: credits_dialog.visible = false
+	if tutorial_dialog: tutorial_dialog.visible = false
 	retry_debounce = false
 
 func hide_game_over() -> void:
 	game_over_menu.visible = false
 	skin_shop_dialog.visible = false
 	challenges_dialog.visible = false
+	if settings_dialog: settings_dialog.visible = false
+	if credits_dialog: credits_dialog.visible = false
+	if tutorial_dialog: tutorial_dialog.visible = false
 	touch_controls.visible = true
 
 func show_pause_menu() -> void:
@@ -900,3 +988,168 @@ func _on_retry_button_pressed() -> void:
 		return
 	retry_debounce = true
 	retry_requested.emit()
+
+# ==========================================
+# Session 9: Settings, Accessibility, Credits & Tutorial
+# ==========================================
+
+const TUTORIAL_STEPS: Array[Dictionary] = [
+	{
+		"title": "🎓 STEP 1/5: RUNNING",
+		"desc": "You auto-run forward across ancient biomes. Focus your reflexes on upcoming terrain and speed surges!"
+	},
+	{
+		"title": "🎓 STEP 2/5: JUMPING",
+		"desc": "Tap to short-hop over low hurdles. Hold jump to vault higher over elevated platforms!"
+	},
+	{
+		"title": "🎓 STEP 3/5: SLIDING & DIVING",
+		"desc": "Tap or swipe down on the left to slide under stone arches and avoid flying hazards. In mid-air, swipe down to dive!"
+	},
+	{
+		"title": "🎓 STEP 4/5: SKILLS & RELICS",
+		"desc": "Collect glowing orbs to acquire Bone Blade, Boomerang, Stone Shield, Magnet Relic, or Flight!"
+	},
+	{
+		"title": "🎓 STEP 5/5: POWERS & FLIGHT",
+		"desc": "Tap the large SKILL button on the right to unleash your active power. Use flight controls to glide through the skies!"
+	}
+]
+
+func open_settings(from_menu: String = "start") -> void:
+	prev_menu_before_settings = from_menu
+	if settings_dialog:
+		settings_dialog.visible = true
+		refresh_settings_ui()
+
+func close_settings() -> void:
+	if settings_dialog:
+		settings_dialog.visible = false
+
+func refresh_settings_ui() -> void:
+	if save_service == null:
+		return
+	var sound = save_service.get_setting("sound_enabled", true)
+	var vib = save_service.get_setting("vibration_enabled", true)
+	var motion = save_service.get_setting("reduce_motion", false)
+	var contrast = save_service.get_setting("high_contrast", false)
+	var handed = save_service.get_setting("left_handed", false)
+	var auto_jump = save_service.get_setting("auto_hold_jump", false)
+
+	if sound_toggle_btn:
+		sound_toggle_btn.text = "🔊 SOUND EFFECTS: " + ("ON" if sound else "OFF")
+	if vibration_toggle_btn:
+		vibration_toggle_btn.text = "📳 HAPTIC VIBRATION: " + ("ON" if vib else "OFF")
+	if motion_toggle_btn:
+		motion_toggle_btn.text = "🌀 REDUCE MOTION: " + ("ON" if motion else "OFF")
+	if contrast_toggle_btn:
+		contrast_toggle_btn.text = "👁 HIGH CONTRAST: " + ("ON" if contrast else "OFF")
+	if handed_toggle_btn:
+		handed_toggle_btn.text = "🖐 CONTROL LAYOUT: " + ("LEFT-HANDED" if handed else "RIGHT-HANDED")
+	if auto_hold_toggle_btn:
+		auto_hold_toggle_btn.text = "🦘 AUTO-HOLD JUMP: " + ("ON" if auto_jump else "OFF")
+
+func _on_sound_toggle_pressed() -> void:
+	if save_service:
+		var cur = save_service.get_setting("sound_enabled", true)
+		save_service.set_setting("sound_enabled", not cur)
+		refresh_settings_ui()
+
+func _on_vibration_toggle_pressed() -> void:
+	if save_service:
+		var cur = save_service.get_setting("vibration_enabled", true)
+		save_service.set_setting("vibration_enabled", not cur)
+		refresh_settings_ui()
+
+func _on_motion_toggle_pressed() -> void:
+	if save_service:
+		var cur = save_service.get_setting("reduce_motion", false)
+		save_service.set_setting("reduce_motion", not cur)
+		refresh_settings_ui()
+
+func _on_contrast_toggle_pressed() -> void:
+	if save_service:
+		var cur = save_service.get_setting("high_contrast", false)
+		save_service.set_setting("high_contrast", not cur)
+		refresh_settings_ui()
+
+func _on_handed_toggle_pressed() -> void:
+	if save_service:
+		var cur = save_service.get_setting("left_handed", false)
+		save_service.set_setting("left_handed", not cur)
+		refresh_settings_ui()
+		apply_control_layout(not cur)
+
+func _on_auto_hold_toggle_pressed() -> void:
+	if save_service:
+		var cur = save_service.get_setting("auto_hold_jump", false)
+		save_service.set_setting("auto_hold_jump", not cur)
+		refresh_settings_ui()
+
+func apply_control_layout(is_left_handed: bool) -> void:
+	if not touch_controls:
+		return
+	if is_left_handed:
+		jump_button.anchor_left = 0.0
+		jump_button.anchor_right = 0.0
+		jump_button.offset_left = 14.0
+		jump_button.offset_right = 160.0
+
+		slide_button.anchor_left = 1.0
+		slide_button.anchor_right = 1.0
+		slide_button.offset_left = -160.0
+		slide_button.offset_right = -14.0
+	else:
+		jump_button.anchor_left = 1.0
+		jump_button.anchor_right = 1.0
+		jump_button.offset_left = -160.0
+		jump_button.offset_right = -14.0
+
+		slide_button.anchor_left = 0.0
+		slide_button.anchor_right = 0.0
+		slide_button.offset_left = 14.0
+		slide_button.offset_right = 96.0
+
+func open_credits() -> void:
+	if credits_dialog:
+		credits_dialog.visible = true
+
+func close_credits() -> void:
+	if credits_dialog:
+		credits_dialog.visible = false
+
+func open_tutorial() -> void:
+	tutorial_step = 0
+	if tutorial_dialog:
+		tutorial_dialog.visible = true
+		_display_tutorial_step(0)
+
+func close_tutorial() -> void:
+	if tutorial_dialog:
+		tutorial_dialog.visible = false
+
+func _display_tutorial_step(step: int) -> void:
+	tutorial_step = clampi(step, 0, TUTORIAL_STEPS.size() - 1)
+	var info = TUTORIAL_STEPS[tutorial_step]
+	if tutorial_step_label:
+		tutorial_step_label.text = info["title"]
+	if tutorial_desc_label:
+		tutorial_desc_label.text = info["desc"]
+	if tutorial_prev_btn:
+		tutorial_prev_btn.visible = (tutorial_step > 0)
+	if tutorial_next_btn:
+		tutorial_next_btn.text = "FINISH ✔" if (tutorial_step == TUTORIAL_STEPS.size() - 1) else "NEXT ▶"
+
+func _on_tutorial_prev_pressed() -> void:
+	if tutorial_step > 0:
+		_display_tutorial_step(tutorial_step - 1)
+
+func _on_tutorial_next_pressed() -> void:
+	if tutorial_step < TUTORIAL_STEPS.size() - 1:
+		_display_tutorial_step(tutorial_step + 1)
+	else:
+		close_tutorial()
+
+func update_dev_overlay(fps: int, speed: float, state_name: String, seed_val: int) -> void:
+	if dev_text:
+		dev_text.text = "FPS: %d | SPD: %.0f | %s | 🎲 %d" % [fps, speed, state_name, seed_val]

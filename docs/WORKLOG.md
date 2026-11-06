@@ -1,25 +1,65 @@
 # Riftosaur Worklog & Session Tracking
 
 ## Current state
-- **Session:** Session 8 (Completed)
-- **Milestone:** M7 (Procedural generation, pattern library, deterministic seeding, connectors, difficulty bands, Validator V2, and long-run stability)
-- **Last commit:** pending (tag: `m7-complete`)
+- **Session:** Session 9 (Completed)
+- **Milestone:** M8 part 1 (Screens, settings, accessibility, controls, layout, synthesized audio, and Arabic gameplay guide)
+- **Last commit:** pending (tag: `m8-p1-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
-  - Setup & Baseline: L2 Automated (60 tests passing, 0 failures, 0 skips)
-  - Movement & Core Loop: L3 Desktop play (Deterministic seed playback, procedural chunk sequencer, 20 chunk patterns, 5 difficulty bands, long-run 53km stability)
-  - Silhouette / Art: L3 Verified (20 chunk patterns, two 960px double-screen chunks, route classes: safe, challenging, optional-reward)
+  - Setup & Baseline: L2 Automated (66 tests passing, 0 failures, 0 skips)
+  - Movement & Core Loop: L3 Desktop play (All screens & navigation functional, 5-step interactive tutorial, 70% speed Practice mode, audio events, haptics)
+  - Silhouette / Art: L3 Verified (Catchy arcade UI styling, Settings, Credits, Tutorial, DevOverlay, 12 synthesized 16-bit retro PCM WAVs)
   - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 (Analytic reach/rise fairness across all 20 chunks, 0 errors) + Validator V2 (Simulated reference controller, 20/20 passed, 0 failures)
-  - Android Build: L4 Static APK Verification (67,535,910 bytes, SHA-256 `50B0213665552DB782F2FC43EB427D7BBF17510EEFB4469808ED0E915044FE8E`, aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
+  - Android Build: L4 Static APK Verification (67,629,163 bytes, SHA-256 `CEA1FB8AA9B3DD7566BCC0ED82BB79B9211863F1AE77DA452EE5ABF045F4CBFE`, aapt2 dump badging, zipalign 4-byte check, apksigner v2/v3 cert check, archive content check)
   - Physical Android Play: L5 Owner Playtest #1 & #2 complete
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with procedural generation and deterministic seeds, or proceed with Session 9.
-- **Next action:** Execute Session 9 — Screens, settings, controls, layout, and audio (M8, part 1).
+- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) with all screens, audio, settings, and tutorial, or proceed with Session 10.
+- **Next action:** Execute Session 10 — Progression, save migrations, performance, and Android lifecycle (M8, part 2).
 
 ---
 
 ## Session entries
+
+### Session 9 — Screens, Settings, Controls, Layout, and Audio (M8, part 1)
+- **Date:** 2026-11-06
+- **Milestone:** M8 (part 1)
+- **Start commit:** 424a0ad (`m7-complete`)
+- **End commit:** pending (tag: `m8-p1-complete`)
+- **Evidence levels reached:**
+  - L1 Static: Zero script/parse errors, all scenes instantiable, clean project validation via `tools/validate_l1.gd`.
+  - Validator V1 & V2: 20/20 chunks and patterns passing all reach/rise and reference controller fairness checks.
+  - L2 Automated: 66 passing automated unit and physics tests in `tests/test_runner.gd` (5 smoke + 1 replay + 9 movement + 4 save service + 8 endless runner loop + 5 vertical platform & springs + 10 skills & collectibles + 5 flight system + 4 world themes & transitions + 6 procedural generation + 6 UI, screens, audio, settings, and practice mode tests).
+  - L3 Desktop play: Live verified via `tools/verify_session9_screens_and_audio.gd`:
+    1. Main menu with Practice mode, Settings, Tutorial, and Credits buttons.
+    2. 5-step interactive tutorial flow with navigation and completion.
+    3. Settings dialog with sound/vibration toggles, reduce motion, high contrast, auto-hold jump, and left-handed layout switching.
+    4. 12 synthesized 16-bit retro sound effects and haptic vibration triggers.
+    5. Practice mode execution at 70% speed with free hit shield and high score protection.
+    6. Developer overlay live FPS, speed, state, and seed monitoring.
+  - L4 Android Build Verification: Debug APK exported to `releases/Riftosaur-debug.apk` (67,629,163 bytes, SHA-256 `CEA1FB8AA9B3DD7566BCC0ED82BB79B9211863F1AE77DA452EE5ABF045F4CBFE`). Verified via `tools/verify_apk.ps1` with `aapt2`, `zipalign`, and `apksigner`.
+- **Delivered components:**
+  - Complete Screen & Dialog Suite:
+    - *Main Menu (`StartMenu`):* Mode select (Spicy, Runner, Freestyle, Practice), Skin Shop, Quests, Play, Settings, Tutorial, Credits.
+    - *Settings Dialog (`SettingsDialog`):* Audio SFX toggle, Vibration toggle, Reduce Motion, High Contrast, Left-Handed layout, Auto-Hold jump.
+    - *Credits Dialog (`CreditsDialog`):* Game design, Godot Engine MIT license, sound synthesis, procedural pixel engine credits.
+    - *Tutorial Dialog (`TutorialDialog`):* 5-step illustrated walkthrough (Run, Jump & Hold, Slide & Dive, Skills & Relics, Powers & Flight).
+    - *Developer Overlay (`DevOverlay`):* Real-time FPS, player speed, state, and active random seed.
+  - Practice Mode:
+    - 70% initial speed (196 px/s), 1.5x coyote time (0.12s), 1.5x jump buffer (0.20s), free hit Stone Shield protection. Never updates high score.
+  - Synthesized Sound Effects (`assets/audio/` & `scripts/systems/audio_manager.gd`):
+    - 12 synthesized 16-bit PCM WAV sound effects (jump, land, slide, air dash, collect, skill activation, obstacle break, world enter, flight start, flight end, damage, game over).
+    - Centralized `AudioManager` pooling and independent sound/vibration toggling.
+  - Arabic Gameplay Guide (`docs/GAMEPLAY_GUIDE_AR.md`):
+    - Comprehensive Arabic documentation covering all core mechanics, skills, flight, worlds, modes, and accessibility settings.
+- **Verification evidence:**
+  - L1: 0 errors across all scripts and scenes.
+  - Validator V1 & V2: 20/20 patterns verified fair.
+  - L2: 66/66 automated tests passed in `test_runner.gd`.
+  - L3: `tools/verify_session9_screens_and_audio.gd` passed with all screens, audio, and settings verified.
+  - L4: APK export verified clean (67,629,163 bytes, SHA-256 `CEA1FB8AA9B3DD7566BCC0ED82BB79B9211863F1AE77DA452EE5ABF045F4CBFE`).
+
+---
 
 ### Session 8 — Procedural Generation and Fairness (M7)
 - **Date:** 2026-11-06
