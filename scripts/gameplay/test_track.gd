@@ -109,7 +109,7 @@ func _process_autonomous_pilot() -> void:
 	if nearest_obs != null:
 		var is_overhang = nearest_obs.name.contains("Overhang") or nearest_obs.name.contains("High")
 		if is_overhang:
-			if nearest_dist > -30.0 and nearest_dist < 60.0:
+			if nearest_dist > -40.0 and nearest_dist < 90.0:
 				player.slide_held = true
 				if player.state_machine.current_state != PlayerStateMachine.State.SLIDE:
 					player._enter_slide()

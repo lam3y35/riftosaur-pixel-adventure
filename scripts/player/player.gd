@@ -162,6 +162,9 @@ func _process_state(delta: float) -> void:
 		PlayerStateMachine.State.DIVE:
 			_handle_dive_state(delta)
 
+func _is_slide_pressed() -> bool:
+	return Input.is_action_pressed("slide") or slide_held
+
 func _handle_ground_state(_delta: float) -> void:
 	# Check for buffered or immediate jump
 	if jump_buffer_timer > 0.0:
@@ -169,7 +172,7 @@ func _handle_ground_state(_delta: float) -> void:
 		return
 
 	# Check for slide
-	if Input.is_action_pressed("slide"):
+	if _is_slide_pressed():
 		_enter_slide()
 		return
 
@@ -231,7 +234,7 @@ func _handle_land_state(_delta: float) -> void:
 		_execute_jump()
 		return
 
-	if Input.is_action_pressed("slide"):
+	if _is_slide_pressed():
 		_enter_slide()
 		return
 
@@ -250,7 +253,7 @@ func _handle_slide_state(delta: float) -> void:
 		return
 
 	# Try to stand if duration expired or slide key released
-	var is_sliding = Input.is_action_pressed("slide") or slide_held
+	var is_sliding = _is_slide_pressed()
 	var wants_to_recover = slide_timer >= config.slide_duration or not is_sliding
 	if wants_to_recover:
 		# Ensure ceiling is clear (both front and back rays) before standing
@@ -306,7 +309,7 @@ func _post_movement_check(_delta: float) -> void:
 			# Check if jump was buffered during fall
 			if jump_buffer_timer > 0.0:
 				_execute_jump()
-			elif Input.is_action_pressed("slide"):
+			elif _is_slide_pressed():
 				_enter_slide()
 			else:
 				state_machine.change_state(PlayerStateMachine.State.LAND)

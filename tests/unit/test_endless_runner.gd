@@ -273,3 +273,32 @@ func test_quests_dialog_scroll_and_touch_swipe() -> Variant:
 
 	_destroy_runner_world(w)
 	return true
+
+func test_overhang_obstacle_kills_standing_player() -> Variant:
+	var w = _create_runner_world()
+	var runner: EndlessRunner = w["runner"]
+	runner.begin_run()
+
+	var overhang_scene = load("res://scenes/obstacles/obstacle_overhang.tscn")
+	var overhang = overhang_scene.instantiate() as Area2D
+	overhang.position = Vector2(runner.player.global_position.x + 30.0, 230.0)
+	runner.add_child(overhang)
+
+	# Standing player runs forward into overhang
+	for _i in range(30):
+		runner.player._physics_process(1.0 / 60.0)
+		overhang._on_body_entered(runner.player)
+		if runner.player.state_machine.current_state == PlayerStateMachine.State.DEAD:
+			break
+
+	var is_dead = runner.player.state_machine.current_state == PlayerStateMachine.State.DEAD
+	var cause = runner.player.last_cause_of_death
+
+	_destroy_runner_world(w)
+
+	if not is_dead:
+		return "Standing player was not killed by overhang obstacle"
+	if not cause.contains("Cave Overhang Barrier"):
+		return "Unexpected cause of death: %s" % cause
+
+	return true

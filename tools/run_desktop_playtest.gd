@@ -18,8 +18,8 @@ func _start_playtest() -> void:
 	var track_scene = preload("res://scenes/gameplay/flat_test_track.tscn")
 	track = track_scene.instantiate() as TestTrack
 	track.autonomous_bot = true
-	current_scene = track
 	root.add_child(track)
+	current_scene = track
 
 func _process(delta: float) -> bool:
 	if track == null or not is_instance_valid(track.player):
