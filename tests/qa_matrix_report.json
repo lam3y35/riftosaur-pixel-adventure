@@ -2,7 +2,7 @@
 	"all_scenarios_passed": true,
 	"performance": {
 		"orphan_nodes": 0.0,
-		"static_memory_mb": 66.7790126800537
+		"static_memory_mb": 65.1819314956665
 	},
 	"review_pass_1": "PASS",
 	"review_pass_2": "PASS",

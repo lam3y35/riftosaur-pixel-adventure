@@ -9,9 +9,9 @@
 
 - **مسار المشروع بالكامل:** `C:\Users\Tweety\Desktop\DINO`
 - **حزمة الإصدار النهائي للأندرويد (Release APK):** `releases/Riftosaur-release.apk` (60.07 MB)
-  - **بصمة SHA-256:** `7E7E3A6DA48AA33913FDA77C9D3FEE654619F0ED32A47188458FBDE65D726204`
+  - **بصمة SHA-256:** `1247D7D061291DD501C95094E7F56B54251F5368F5D754EAB06B1E8135F11676`
 - **حزمة التطوير للأندرويد (Debug APK):** `releases/Riftosaur-debug.apk` (64.52 MB)
-  - **بصمة SHA-256:** `1F5E33E3DB9CA82F3A04A5F6C1E97B78C2682EEBADF93811BDEC85372FFB3D55`
+  - **بصمة SHA-256:** `46F9C22ECD93F5127BC92532F547265DD7E7117C64B89B8CBB66391DE88866CC`
 - **ملف الكود المصدري المضغوط:** `releases/Riftosaur-source-v1.0.0.zip`
 - **محرك اللعبة المعتمد:** Godot 4.7.2 في `C:\Users\Tweety\Godot\4.7.2\Godot_v4.7.2-stable_win64_console.exe`
 - **مفتاح توقيع الإصدار الرسمي (Release Keystore):**

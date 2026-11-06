@@ -82,7 +82,8 @@ func test_android_lifecycle_focus_loss_auto_pauses() -> void:
 	assert(runner.player.slide_held == false, "Held slide must be released on pause")
 	assert(runner.hud.pause_menu.visible == true, "Pause menu should be displayed")
 
-	runner.queue_free()
+	runner.get_parent().remove_child(runner)
+	runner.free()
 
 func test_android_back_button_hierarchical_dismissal() -> void:
 	var runner_scene = load("res://scenes/gameplay/endless_runner.tscn")
@@ -107,4 +108,36 @@ func test_android_back_button_hierarchical_dismissal() -> void:
 	runner._handle_back_action()
 	assert(runner.is_paused == false, "Back action on pause menu resumes gameplay")
 
-	runner.queue_free()
+	runner.get_parent().remove_child(runner)
+	runner.free()
+
+func test_gem_bonus_score_persistence_and_mode_reset() -> void:
+	var runner_scene = load("res://scenes/gameplay/endless_runner.tscn")
+	var runner = runner_scene.instantiate() as EndlessRunner
+	var tree = Engine.get_main_loop() as SceneTree
+	tree.root.add_child(runner)
+
+	# 1. Start in Practice Mode (3) -> sets coyote_time = 0.12 and Stone Shield
+	runner._on_mode_selected(3)
+	runner.begin_run()
+	assert(is_equal_approx(runner.player.config.coyote_time, 0.12), "Practice mode must set 0.12s coyote time")
+	assert(runner.player.skill_manager.has_shield == true, "Practice mode must grant Stone Shield")
+
+	# 2. Switch back to Runner Mode (1) and start new run -> must reset coyote_time = 0.08 and clear shield
+	runner._on_mode_selected(1)
+	runner.start_new_run()
+	assert(is_equal_approx(runner.player.config.coyote_time, 0.08), "Normal mode must reset coyote time to 0.08s")
+	assert(runner.player.skill_manager.has_shield == false, "Normal mode must clear Practice shield")
+
+	# 3. Collect gem (+25 bonus) and step physics frame -> bonus must persist in current_score
+	runner._on_player_gem_collected(1, 25)
+	runner._physics_process(0.016)
+	assert(runner.current_score >= 25, "Gem score bonus must persist across physics frames")
+
+	# 4. Touch HUD jump button buffers jump even when slightly airborne
+	runner.player.velocity.y = -200.0
+	runner._on_hud_jump(true)
+	assert(runner.player.jump_buffer_timer > 0.0, "Touch HUD jump must set jump_buffer_timer")
+
+	runner.get_parent().remove_child(runner)
+	runner.free()

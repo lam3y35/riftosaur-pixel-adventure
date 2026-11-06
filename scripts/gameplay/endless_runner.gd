@@ -29,6 +29,7 @@ var start_x: float = 100.0
 var distance_px: float = 0.0
 var distance_m: float = 0.0
 var current_score: int = 0
+var bonus_score: int = 0
 var next_chunk_x: float = 0.0
 
 var chunk_scenes: Array[PackedScene] = []
@@ -116,12 +117,24 @@ func _apply_mode_settings() -> void:
 		0: # Arcade Jump (Spicy): fast opening speed, pure jump focus
 			player.is_steer_enabled = false
 			player.current_speed = 310.0
+			player.config.coyote_time = 0.08
+			player.config.jump_buffer_time = 0.12
+			if player.skill_manager:
+				player.skill_manager.clear_skill()
 		1: # Runner: accelerating speed, jump & slide
 			player.is_steer_enabled = false
 			player.current_speed = 280.0
+			player.config.coyote_time = 0.08
+			player.config.jump_buffer_time = 0.12
+			if player.skill_manager:
+				player.skill_manager.clear_skill()
 		2: # Freestyle: steering enabled
 			player.is_steer_enabled = true
 			player.current_speed = 280.0
+			player.config.coyote_time = 0.08
+			player.config.jump_buffer_time = 0.12
+			if player.skill_manager:
+				player.skill_manager.clear_skill()
 		3: # Practice mode: 70% speed, 1.5x coyote/buffer, free hit shield
 			player.is_steer_enabled = false
 			player.current_speed = 196.0
@@ -201,6 +214,7 @@ func _reset_world_state() -> void:
 	distance_px = 0.0
 	distance_m = 0.0
 	current_score = 0
+	bonus_score = 0
 	hud.update_gems(0)
 	hud.update_skill_slot({}, 0.0, 0.0, 0)
 	hud.hide_flight_hud()
@@ -232,7 +246,7 @@ func _physics_process(_delta: float) -> void:
 	# Calculate distance & score
 	distance_px = maxf(player.global_position.x - start_x, 0.0)
 	distance_m = distance_px * 0.1 # 10 px = 1 meter
-	current_score = int(distance_m * 1.5)
+	current_score = int(distance_m * 1.5) + bonus_score
 
 	# Dynamic speed progression based on difficulty mode
 	match current_mode:
@@ -249,7 +263,7 @@ func _physics_process(_delta: float) -> void:
 		challenge_service.check_run_progress(distance_m, current_score, current_mode)
 
 	# Check World Transition
-	if distance_m >= next_transition_distance_m and current_world_index < world_themes.size() - 1:
+	if distance_m >= next_transition_distance_m and not world_themes.is_empty():
 		_trigger_world_transition()
 
 	hud.update_hud(current_score, distance_m, save_service.get_best_score(), save_service.get_points())
@@ -414,19 +428,27 @@ func _on_hud_jump(pressed: bool) -> void:
 		return
 	var auto_hold = save_service.get_setting("auto_hold_jump", false) if save_service else false
 	player.jump_held = pressed or auto_hold
-	if pressed and player.is_on_floor():
-		player._execute_jump()
+	if pressed:
+		player.jump_buffer_timer = player.config.jump_buffer_time
+		if player.is_on_floor() or player.coyote_timer > 0.0:
+			player._execute_jump()
+	elif not auto_hold and player.is_jump_holding:
+		player.is_jump_holding = false
+		if player.velocity.y < 0.0:
+			player.velocity.y *= player.config.early_jump_release_multiplier
 
 func _on_hud_slide(pressed: bool) -> void:
 	if not is_game_started or is_game_over or is_paused:
 		return
 	player.slide_held = pressed
-	if pressed:
+	if pressed and not player.is_flying:
 		audio_manager.play_slide()
 		if challenge_service:
 			challenge_service.record_slide()
 		if player.is_on_floor():
-			if player.state_machine.current_state != PlayerStateMachine.State.SLIDE:
+			if player.is_standing_on_one_way_platform():
+				player.drop_through_one_way_platform()
+			elif player.state_machine.current_state != PlayerStateMachine.State.SLIDE:
 				player._enter_slide()
 		else:
 			# Mid-air slide executes a fast downward dive
@@ -444,9 +466,11 @@ func _on_hud_skill() -> void:
 	audio_manager.play_skill_activation()
 
 func _on_player_gem_collected(count: int, bonus: int) -> void:
-	current_score += bonus
+	bonus_score += bonus
+	current_score = int(distance_m * 1.5) + bonus_score
 	hud.update_gems(count)
 	save_service.add_points(1)
+	save_service.record_milestone("gems_collected_total", 1)
 	audio_manager.play_collect()
 
 func _on_skill_equipped(_type: int, info: Dictionary) -> void:
@@ -463,11 +487,14 @@ func _on_skill_updated(cd: float, dur: float, charges: int) -> void:
 # --- Session 7 World Transitions ---
 
 func _trigger_world_transition() -> void:
-	current_world_index += 1
-	if current_world_index >= world_themes.size():
+	if world_themes.is_empty():
 		return
+	current_world_index = (current_world_index + 1) % world_themes.size()
 	var new_theme = world_themes[current_world_index]
-	next_transition_distance_m = new_theme.transition_distance_m
+	next_transition_distance_m += 250.0
+	if save_service and current_world_index + 1 > save_service.get_milestone("max_world_reached"):
+		save_service.data["milestones"]["max_world_reached"] = current_world_index + 1
+		save_service.save_game()
 
 	# 1. Spawn safe transition runway ahead (zero hazards, safe landing area)
 	var pat = level_generator.get_world_transition_pattern()

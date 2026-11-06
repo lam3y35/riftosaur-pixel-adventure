@@ -15,8 +15,8 @@
 - **Target Engine:** Godot Engine 4.7.2-stable official (`ed1daf0bf`)
 - **Render Mode:** `gl_compatibility` (OpenGL ES 3.0 compatible for broad mobile and desktop support)
 - **Logical Viewport:** 480 × 270 (16:9 pixel-perfect logical grid with nearest-neighbor scaling)
-- **Automated Test Suite:** 71 passing tests (100% pass rate) + 20/20 verified procedural patterns.
-- **Android Release:** `releases/Riftosaur-release.apk` (60.07 MB, SHA-256: `7E7E3A6DA48AA33913FDA77C9D3FEE654619F0ED32A47188458FBDE65D726204`)
+- **Automated Test Suite:** 72 passing tests (100% pass rate) + 20/20 verified procedural patterns.
+- **Android Release:** `releases/Riftosaur-release.apk` (60.07 MB, SHA-256: `1247D7D061291DD501C95094E7F56B54251F5368F5D754EAB06B1E8135F11676`)
 
 ---
 

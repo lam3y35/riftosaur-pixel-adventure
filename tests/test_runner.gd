@@ -32,6 +32,10 @@ func _run_all_tests() -> void:
 	print("  Total Skipped: %d" % skipped)
 	print("==================================================")
 
+	test_cases.clear()
+	await process_frame
+	await process_frame
+
 	if failed > 0:
 		print("[TestRunner] RESULT: FAILED")
 		quit(1)

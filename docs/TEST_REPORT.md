@@ -54,7 +54,7 @@
 ## 4. Level L2: Automated Unit & Physics Tests
 - **Runner:** `tests/test_runner.gd` via `tools/run_tests.ps1`
 - **Execution Mode:** Headless SceneTree (`--headless --script tests/test_runner.gd`)
-- **Overall Result:** PASSED (71 Passed, 0 Failed, 0 Skipped)
+- **Overall Result:** PASSED (72 Passed, 0 Failed, 0 Skipped)
 - **Suite Breakdown:**
   1. `SmokeTest`: 5 tests
   2. `ReplayDeterministicTest`: 1 test
@@ -67,7 +67,7 @@
   9. `WorldThemesAndTransitionsTest`: 4 tests
   10. `ProceduralGenerationAndFairnessTest`: 6 tests
   11. `UIAndScreensTest`: 6 tests
-  12. `ProgressionAndLifecycleTest`: 8 tests (Schema v2 migration, missing save fallback, pause on focus loss, resume retention, input release on focus loss, back button closes dialogs, back button pauses running game, back button unpauses).
+  12. `ProgressionAndLifecycleTest`: 9 tests (Schema v2 migration, missing save fallback, pause on focus loss, resume retention, input release on focus loss, back button closes dialogs, back button pauses running game, back button unpauses, gem bonus score persistence & Practice mode reset).
 
 ---
 
