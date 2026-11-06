@@ -1,0 +1,23 @@
+{
+	"all_scenarios_passed": true,
+	"performance": {
+		"orphan_nodes": 0.0,
+		"static_memory_mb": 66.7790126800537
+	},
+	"review_pass_1": "PASS",
+	"review_pass_2": "PASS",
+	"scenarios": {
+		"10_save_load_cycles": "PASS (50/50 cycles atomic)",
+		"11_corrupted_save_recovery": "PASS",
+		"12_android_lifecycle_restore": "PASS",
+		"1_playthrough_to_game_over": "PASS",
+		"2_rapid_retries": "PASS",
+		"3_long_run_stability": "PASS (Chunks bounded <= 6, zero leak)",
+		"4_fast_repeated_inputs": "PASS",
+		"5_simultaneous_touches": "PASS",
+		"6_skill_spam_during_cooldown": "PASS",
+		"7_all_four_worlds_cycle": "PASS (All 4 biomes visited)",
+		"8_dive_dropthrough_and_bounce": "PASS",
+		"9_pause_during_active_flight": "PASS"
+	}
+}

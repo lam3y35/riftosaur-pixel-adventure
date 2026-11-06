@@ -1,0 +1,41 @@
+{
+	"all_layouts_passed": true,
+	"avg_frame_time_ms": 0.0554966666666667,
+	"frame_times_ms": [],
+	"layouts_tested": {
+		"16:9 FHD": {
+			"controls_accessible": true,
+			"resolution": "1920x1080",
+			"score_label_visible": true,
+			"status": "PASS"
+		},
+		"16:9 Standard": {
+			"controls_accessible": true,
+			"resolution": "480x270",
+			"score_label_visible": true,
+			"status": "PASS"
+		},
+		"19.5:9 Tall Mobile": {
+			"controls_accessible": true,
+			"resolution": "2340x1080",
+			"score_label_visible": true,
+			"status": "PASS"
+		},
+		"20:9 Ultra-Tall": {
+			"controls_accessible": true,
+			"resolution": "2400x1080",
+			"score_label_visible": true,
+			"status": "PASS"
+		},
+		"4:3 Tablet": {
+			"controls_accessible": true,
+			"resolution": "1024x768",
+			"score_label_visible": true,
+			"status": "PASS"
+		}
+	},
+	"max_frame_time_ms": 0.934,
+	"min_frame_time_ms": 0.036,
+	"restart_time_ms": 1.772,
+	"startup_time_ms": 301.873
+}

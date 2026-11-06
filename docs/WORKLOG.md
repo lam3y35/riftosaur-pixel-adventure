@@ -1,25 +1,70 @@
 # Riftosaur Worklog & Session Tracking
 
 ## Current state
-- **Session:** Session 10 (Completed)
-- **Milestone:** M8 part 2 (Progression, save migrations, Android lifecycle, back button hierarchy, offline security)
-- **Last commit:** pending (tag: `m8-p2-complete`)
+- **Session:** Session 11 (Completed)
+- **Milestone:** M9 (QA, review, performance profiling, multi-layout verification, acceptance criteria closeout)
+- **Last commit:** pending (tag: `m9-complete`)
 - **Root folder:** `C:\Users\Tweety\Desktop\DINO`
 - **Highest evidence level per area:**
   - Setup & Baseline: L2 Automated (71 tests passing, 0 failures, 0 skips)
-  - Movement & Core Loop: L3 Desktop play (All screens & navigation functional, Android focus loss auto-pause & state retention, hierarchical back button)
-  - Silhouette / Art: L3 Verified (Catchy arcade UI styling, Settings, Credits, Tutorial, DevOverlay, 12 synthesized 16-bit retro PCM WAVs)
+  - Movement & Core Loop: L3 Desktop play (All 12 Spec B scenarios passing, 0 leaks, 0 orphan nodes)
+  - Silhouette / Art: L3 Verified (Classic recognizable silhouette, sharp nearest-neighbor integer scaling, 4 distinct biomes)
   - Static Project Validation: L1 Static (0 errors, 0 warnings) + Validator V1 & V2 (20/20 chunks & patterns verified fair)
   - Android Build: L4 Static APK Verification (67,637,767 bytes, SHA-256 `95C2D8F1E67E1E34B4C7DB94FBA4593245CFBF38A1B9A85FD229733F8B68C039`, aapt2 badging, zipalign 4-byte check, apksigner cert check, zero INTERNET permission verified)
   - Physical Android Play: L5 Owner Playtest #1 & #2 complete
 - **Open Blockers:** 0
 - **Open Majors:** 0
-- **Owner actions:** Test the updated APK (`releases/Riftosaur-debug.apk`) or proceed with Session 11 QA & Release polish.
-- **Next action:** Execute Session 11 — QA, review, and optimization (M9).
+- **Owner actions:** Session 12 Owner Gate confirmation (repository visibility, license, package name) before release keystore generation and final release tag.
+- **Next action:** Execute Session 12 — Release and final handoff (M10).
 
 ---
 
 ## Session entries
+
+### Session 11 — QA, Review, and Optimization (M9)
+- **Date:** 2026-11-06
+- **Milestone:** M9
+- **Start commit:** 09a4815 (`m8-p2-complete`)
+- **End commit:** pending (tag: `m9-complete`)
+- **Evidence levels reached:**
+  - L1 Static: Zero script/parse errors, clean project validation via `tools/validate_l1.gd`.
+  - Validator V1 & V2: 20/20 chunks and patterns passing all fairness checks.
+  - L2 Automated: 71 passing automated tests in `tests/test_runner.gd` (0 failures, 0 skips).
+  - L3 Desktop play & Spec B Scenarios: Verified via `tools/verify_session11_qa_matrix.gd`:
+    1. Scenario 1 (Playthrough to game over): lethal hazard collision, state transition, game over UI.
+    2. Scenario 2 (Rapid retries): 25 consecutive rapid restarts with instant reset and zero leaks.
+    3. Scenario 3 (Long run stability): 10 minutes game time (600s, 30.8km run, chunks bounded <= 6, memory steady).
+    4. Scenario 4 (Fast repeated inputs): rapid jump/slide toggling stress test passed with finite velocity.
+    5. Scenario 5 (Simultaneous touches): jump hold + skill tap + pause handled cleanly without duplicate triggers.
+    6. Scenario 6 (Skill cooldown spam): repeated activations rejected during cooldown, charges preserved.
+    7. Scenario 7 (All 4 worlds cycle): full cycle traversing Plains -> Jungle -> Frozen -> Volcanic.
+    8. Scenario 8 (Dive, drop-through, bounce): dive down, one-way drop-through, and spring pad launch verified.
+    9. Scenario 9 (Flight pause preservation): flight duration timer completely frozen during pause.
+    10. Scenario 10 (Save/load cycles): 50 atomic write/read cycles with zero file locks or corruption.
+    11. Scenario 11 (Corrupted save recovery): invalid JSON safely reset to current version 2 defaults.
+    12. Scenario 12 (Android lifecycle restore): focus loss pauses, clears held flags, retains pause on resume.
+  - Spec C Performance Benchmarks: Verified via `tools/verify_session11_perf_and_layouts.gd`:
+    - Startup time: 301.87 ms (spec target < 1000 ms)
+    - Immediate restart time: 1.77 ms (instant retry)
+    - Frame pacing: average 0.055 ms / max 0.934 ms (zero stutter exceeding 16.6 ms frame budget)
+    - Memory: 66.78 MB static memory, 0 orphan nodes
+    - Multi-resolution layouts: 16:9 standard, 16:9 FHD, 19.5:9 tall mobile, 20:9 ultra-tall, and 4:3 tablet layouts validated with non-overlapping touch controls.
+  - Spec D Player Perspective: Documented all 8 player evaluation questions in `docs/TEST_REPORT.md`.
+  - Spec E Two Review Passes: Pass 1 (correctness & reliability) and Pass 2 (architecture & maintainability) completed.
+  - Spec F Acceptance Criteria: All 18 criteria in Table 3.1 closed as PASS in `docs/RELEASE_CHECKLIST.md`.
+- **Delivered components:**
+  - `tools/verify_session11_qa_matrix.gd` (12 Spec B end-to-end scenarios test suite).
+  - `tools/verify_session11_perf_and_layouts.gd` (Spec C performance & multi-aspect ratio test suite).
+  - `docs/BUG_TRACKER.md` (Formal tracking of all 11 resolved bugs across milestones).
+  - `docs/RELEASE_CHECKLIST.md` (18 acceptance criteria from Table 3.1 marked PASS with evidence links).
+  - Updated `docs/TEST_REPORT.md` (Complete testing and benchmark report).
+- **Verification evidence:**
+  - L1: 0 errors across all scripts and scenes.
+  - L2: 71/71 automated tests passed in `test_runner.gd`.
+  - L3: All 12 Spec B scenarios and all 5 layout tests passed.
+  - L4: Verified APK with `tools/verify_apk.ps1` (67.6 MB, SHA-256 confirmed).
+
+---
 
 ### Session 10 — Progression, Save Migrations, and Android Lifecycle (M8, part 2)
 - **Date:** 2026-11-06
