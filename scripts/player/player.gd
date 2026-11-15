@@ -4,6 +4,11 @@ extends CharacterBody2D
 signal state_changed(old_state: int, new_state: int)
 signal jumped()
 signal landed()
+signal slided()
+signal dived()
+signal air_dashed()
+signal ground_slammed()
+signal hazard_broken(hazard: Hazard, source: String)
 signal died(cause: String)
 signal gem_collected(count: int, score_bonus: int)
 signal skill_used(type: int)
@@ -31,6 +36,12 @@ var invulnerability_timer: float = 0.0 # Spawn shield protection
 var slide_timer: float = 0.0
 var run_anim_timer: float = 0.0
 var current_skin: String = "classic"
+var auto_hold_jump: bool = false
+var bonus_forward_vx: float = 0.0
+var icy_slide_boost: float = 0.0
+var fx_container: Node = null
+var _anim_tween: Tween = null
+var _flash_tween: Tween = null
 
 # Session 5 Skills & Collectibles State
 var skill_manager: SkillManager
@@ -40,6 +51,7 @@ var bounce_multiplier: float = 1.0
 var is_ground_slamming: bool = false
 var is_air_dashing: bool = false
 var air_dash_timer: float = 0.0
+var practice_shield_enabled: bool = false
 
 # Session 6 Flight State (M5)
 var is_flying: bool = false
@@ -111,6 +123,12 @@ func set_skin(skin_id: String) -> bool:
 func get_skin() -> String:
 	return current_skin
 
+func _process(delta: float) -> void:
+	# Keep mascot alive with subtle idle breathing/blink when frozen on title screen
+	if not is_physics_processing() and state_machine.current_state == PlayerStateMachine.State.IDLE:
+		state_machine.time_in_state += delta
+		_update_presentation(delta)
+
 func _physics_process(delta: float) -> void:
 	# Update timers
 	_update_timers(delta)
@@ -118,16 +136,23 @@ func _physics_process(delta: float) -> void:
 	# Process state and inputs
 	_process_state(delta)
 
+	# Decay forward boost (e.g. from BouncePad) smoothly
+	if bonus_forward_vx > 0.0:
+		bonus_forward_vx = maxf(bonus_forward_vx - 260.0 * delta, 0.0)
+
 	# Horizontal speed progression
 	if state_machine.current_state != PlayerStateMachine.State.DEAD and state_machine.current_state != PlayerStateMachine.State.IDLE:
+		var extra_vx: float = bonus_forward_vx
+		if state_machine.current_state == PlayerStateMachine.State.SLIDE and icy_slide_boost > 0.0:
+			extra_vx += icy_slide_boost
 		if state_machine.current_state == PlayerStateMachine.State.AIR_DASH:
 			velocity.x = current_speed + 320.0
 		elif is_steer_enabled:
 			var kb_steer = Input.get_axis("ui_left", "ui_right")
 			var final_steer = steer_input if absf(steer_input) > 0.1 else kb_steer
-			velocity.x = maxf(current_speed + (final_steer * 150.0), 60.0)
+			velocity.x = maxf(current_speed + extra_vx + (final_steer * 150.0), 60.0)
 		else:
-			velocity.x = current_speed
+			velocity.x = current_speed + extra_vx
 	else:
 		velocity.x = 0.0
 
@@ -172,9 +197,8 @@ func _process_state(delta: float) -> void:
 	if Input.is_action_just_pressed("jump"):
 		jump_buffer_timer = config.jump_buffer_time
 
-	# Jump release early
-	var is_holding = Input.is_action_pressed("jump") or jump_held
-	if Input.is_action_just_released("jump") and is_jump_holding:
+	# Jump release early (respects Accessibility auto_hold_jump)
+	if Input.is_action_just_released("jump") and is_jump_holding and not auto_hold_jump:
 		is_jump_holding = false
 		if velocity.y < 0.0:
 			velocity.y *= config.early_jump_release_multiplier
@@ -231,6 +255,10 @@ func drop_through_one_way_platform() -> void:
 func bounce_launch(force: float, forward_boost: float = 0.0) -> void:
 	if state_machine.current_state == PlayerStateMachine.State.DEAD:
 		return
+	if is_flying:
+		# Do not corrupt active flight state on pad contact; grant gentle upward boost instead
+		velocity.y = minf(velocity.y, -180.0)
+		return
 	if state_machine.current_state == PlayerStateMachine.State.SLIDE:
 		_exit_slide()
 	jump_buffer_timer = 0.0
@@ -239,7 +267,7 @@ func bounce_launch(force: float, forward_boost: float = 0.0) -> void:
 	is_jump_holding = false
 	velocity.y = force * bounce_multiplier
 	if forward_boost > 0.0:
-		velocity.x += forward_boost
+		bonus_forward_vx = maxf(bonus_forward_vx, forward_boost)
 	state_machine.change_state(PlayerStateMachine.State.JUMP_RISE)
 	_apply_takeoff_stretch()
 	jumped.emit()
@@ -263,7 +291,7 @@ func _handle_ground_state(_delta: float) -> void:
 		state_machine.change_state(PlayerStateMachine.State.JUMP_FALL)
 
 func _handle_jump_rise_state(delta: float) -> void:
-	var is_holding = Input.is_action_pressed("jump") or jump_held
+	var is_holding = Input.is_action_pressed("jump") or jump_held or auto_hold_jump
 	# Variable jump hold boost
 	if is_jump_holding and is_holding:
 		jump_hold_timer += delta
@@ -279,7 +307,7 @@ func _handle_jump_rise_state(delta: float) -> void:
 
 	# Check for dive input
 	if Input.is_action_just_pressed("slide"):
-		state_machine.change_state(PlayerStateMachine.State.DIVE)
+		_trigger_dive()
 		return
 
 	# Transition to apex when vertical speed nears peak
@@ -290,7 +318,7 @@ func _handle_jump_apex_state(delta: float) -> void:
 	velocity.y += config.gravity * 0.75 * delta # Slight float at apex
 
 	if Input.is_action_just_pressed("slide"):
-		state_machine.change_state(PlayerStateMachine.State.DIVE)
+		_trigger_dive()
 		return
 
 	if velocity.y > 40.0:
@@ -307,8 +335,14 @@ func _handle_jump_fall_state(delta: float) -> void:
 
 	# Dive check
 	if Input.is_action_just_pressed("slide"):
-		state_machine.change_state(PlayerStateMachine.State.DIVE)
+		_trigger_dive()
 		return
+
+func _trigger_dive() -> void:
+	is_jump_holding = false
+	velocity.y = config.dive_velocity
+	state_machine.change_state(PlayerStateMachine.State.DIVE)
+	dived.emit()
 
 func _handle_land_state(_delta: float) -> void:
 	# Responsiveness: allow buffered or new jumps during squash
@@ -359,6 +393,8 @@ func _handle_air_dash_state(delta: float) -> void:
 	velocity.y = 0.0
 	if air_dash_timer <= 0.0:
 		is_air_dashing = false
+		if sprite:
+			sprite.scale = Vector2.ONE
 		state_machine.change_state(PlayerStateMachine.State.JUMP_FALL)
 
 func _handle_flight_state(delta: float) -> void:
@@ -415,8 +451,7 @@ func _execute_jump() -> void:
 func _enter_slide() -> void:
 	if not is_on_floor():
 		# Mid-air slide becomes dive down, cannot hover in air
-		state_machine.change_state(PlayerStateMachine.State.DIVE)
-		velocity.y = config.dive_velocity
+		_trigger_dive()
 		return
 	slide_timer = 0.0
 	state_machine.change_state(PlayerStateMachine.State.SLIDE)
@@ -424,6 +459,7 @@ func _enter_slide() -> void:
 		box_shape.size = config.sliding_extents * 2.0
 	if collision_shape:
 		collision_shape.position = config.sliding_offset
+	slided.emit()
 
 func _exit_slide() -> void:
 	if box_shape:
@@ -460,26 +496,41 @@ func _post_movement_check(_delta: float) -> void:
 			else:
 				state_machine.change_state(PlayerStateMachine.State.LAND)
 
+func _kill_anim_tween() -> void:
+	if _anim_tween and _anim_tween.is_valid():
+		_anim_tween.kill()
+	_anim_tween = null
+
+func _kill_flash_tween() -> void:
+	if _flash_tween and _flash_tween.is_valid():
+		_flash_tween.kill()
+	_flash_tween = null
+
 func _apply_landing_squash() -> void:
 	if not is_inside_tree() or sprite == null:
 		return
-	var tw = create_tween()
-	tw.tween_property(sprite, "scale", config.landing_squash_scale, config.squash_duration * 0.5)
-	tw.tween_property(sprite, "scale", Vector2.ONE, config.squash_duration * 0.5)
+	_kill_anim_tween()
+	_anim_tween = create_tween()
+	if _anim_tween:
+		_anim_tween.tween_property(sprite, "scale", config.landing_squash_scale, config.squash_duration * 0.5)
+		_anim_tween.tween_property(sprite, "scale", Vector2.ONE, config.squash_duration * 0.5)
 
 func _apply_takeoff_stretch() -> void:
 	if not is_inside_tree() or sprite == null:
 		return
-	var tw = create_tween()
-	tw.tween_property(sprite, "scale", config.takeoff_stretch_scale, config.stretch_duration * 0.5)
-	tw.tween_property(sprite, "scale", Vector2.ONE, config.stretch_duration * 0.5)
+	_kill_anim_tween()
+	_anim_tween = create_tween()
+	if _anim_tween:
+		_anim_tween.tween_property(sprite, "scale", config.takeoff_stretch_scale, config.stretch_duration * 0.5)
+		_anim_tween.tween_property(sprite, "scale", Vector2.ONE, config.stretch_duration * 0.5)
 
 func _spawn_dust_puff() -> void:
-	if not is_inside_tree() or get_parent() == null:
+	var target_parent: Node = fx_container if is_instance_valid(fx_container) else get_parent()
+	if not is_inside_tree() or target_parent == null:
 		return
 	var dust = preload("res://scripts/player/dust_puff.gd").new()
 	dust.global_position = global_position + Vector2(-6, 12)
-	get_parent().add_child(dust)
+	target_parent.add_child(dust)
 
 func hit_hazard(cause: String = "Collision", force: bool = false, hazard: Hazard = null) -> void:
 	if state_machine.current_state == PlayerStateMachine.State.DEAD:
@@ -489,10 +540,30 @@ func hit_hazard(cause: String = "Collision", force: bool = false, hazard: Hazard
 
 	# Stone Shield absorption check
 	if not force and skill_manager and skill_manager.has_shield:
-		if skill_manager.absorb_shield_hit(hazard):
+		if skill_manager.absorb_shield_hit(hazard, practice_shield_enabled):
+			if practice_shield_enabled:
+				invulnerability_timer = maxf(invulnerability_timer, 0.85)
+			if is_instance_valid(hazard):
+				if hazard.category == Hazard.Category.ENVIRONMENTAL:
+					velocity.y = -280.0
+				else:
+					hazard.destroy_hazard()
+					hazard_broken.emit(hazard, "shield")
 			_play_shield_break_fx()
 			shield_broken.emit()
 			return # Absorbed hit!
+
+	if is_flying:
+		end_flight()
+	jump_held = false
+	slide_held = false
+	is_jump_holding = false
+	steer_input = 0.0
+	bonus_forward_vx = 0.0
+	if box_shape:
+		box_shape.size = config.standing_extents * 2.0
+	if collision_shape:
+		collision_shape.position = config.standing_offset
 
 	last_cause_of_death = cause
 	state_machine.change_state(PlayerStateMachine.State.DEAD)
@@ -501,11 +572,12 @@ func hit_hazard(cause: String = "Collision", force: bool = false, hazard: Hazard
 
 func _play_shield_break_fx() -> void:
 	# Visual shield break sparkle / flash
-	if sprite:
-		var tw = create_tween()
-		if tw:
-			tw.tween_property(sprite, "modulate", Color(2.0, 2.0, 2.0), 0.08)
-			tw.tween_property(sprite, "modulate", Color.WHITE, 0.12)
+	if is_inside_tree() and sprite:
+		_kill_flash_tween()
+		_flash_tween = create_tween()
+		if _flash_tween:
+			_flash_tween.tween_property(sprite, "modulate", Color(2.0, 2.0, 2.0), 0.08)
+			_flash_tween.tween_property(sprite, "modulate", Color.WHITE, 0.12)
 
 # --- Skill Actions ---
 
@@ -532,6 +604,7 @@ func execute_bone_blade() -> void:
 			if dx >= -5.0 and dx <= 65.0 and dy <= 35.0:
 				if h.category == Hazard.Category.BREAKABLE:
 					h.destroy_hazard()
+					hazard_broken.emit(h, "bone_blade")
 
 func execute_boomerang() -> void:
 	_play_attack_anim()
@@ -550,8 +623,9 @@ func execute_boomerang() -> void:
 		spr.scale = Vector2(0.5, 0.5)
 	boom.add_child(spr)
 
-	if get_parent():
-		get_parent().add_child(boom)
+	var target_parent: Node = fx_container if is_instance_valid(fx_container) else get_parent()
+	if target_parent:
+		target_parent.add_child(boom)
 	elif is_inside_tree():
 		get_tree().current_scene.add_child(boom)
 
@@ -559,6 +633,7 @@ func execute_ground_slam() -> void:
 	is_ground_slamming = true
 	state_machine.change_state(PlayerStateMachine.State.DIVE)
 	velocity.y = 700.0
+	dived.emit()
 
 func _execute_ground_slam_shockwave() -> void:
 	if not is_inside_tree():
@@ -570,13 +645,17 @@ func _execute_ground_slam_shockwave() -> void:
 			if dist <= 140.0:
 				if h.category == Hazard.Category.BREAKABLE or h.category == Hazard.Category.CRAWLER:
 					h.destroy_hazard()
+					hazard_broken.emit(h, "ground_slam")
+
+	ground_slammed.emit()
 
 	# Shockwave ground flash
-	if sprite:
-		var tw = create_tween()
-		if tw:
-			tw.tween_property(sprite, "modulate", Color(1.5, 1.2, 0.5), 0.1)
-			tw.tween_property(sprite, "modulate", Color.WHITE, 0.15)
+	if is_inside_tree() and sprite:
+		_kill_flash_tween()
+		_flash_tween = create_tween()
+		if _flash_tween:
+			_flash_tween.tween_property(sprite, "modulate", Color(1.5, 1.2, 0.5), 0.1)
+			_flash_tween.tween_property(sprite, "modulate", Color.WHITE, 0.15)
 
 func execute_air_dash() -> void:
 	is_air_dashing = true
@@ -584,6 +663,7 @@ func execute_air_dash() -> void:
 	velocity = Vector2(current_speed + 320.0, 0.0)
 	state_machine.change_state(PlayerStateMachine.State.AIR_DASH)
 	_apply_takeoff_stretch()
+	air_dashed.emit()
 
 func set_magnet_active(active: bool) -> void:
 	is_magnet_active = active
@@ -595,18 +675,20 @@ func add_gems(amount: int = 1, score_bonus: int = 15) -> void:
 	gems_collected += amount
 	gem_collected.emit(gems_collected, score_bonus)
 	# Subtle collect hop / flash
-	if sprite:
-		var tw = create_tween()
-		if tw:
-			tw.tween_property(sprite, "modulate", Color(1.3, 1.3, 1.0), 0.06)
-			tw.tween_property(sprite, "modulate", Color.WHITE, 0.08)
+	if is_inside_tree() and sprite:
+		_kill_flash_tween()
+		_flash_tween = create_tween()
+		if _flash_tween:
+			_flash_tween.tween_property(sprite, "modulate", Color(1.3, 1.3, 1.0), 0.06)
+			_flash_tween.tween_property(sprite, "modulate", Color.WHITE, 0.08)
 
 func _play_attack_anim() -> void:
-	if sprite:
-		var tw = create_tween()
-		if tw:
-			tw.tween_property(sprite, "rotation_degrees", 15.0, 0.08)
-			tw.tween_property(sprite, "rotation_degrees", 0.0, 0.12)
+	if is_inside_tree() and sprite:
+		_kill_anim_tween()
+		_anim_tween = create_tween()
+		if _anim_tween:
+			_anim_tween.tween_property(sprite, "rotation_degrees", 15.0, 0.08)
+			_anim_tween.tween_property(sprite, "rotation_degrees", 0.0, 0.12)
 
 # --- Session 6 Flight System ---
 
@@ -615,6 +697,10 @@ func start_flight(type: int, duration: float = 0.0) -> void:
 		return
 	if state_machine.current_state == PlayerStateMachine.State.SLIDE:
 		_exit_slide()
+	is_jump_holding = false
+	jump_held = false
+	slide_held = false
+	jump_buffer_timer = 0.0
 
 	flight_type = type
 	if duration <= 0.0:
@@ -658,6 +744,7 @@ func _setup_flight_overlay() -> void:
 		if ResourceLoader.exists("res://assets/sprites/flight_wings_anim.png"):
 			flight_overlay.texture = load("res://assets/sprites/flight_wings_anim.png")
 			flight_overlay.position = Vector2(0, -6)
+			flight_overlay.rotation_degrees = 0.0
 			flight_overlay.scale = Vector2.ONE
 	elif flight_type == 2:
 		# Rocket thruster flame
@@ -671,6 +758,8 @@ func _setup_flight_overlay() -> void:
 	flight_anim_timer = 0.0
 
 func reset() -> void:
+	_kill_anim_tween()
+	_kill_flash_tween()
 	if state_machine.current_state == PlayerStateMachine.State.DEAD:
 		state_machine.change_state(PlayerStateMachine.State.RESPAWN)
 	state_machine.change_state(PlayerStateMachine.State.RUN)
@@ -684,18 +773,27 @@ func reset() -> void:
 	coyote_timer = 0.0
 	jump_hold_timer = 0.0
 	slide_timer = 0.0
+	run_anim_timer = 0.0
+	bonus_forward_vx = 0.0
+	icy_slide_boost = 0.0
 	invulnerability_timer = 0.35 # Spawn shield against stale overlaps
 	gems_collected = 0
 	is_magnet_active = false
 	bounce_multiplier = 1.0
 	is_ground_slamming = false
 	is_air_dashing = false
+	air_dash_timer = 0.0
 	is_flying = false
+	flight_type = 0
+	flight_duration_total = 0.0
 	flight_timer = 0.0
+	flight_warning_triggered = false
+	flight_anim_timer = 0.0
 	flight_up_input = false
 	flight_down_input = false
 	if flight_overlay:
 		flight_overlay.visible = false
+		flight_overlay.rotation_degrees = 0.0
 	if skill_manager:
 		skill_manager.clear_skill()
 	_exit_slide()
@@ -739,7 +837,7 @@ func _update_presentation(delta: float) -> void:
 			sprite.rotation_degrees = 0.0
 
 		PlayerStateMachine.State.SLIDE:
-			sprite.frame = 12 + (int(state_machine.time_in_state * 10.0) % 3)
+			sprite.frame = 13 + (int(state_machine.time_in_state * 8.0) % 2)
 			sprite.rotation_degrees = 0.0
 
 		PlayerStateMachine.State.DIVE:
@@ -758,10 +856,10 @@ func _update_presentation(delta: float) -> void:
 				flight_overlay.frame = int(flight_anim_timer) % 4
 
 		PlayerStateMachine.State.HURT:
-			sprite.frame = 16
+			sprite.frame = 19 + (int(state_machine.time_in_state * 8.0) % 2)
 			sprite.rotation_degrees = 0.0
 
 		PlayerStateMachine.State.DEAD:
-			var death_f = mini(int(state_machine.time_in_state * 12.0), 7)
-			sprite.frame = 19 + death_f
+			var death_f = mini(int(state_machine.time_in_state * 14.0), 5)
+			sprite.frame = 21 + death_f
 			sprite.rotation_degrees = 0.0

@@ -50,15 +50,15 @@ script = ExtResource("1_hud")
 layout_mode = 3
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 34.0
+offset_bottom = 58.0
 grow_horizontal = 2
 mouse_filter = 2
 
 [node name="ScoreLabel" type="Label" parent="TopBar"]
 layout_mode = 0
-offset_left = 10.0
+offset_left = 6.0
 offset_top = 5.0
-offset_right = 136.0
+offset_right = 114.0
 offset_bottom = 27.0
 text = "SCORE: 00000"
 label_settings = SubResource("LabelSettings_hud")
@@ -66,43 +66,53 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="DistanceLabel" type="Label" parent="TopBar"]
-visible = false
-layout_mode = 0
-offset_left = 118.0
-offset_top = 8.0
-offset_right = 205.0
-offset_bottom = 24.0
-text = "DIST: 0m"
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -6.0
+offset_top = 32.0
+offset_right = 70.0
+offset_bottom = 54.0
+text = "📏 0m"
 label_settings = SubResource("LabelSettings_hud")
+vertical_alignment = 1
 
 [node name="BestLabel" type="Label" parent="TopBar"]
 layout_mode = 0
-offset_left = 144.0
+offset_left = 118.0
 offset_top = 5.0
-offset_right = 262.0
+offset_right = 216.0
 offset_bottom = 27.0
-text = "HI: 00000"
+text = "🏆 HI: 00000"
 label_settings = SubResource("LabelSettings_hud")
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="PointsLabel" type="Label" parent="TopBar"]
-layout_mode = 0
-offset_left = 240.0
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -20.0
 offset_top = 5.0
-offset_right = 325.0
+offset_right = 70.0
 offset_bottom = 27.0
-text = "PTS: 00050"
+text = "💎 PTS: 00050"
 label_settings = SubResource("LabelSettings_gold")
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="GemsLabel" type="Label" parent="TopBar"]
-layout_mode = 0
-offset_left = 330.0
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -142.0
 offset_top = 5.0
-offset_right = 390.0
+offset_right = -88.0
 offset_bottom = 27.0
+grow_horizontal = 0
 text = "💎 0"
 label_settings = SubResource("LabelSettings_gold")
 horizontal_alignment = 1
@@ -110,10 +120,10 @@ vertical_alignment = 1
 
 [node name="SkillSlot" type="PanelContainer" parent="TopBar"]
 layout_mode = 0
-offset_left = 10.0
-offset_top = 30.0
+offset_left = 6.0
+offset_top = 31.0
 offset_right = 95.0
-offset_bottom = 56.0
+offset_bottom = 55.0
 
 [node name="HBox" type="HBoxContainer" parent="TopBar/SkillSlot"]
 layout_mode = 2
@@ -132,21 +142,25 @@ label_settings = SubResource("LabelSettings_hud")
 
 [node name="WorldLabel" type="Label" parent="TopBar"]
 layout_mode = 0
-offset_left = 105.0
+offset_left = 102.0
 offset_top = 32.0
-offset_right = 240.0
+offset_right = 226.0
 offset_bottom = 54.0
 text = "🌍 PLAINS"
 label_settings = SubResource("LabelSettings_hud")
 vertical_alignment = 1
 
 [node name="SeedLabel" type="Label" parent="TopBar"]
-layout_mode = 0
-offset_left = 245.0
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = 74.0
 offset_top = 32.0
-offset_right = 350.0
+offset_right = 152.0
 offset_bottom = 54.0
-text = "SEED: 000000"
+text = "🎲 000000"
 label_settings = SubResource("LabelSettings_hud")
 vertical_alignment = 1
 
@@ -216,10 +230,10 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -96.0
-offset_top = -106.0
-offset_right = -14.0
-offset_bottom = -64.0
+offset_left = -232.0
+offset_top = -54.0
+offset_right = -168.0
+offset_bottom = -12.0
 grow_horizontal = 0
 grow_vertical = 0
 text = "⚡ SKILL"
@@ -570,7 +584,6 @@ label_settings = SubResource("LabelSettings_hud")
 horizontal_alignment = 1
 
 [node name="FinalDistLabel" type="Label" parent="GameOverMenu/Panel/VBox/StatsHBox"]
-visible = false
 layout_mode = 2
 text = "DIST: 0m"
 label_settings = SubResource("LabelSettings_hud")
@@ -682,8 +695,14 @@ label_settings = SubResource("LabelSettings_gold")
 layout_mode = 2
 text = " ✕ "
 
-[node name="SkinsHBox" type="HBoxContainer" parent="SkinShopDialog/Panel/VBox"]
+[node name="ShopScroll" type="ScrollContainer" parent="SkinShopDialog/Panel/VBox"]
 layout_mode = 2
+size_flags_vertical = 3
+vertical_scroll_mode = 0
+
+[node name="SkinsHBox" type="HBoxContainer" parent="SkinShopDialog/Panel/VBox/ShopScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 6
 alignment = 1
@@ -762,9 +781,9 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -175.0
-offset_top = 36.0
+offset_top = 84.0
 offset_right = 175.0
-offset_bottom = 64.0
+offset_bottom = 106.0
 grow_horizontal = 2
 
 [node name="ToastLabel" type="Label" parent="ChallengeToast"]
@@ -779,10 +798,10 @@ visible = false
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -140.0
-offset_top = 36.0
-offset_right = 140.0
-offset_bottom = 64.0
+offset_left = -145.0
+offset_top = 84.0
+offset_right = 145.0
+offset_bottom = 106.0
 grow_horizontal = 2
 mouse_filter = 2
 
@@ -798,10 +817,10 @@ visible = false
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -110.0
-offset_top = 4.0
-offset_right = 110.0
-offset_bottom = 28.0
+offset_left = -105.0
+offset_top = 58.0
+offset_right = 105.0
+offset_bottom = 80.0
 grow_horizontal = 2
 mouse_filter = 2
 
@@ -883,16 +902,16 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -170.0
-offset_top = -120.0
-offset_right = 170.0
-offset_bottom = 120.0
+offset_left = -175.0
+offset_top = -114.0
+offset_right = 175.0
+offset_bottom = 114.0
 grow_horizontal = 2
 grow_vertical = 2
 
 [node name="VBox" type="VBoxContainer" parent="SettingsDialog/Panel"]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 5
 
 [node name="HeaderHBox" type="HBoxContainer" parent="SettingsDialog/Panel/VBox"]
 layout_mode = 2
@@ -907,27 +926,38 @@ label_settings = SubResource("LabelSettings_title")
 layout_mode = 2
 text = "✕ CLOSE"
 
-[node name="SoundToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox"]
+[node name="SettingsScroll" type="ScrollContainer" parent="SettingsDialog/Panel/VBox"]
+custom_minimum_size = Vector2(0, 174)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="SettingsList" type="VBoxContainer" parent="SettingsDialog/Panel/VBox/SettingsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="SoundToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox/SettingsScroll/SettingsList"]
 layout_mode = 2
 text = "🔊 SOUND EFFECTS: ON"
 
-[node name="VibrationToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox"]
+[node name="VibrationToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox/SettingsScroll/SettingsList"]
 layout_mode = 2
 text = "📳 HAPTIC VIBRATION: ON"
 
-[node name="MotionToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox"]
+[node name="MotionToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox/SettingsScroll/SettingsList"]
 layout_mode = 2
 text = "🌀 REDUCE MOTION: OFF"
 
-[node name="ContrastToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox"]
+[node name="ContrastToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox/SettingsScroll/SettingsList"]
 layout_mode = 2
 text = "👁 HIGH CONTRAST: OFF"
 
-[node name="HandedToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox"]
+[node name="HandedToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox/SettingsScroll/SettingsList"]
 layout_mode = 2
 text = "🖐 CONTROL LAYOUT: RIGHT-HANDED"
 
-[node name="AutoHoldToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox"]
+[node name="AutoHoldToggleBtn" type="Button" parent="SettingsDialog/Panel/VBox/SettingsScroll/SettingsList"]
 layout_mode = 2
 text = "🦘 AUTO-HOLD JUMP: OFF"
 
@@ -982,7 +1012,7 @@ text = "✕ CLOSE"
 
 [node name="CreditsText" type="Label" parent="CreditsDialog/Panel/VBox"]
 layout_mode = 2
-text = "RIFTOSAUR • Endless Prehistoric Action\nEngine: Godot Engine v4.7.2 (MIT License)\nAudio: Synthesized 16-bit PCM Audio\nArt: Hand-Crafted Procedural Pixel Engine\nDeveloped with Google DeepMind Agentic Coding"
+text = "RIFTOSAUR v1.1 • Endless Prehistoric Action\nEngine: Godot Engine v4.7.2 (MIT License)\n100% Offline Privacy • Zero Ads • Zero Tracking"
 label_settings = SubResource("LabelSettings_hud")
 horizontal_alignment = 1
 
@@ -1054,10 +1084,11 @@ layout_mode = 2
 text = "NEXT ▶"
 
 [node name="DevOverlay" type="PanelContainer" parent="."]
+visible = false
 offset_left = 6.0
-offset_top = 58.0
-offset_right = 180.0
-offset_bottom = 80.0
+offset_top = 110.0
+offset_right = 210.0
+offset_bottom = 132.0
 mouse_filter = 2
 
 [node name="DevText" type="Label" parent="DevOverlay"]

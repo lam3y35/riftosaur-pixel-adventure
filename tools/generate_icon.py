@@ -41,27 +41,42 @@ def generate_pro_icon():
         scaled.save(f"assets/icons/android/{filename}")
 
     # 3. Generate Android Adaptive Icon (432x432)
-    # Android Adaptive Icons display the inner 66% (288x288) safe zone inside a mask,
-    # while using the outer 72px margin for parallax movement.
-    # By placing our full artwork slightly zoomed out (340x340) over a matching
-    # cosmic twilight background (432x432), the dinosaur head, tail, and portal
-    # stay 100% inside the circular/squircle mask on all Android launchers!
-    bg_color = (22, 18, 52, 255) # Deep cosmic indigo matching the top sky
-    bg_432 = Image.new("RGBA", (432, 432), bg_color)
-    # Also create a blurred/expanded version of the master image for seamless edges
-    bg_full = img.resize((432, 432), resample=Image.LANCZOS)
-    bg_full.save("assets/icons/android/icon_background_432.png")
+    # Background: smooth deep cosmic indigo radial/vertical gradient (100% opaque, zero seam)
+    bg_432 = Image.new("RGBA", (432, 432), (20, 16, 48, 255))
+    bg_px = bg_432.load()
+    for py in range(432):
+        ty = py / 431.0
+        for px in range(432):
+            dx = (px - 216.0) / 216.0
+            dy = (py - 216.0) / 216.0
+            radial = max(0.0, 1.0 - (dx * dx + dy * dy) ** 0.5)
+            r = int(18 + 22 * radial + 8 * ty)
+            g = int(14 + 20 * radial + 6 * ty)
+            b = int(46 + 44 * radial + 14 * (1.0 - ty))
+            bg_px[px, py] = (r, g, b, 255)
+    bg_432.save("assets/icons/android/icon_background_432.png")
 
-    # Foreground 432x432: full bleed or safe-zone framed
-    fg_432 = Image.new("RGBA", (432, 432), (0, 0, 0, 0))
-    # Scale the master icon to 356x356 centered at (38, 38) so 100% of the dino is inside the 288px circle mask
-    inner_sz = 356
+    # Foreground 432x432: centered 312x312 hero inside Android 66% (288px) safe zone
+    # with feathered circular alpha mask so outer corners remain transparent (0..255 alpha).
+    inner_sz = 312
     offset = (432 - inner_sz) // 2
     inner_img = img.resize((inner_sz, inner_sz), resample=Image.LANCZOS)
-    # Put full 432x432 as base so there are no seams, with inner_img centered
-    fg_base = img.resize((432, 432), resample=Image.LANCZOS)
-    fg_base.paste(inner_img, (offset, offset))
-    fg_base.save("assets/icons/android/icon_foreground_432.png")
+    fg_432 = Image.new("RGBA", (432, 432), (0, 0, 0, 0))
+    fg_432.paste(inner_img, (offset, offset))
+    fg_px = fg_432.load()
+    r_inner = 134.0
+    r_outer = 156.0
+    for py in range(432):
+        for px in range(432):
+            dist = ((px - 215.5) ** 2 + (py - 215.5) ** 2) ** 0.5
+            r, g, b, a = fg_px[px, py]
+            if dist >= r_outer:
+                fg_px[px, py] = (0, 0, 0, 0)
+            elif dist > r_inner:
+                t = (dist - r_inner) / (r_outer - r_inner)
+                fade = 0.5 * (1.0 + __import__("math").cos(t * __import__("math").pi))
+                fg_px[px, py] = (r, g, b, int(a * fade))
+    fg_432.save("assets/icons/android/icon_foreground_432.png")
 
     print("Generated all high-res Riftosaur app icons (48..512px + 432px Adaptive Icons).")
 

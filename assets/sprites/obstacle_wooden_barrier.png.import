@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dm104auku6ewq"
-path="res://.godot/imported/dino_sample.png-e9038c0ace1ce0ede542e700ecb994d2.ctex"
+uid="uid://g8tgq4ue37pv"
+path="res://.godot/imported/obstacle_wooden_barrier.png-bdaae333bb4407a3a04ff308e8011739.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://gini/dino_sample.png"
-dest_files=["res://.godot/imported/dino_sample.png-e9038c0ace1ce0ede542e700ecb994d2.ctex"]
+source_file="res://assets/sprites/obstacle_wooden_barrier.png"
+dest_files=["res://.godot/imported/obstacle_wooden_barrier.png-bdaae333bb4407a3a04ff308e8011739.ctex"]
 
 [params]
 

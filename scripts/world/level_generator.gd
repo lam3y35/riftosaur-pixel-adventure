@@ -17,6 +17,7 @@ var last_pattern: LevelPattern = null
 var last_exit_height: float = 230.0
 var last_exit_surface: String = "solid"
 var consecutive_challenging_count: int = 0
+var recent_pattern_ids: Array[String] = []
 
 func _init(initial_seed: int = 0) -> void:
 	if initial_seed == 0:
@@ -37,6 +38,7 @@ func reset_state() -> void:
 	last_exit_height = 230.0
 	last_exit_surface = "solid"
 	consecutive_challenging_count = 0
+	recent_pattern_ids.clear()
 
 func _load_patterns() -> void:
 	patterns.clear()
@@ -53,8 +55,12 @@ func _load_patterns() -> void:
 	var pattern_files: Array[String] = []
 
 	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".tres"):
-			pattern_files.append("res://resources/patterns/" + file_name)
+		if not dir.current_is_dir():
+			var clean_name = file_name.trim_suffix(".remap")
+			if clean_name.ends_with(".tres"):
+				var full_path = "res://resources/patterns/" + clean_name
+				if not pattern_files.has(full_path):
+					pattern_files.append(full_path)
 		file_name = dir.get_next()
 	dir.list_dir_end()
 
@@ -89,7 +95,7 @@ func get_world_transition_pattern() -> LevelPattern:
 			return pat
 	return null
 
-func select_next_pattern(distance_m: float, current_speed: float, world_id: String) -> LevelPattern:
+func select_next_pattern(distance_m: float, current_speed: float, world_id: String, allowed_movements: Array = [], avoid_overhang: bool = false) -> LevelPattern:
 	var target_band = get_difficulty_band(distance_m, current_speed)
 	var candidates: Array[LevelPattern] = []
 
@@ -104,6 +110,18 @@ func select_next_pattern(distance_m: float, current_speed: float, world_id: Stri
 		# Check world compatibility
 		if not pat.world_ids.is_empty() and not pat.world_ids.has(world_id):
 			continue
+
+		# Check movement compatibility (e.g., Spicy Jump disallows slide; Flight avoids overhang traps)
+		if avoid_overhang and pat.required_movement.has("slide"):
+			continue
+		if not allowed_movements.is_empty():
+			var movement_ok := true
+			for req in pat.required_movement:
+				if req != "none" and req != "run_and_jump" and not allowed_movements.has(req):
+					movement_ok = false
+					break
+			if not movement_ok:
+				continue
 
 		# Check difficulty band: current band or one band lower for pacing
 		if pat.difficulty_band > target_band:
@@ -125,6 +143,43 @@ func select_next_pattern(distance_m: float, current_speed: float, world_id: Stri
 
 		candidates.append(pat)
 
+	# Second-chance relaxation: if strict high-band speed gates excluded every chunk (e.g., Chill/Practice speed caps),
+	# allow any unlocked lower-band obstacle pattern matching speed, world, movement, and connector continuity.
+	if candidates.is_empty():
+		for pat in patterns:
+			if pat.pattern_id == "p00_world_transition" or pat.pattern_id == "p01_safe_breather":
+				continue
+			if not pat.world_ids.is_empty() and not pat.world_ids.has(world_id):
+				continue
+			if avoid_overhang and pat.required_movement.has("slide"):
+				continue
+			if not allowed_movements.is_empty():
+				var mv_ok := true
+				for req in pat.required_movement:
+					if req != "none" and req != "run_and_jump" and not allowed_movements.has(req):
+						mv_ok = false
+						break
+				if not mv_ok:
+					continue
+			if pat.difficulty_band > target_band:
+				continue
+			if current_speed < pat.speed_range.x or current_speed > pat.speed_range.y:
+				continue
+			if absf(pat.entry_height - last_exit_height) > 1.0 or pat.entry_surface != last_exit_surface:
+				continue
+			if not allow_challenging and pat.route_class == "challenging":
+				continue
+			candidates.append(pat)
+
+	# Avoid immediate back-to-back repeats when other valid choices exist
+	if candidates.size() > 1:
+		var non_recent: Array[LevelPattern] = []
+		for pat in candidates:
+			if not recent_pattern_ids.has(pat.pattern_id):
+				non_recent.append(pat)
+		if not non_recent.is_empty():
+			candidates = non_recent
+
 	# Fallback if no matching pattern
 	if candidates.is_empty():
 		for pat in patterns:
@@ -134,10 +189,23 @@ func select_next_pattern(distance_m: float, current_speed: float, world_id: Stri
 
 	var chosen: LevelPattern
 	if candidates.is_empty():
+		if patterns.is_empty():
+			return null
 		chosen = patterns[0]
 	else:
+		# Prioritize biome-exclusive signature chunks when available (keeps each biome distinct)
+		var biome_specific: Array[LevelPattern] = []
+		for pat in candidates:
+			if pat.world_ids.size() > 0 and pat.world_ids.size() <= 2:
+				biome_specific.append(pat)
+		if not biome_specific.is_empty() and (rng.randi() % 100) < 65:
+			candidates = biome_specific
 		var idx = int(rng.randi() % candidates.size())
 		chosen = candidates[idx]
+
+	recent_pattern_ids.append(chosen.pattern_id)
+	if recent_pattern_ids.size() > 2:
+		recent_pattern_ids.remove_at(0)
 
 	if chosen.route_class == "challenging":
 		consecutive_challenging_count += 1

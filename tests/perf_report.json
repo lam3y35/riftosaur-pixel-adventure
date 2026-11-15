@@ -1,6 +1,6 @@
 {
 	"all_layouts_passed": true,
-	"avg_frame_time_ms": 0.0554966666666667,
+	"avg_frame_time_ms": 0.444516666666667,
 	"frame_times_ms": [],
 	"layouts_tested": {
 		"16:9 FHD": {
@@ -34,8 +34,8 @@
 			"status": "PASS"
 		}
 	},
-	"max_frame_time_ms": 0.934,
-	"min_frame_time_ms": 0.036,
-	"restart_time_ms": 1.772,
-	"startup_time_ms": 301.873
+	"max_frame_time_ms": 5.163,
+	"min_frame_time_ms": 0.075,
+	"restart_time_ms": 3.117,
+	"startup_time_ms": 610.206
 }

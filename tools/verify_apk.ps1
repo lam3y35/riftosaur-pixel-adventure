@@ -1,6 +1,7 @@
 # Spec D: Full APK Verification Script for Riftosaur
 param(
-    [string]$apkPath = "releases/Riftosaur-release.apk"
+    [string]$apkPath = "releases/Riftosaur-debug.apk",
+    [switch]$AllowUnsigned = $false
 )
 $buildTools = "C:\Users\Tweety\AppData\Local\Android\Sdk\build-tools\36.0.0"
 $aapt2 = "$buildTools\aapt2.exe"
@@ -50,20 +51,32 @@ if ($lastAlign -notmatch "Verification succesful" -and $lastAlign -notmatch "Ver
 
 # 4. Digital Signature Check via apksigner
 Write-Host "`n4. Digital Signature & Certs (apksigner):" -ForegroundColor Yellow
-& $apksigner verify --print-certs $apkPath
+$sigOut = & $apksigner verify --print-certs $apkPath 2>&1
+$sigCode = $LASTEXITCODE
+$sigOut | ForEach-Object { Write-Host "   $_" }
+if ($sigCode -ne 0 -and -not $AllowUnsigned) {
+    Write-Error "APK signature verification failed (pass -AllowUnsigned only for unsigned pre-store builds)!"
+    exit 1
+}
 
-# 5. Archive Content Spot-Check
-Write-Host "`n5. Archive Content Spot-Check:" -ForegroundColor Yellow
+# 5. Archive Content & Privacy Spot-Check
+Write-Host "`n5. Archive Content & Privacy Spot-Check:" -ForegroundColor Yellow
 $zipContent = tar -tf $apkPath
 $hasDex = ($zipContent -match "classes.dex").Count -gt 0
 $hasArm64 = ($zipContent -match "lib/arm64-v8a/libgodot_android.so").Count -gt 0
 $hasX86 = ($zipContent -match "lib/x86_64/libgodot_android.so").Count -gt 0
 $hasPck = ($zipContent -match "assets/").Count -gt 0
+$leaks = $zipContent | Where-Object { $_ -match "^assets/(gini|tests|tools|docs|\.agents|\.godot_tmp)/" }
 
 Write-Host "   classes.dex present       : $hasDex"
 Write-Host "   arm64-v8a native binary   : $hasArm64"
 Write-Host "   x86_64 native binary      : $hasX86"
 Write-Host "   assets/ archive bundled   : $hasPck"
+Write-Host "   private/dev leaks count   : $($leaks.Count)"
+if ($leaks.Count -gt 0) {
+    Write-Error "Privacy/Packaging violation! Non-runtime files bundled in APK: $($leaks -join ', ')"
+    exit 1
+}
 
 # 6. Permissions Verification (Session 10 / Spec B)
 Write-Host "`n6. Android Permissions Verification:" -ForegroundColor Yellow

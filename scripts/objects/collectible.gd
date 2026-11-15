@@ -22,7 +22,6 @@ func _physics_process(delta: float) -> void:
 		return
 
 	bob_timer += delta * 4.0
-	position.y = base_y + sin(bob_timer) * 3.0
 
 	# Magnet relic attraction
 	if target_player == null:
@@ -33,9 +32,13 @@ func _physics_process(delta: float) -> void:
 	if is_instance_valid(target_player) and target_player.is_magnet_active:
 		var dist = global_position.distance_to(target_player.global_position)
 		if dist <= 240.0:
-			var pull_speed = 350.0 + (240.0 - dist) * 1.5
+			var pull_speed = 380.0 + (240.0 - dist) * 1.6
 			var dir = (target_player.global_position - global_position).normalized()
 			global_position += dir * pull_speed * delta
+			base_y = position.y
+			return
+
+	position.y = base_y + sin(bob_timer) * 3.0
 
 func _on_body_entered(body: Node2D) -> void:
 	if is_collected:

@@ -80,6 +80,9 @@ func _register_tests() -> void:
 	var prog_script = load("res://tests/unit/test_progression_and_lifecycle.gd")
 	if prog_script:
 		test_cases.append(prog_script.new())
+	var v2_script = load("res://tests/unit/test_v2_improvements_and_security.gd")
+	if v2_script:
+		test_cases.append(v2_script.new())
 
 func _run_single_test(test_obj: Object, method_name: String) -> void:
 	# Check if test object has setup

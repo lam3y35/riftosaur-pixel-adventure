@@ -92,13 +92,57 @@ func _run_perf_tests() -> void:
 		
 		var inside_screen = (jump_btn_pos.x >= 0 and jump_btn_pos.y >= 0 and slide_btn_pos.x >= 0 and slide_btn_pos.y >= 0)
 		assert(inside_screen, "Controls must remain accessible within screen at %s" % r_name)
+		# Verify TopBar items and ComboPanel do not intersect at any resolution
+		var top_items: Array = [
+			hud.score_label, hud.best_label, hud.points_label, hud.gems_label, hud.pause_button,
+			hud.skill_slot, hud.world_label, hud.distance_label, hud.seed_label, hud.combo_panel
+		]
+		for i in range(top_items.size()):
+			var ci: Control = top_items[i]
+			if ci == null: continue
+			var ri := Rect2(ci.global_position, ci.size)
+			for j in range(i + 1, top_items.size()):
+				var cj: Control = top_items[j]
+				if cj == null: continue
+				var rj := Rect2(cj.global_position, cj.size)
+				if ri.intersects(rj):
+					printerr("HUD overlap between %s (%s) and %s (%s) at %s" % [ci.name, str(ri), cj.name, str(rj), r_name])
+					root.remove_child(runner)
+					runner.free()
+					quit(1)
+					return
 		perf_data["layouts_tested"][r_name] = {
 			"resolution": "%dx%d" % [r_size.x, r_size.y],
 			"controls_accessible": inside_screen,
 			"score_label_visible": hud.score_label.visible,
 			"status": "PASS"
 		}
-		print("  [PASS] Layout %s (%dx%d): Controls & HUD intact" % [r_name, r_size.x, r_size.y])
+		print("  [PASS] Layout %s (%dx%d): Controls & HUD intact (0 overlaps)" % [r_name, r_size.x, r_size.y])
+
+	# Simulated mobile cutout safe-area check on worst-case 16:9 width
+	root.size = Vector2i(480, 270)
+	await process_frame
+	runner.hud._apply_safe_area_layout({"left": 28.0, "top": 12.0, "right": 28.0, "bottom": 16.0})
+	await process_frame
+	var notched_items: Array = [
+		runner.hud.score_label, runner.hud.best_label, runner.hud.points_label, runner.hud.gems_label, runner.hud.pause_button,
+		runner.hud.skill_slot, runner.hud.world_label, runner.hud.distance_label, runner.hud.seed_label, runner.hud.combo_panel
+	]
+	for i in range(notched_items.size()):
+		var ci: Control = notched_items[i]
+		if ci == null: continue
+		var ri := Rect2(ci.global_position, ci.size)
+		for j in range(i + 1, notched_items.size()):
+			var cj: Control = notched_items[j]
+			if cj == null: continue
+			var rj := Rect2(cj.global_position, cj.size)
+			if ri.intersects(rj):
+				printerr("Notched Safe-Area HUD overlap between %s (%s) and %s (%s)" % [ci.name, str(ri), cj.name, str(rj)])
+				root.remove_child(runner)
+				runner.free()
+				quit(1)
+				return
+	print("  [PASS] Layout Notched Safe-Area 16:9 (28px side insets): 0 TopBar overlaps")
 	
 	perf_data["all_layouts_passed"] = layouts_ok
 	

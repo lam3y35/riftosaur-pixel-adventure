@@ -19,6 +19,10 @@ signal destroyed(hazard: Hazard)
 var base_speed: float = 0.0
 var is_destroyed: bool = false
 var time_scale: float = 1.0
+var _near_miss_awarded: bool = false
+var _player_ref: WeakRef = null
+var _anim_timer: float = 0.0
+@onready var sprite: Sprite2D = get_node_or_null("Sprite2D")
 
 func _ready() -> void:
 	base_speed = speed
@@ -26,8 +30,23 @@ func _ready() -> void:
 	if not body_entered.is_connected(_on_body_entered):
 		body_entered.connect(_on_body_entered)
 
+func _process(delta: float) -> void:
+	if is_destroyed or sprite == null or sprite.hframes <= 1:
+		return
+	_anim_timer += delta * 6.5 * maxf(time_scale, 0.35)
+	sprite.frame = int(_anim_timer) % sprite.hframes
+
 func _physics_process(delta: float) -> void:
 	if is_destroyed or speed == 0.0:
+		return
+	# Activate horizontal patrol only once near the player so enemies don't drift out of chunks early
+	var player = _player_ref.get_ref() if _player_ref else null
+	if player == null and is_inside_tree():
+		var players = get_tree().get_nodes_in_group("player")
+		if not players.is_empty():
+			player = players[0]
+			_player_ref = weakref(player)
+	if player != null and (global_position.x - player.global_position.x) > 540.0:
 		return
 	# Move left relative to world
 	position.x -= speed * time_scale * delta

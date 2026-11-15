@@ -4,7 +4,7 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/ground_tile.png" id="2_tile"]
 [ext_resource type="PackedScene" path="res://scenes/objects/bounce_mushroom.tscn" id="3_bounce"]
 [ext_resource type="PackedScene" path="res://scenes/objects/platform_one_way.tscn" id="4_oneway"]
-[ext_resource type="PackedScene" path="res://scenes/obstacles/obstacle_ground_low.tscn" id="5_low"]
+[ext_resource type="PackedScene" path="res://scenes/obstacles/hazard_lava_pit.tscn" id="5_lava"]
 [ext_resource type="PackedScene" path="res://scenes/objects/collectible_gem.tscn" id="6_gem"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ground"]
@@ -22,7 +22,7 @@ exit_surface = "solid"
 route_class = "optional_reward"
 difficulty_band = 5
 required_movement = ["run_and_jump", "bounce"]
-allowed_worlds = ["plains", "jungle", "frozen", "volcanic"]
+allowed_worlds = ["volcanic"]
 
 [node name="Ground" type="StaticBody2D" parent="."] 
 position = Vector2(0, 230)
@@ -289,13 +289,13 @@ position = Vector2(480, 160)
 [node name="StepPlatform" parent="." instance=ExtResource("4_oneway")]
 position = Vector2(680, 188)
 
-[node name="Hazard1" parent="." instance=ExtResource("5_low")]
-position = Vector2(380, 230)
+[node name="Hazard1" parent="." instance=ExtResource("5_lava")]
+position = Vector2(260, 230)
 
-[node name="Hazard2" parent="." instance=ExtResource("5_low")]
+[node name="Hazard2" parent="." instance=ExtResource("5_lava")]
 position = Vector2(580, 230)
 
-[node name="Hazard3" parent="." instance=ExtResource("5_low")]
+[node name="Hazard3" parent="." instance=ExtResource("5_lava")]
 position = Vector2(820, 230)
 
 [node name="Gem_280" parent="." instance=ExtResource("6_gem")]

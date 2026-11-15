@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/obstacles/hazard.gd" id="1_hazard"]
-[ext_resource type="Texture2D" path="res://assets/sprites/obstacle_crate.png" id="2_crate_tex"]
+[ext_resource type="Texture2D" path="res://assets/sprites/obstacle_wooden_barrier.png" id="2_bar_tex"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_bar"]
 size = Vector2(16, 28)
@@ -14,9 +14,8 @@ hazard_name = "Wooden Barrier"
 category = 1
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
-texture = ExtResource("2_crate_tex")
-region_enabled = true
-region_rect = Rect2(0, 0, 16, 28)
+texture_filter = 1
+texture = ExtResource("2_bar_tex")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_bar")

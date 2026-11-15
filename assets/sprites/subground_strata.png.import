@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1h1iis24h0xg"
-path="res://.godot/imported/WhatsApp Image 2026-11-05 at 202.25.jpeg-f56d86d2e905c64655939d432d84daee.ctex"
+uid="uid://bmqfxya4nnjh7"
+path="res://.godot/imported/subground_strata.png-838312180755865e01a156e62009e1f6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://gini/WhatsApp Image 2026-11-05 at 202.25.jpeg"
-dest_files=["res://.godot/imported/WhatsApp Image 2026-11-05 at 202.25.jpeg-f56d86d2e905c64655939d432d84daee.ctex"]
+source_file="res://assets/sprites/subground_strata.png"
+dest_files=["res://.godot/imported/subground_strata.png-838312180755865e01a156e62009e1f6.ctex"]
 
 [params]
 

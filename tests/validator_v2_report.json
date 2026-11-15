@@ -1,8 +1,8 @@
 {
   "by_band": {
-    "1": 3,
-    "2": 4,
-    "3": 5,
+    "1": 5,
+    "2": 5,
+    "3": 6,
     "4": 6,
     "5": 2
   },
@@ -10,11 +10,11 @@
     "frozen": 20,
     "jungle": 20,
     "plains": 20,
-    "volcanic": 20
+    "volcanic": 21
   },
   "failed": 0,
   "failures": [],
-  "passed": 20,
+  "passed": 24,
   "patterns": [
     {
       "band": 1,
@@ -41,7 +41,7 @@
       "width": 480.0
     },
     {
-      "band": 2,
+      "band": 1,
       "id": "p04_double_low_rhythm",
       "status": "PASSED",
       "width": 480.0
@@ -53,7 +53,7 @@
       "width": 480.0
     },
     {
-      "band": 2,
+      "band": 1,
       "id": "p06_crate_step_hurdle",
       "status": "PASSED",
       "width": 480.0
@@ -71,7 +71,7 @@
       "width": 480.0
     },
     {
-      "band": 3,
+      "band": 2,
       "id": "p09_mushroom_bounce",
       "status": "PASSED",
       "width": 480.0
@@ -135,7 +135,31 @@
       "id": "p19_volcanic_aerial_chasm",
       "status": "PASSED",
       "width": 960.0
+    },
+    {
+      "band": 2,
+      "id": "p20_jungle_canopy_run",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 3,
+      "id": "p21_frozen_glacier_slide",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 3,
+      "id": "p22_volcanic_lava_leap",
+      "status": "PASSED",
+      "width": 480.0
+    },
+    {
+      "band": 2,
+      "id": "p23_plains_sky_trail",
+      "status": "PASSED",
+      "width": 480.0
     }
   ],
-  "total_patterns": 20
+  "total_patterns": 24
 }

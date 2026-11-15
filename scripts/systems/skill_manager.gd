@@ -101,6 +101,7 @@ var cooldown_timer: float = 0.0
 var duration_timer: float = 0.0
 var is_active: bool = false
 var has_shield: bool = false
+var world_time_scale: float = 1.0
 
 # Optional weak reference to player
 var player_ref: WeakRef
@@ -144,6 +145,8 @@ func equip_skill(type: SkillType) -> void:
 func clear_skill() -> void:
 	if is_active:
 		_end_skill_effect(current_skill)
+	elif world_time_scale != 1.0:
+		_set_world_time_scale(1.0)
 	current_skill = SkillType.NONE
 	current_charges = 0
 	max_charges = 0
@@ -162,6 +165,11 @@ func can_activate() -> bool:
 		return false
 
 	var player = player_ref.get_ref() if player_ref else null
+	if player != null:
+		if player.state_machine.current_state == PlayerStateMachine.State.DEAD:
+			return false
+		if player.is_flying:
+			return false
 
 	# Skill specific preconditions
 	if current_skill == SkillType.GROUND_SLAM:
@@ -170,8 +178,8 @@ func can_activate() -> bool:
 			return false
 
 	if current_skill == SkillType.STONE_SHIELD:
-		# Shield is passive once equipped, but activation can refresh or burst
-		return true
+		# Stone Shield is passive once equipped and auto-absorbs hits
+		return false
 
 	return true
 
@@ -212,10 +220,10 @@ func update(delta: float) -> void:
 			_end_skill_effect(current_skill)
 			is_active = false
 			skill_expired.emit(current_skill)
-			if current_charges <= 0:
-				# Single use duration skills clear after expiry
-				if current_skill != SkillType.AIR_DASH:
-					clear_skill()
+			if current_charges <= 0 and current_skill != SkillType.AIR_DASH:
+				clear_skill()
+	elif not is_active and cooldown_timer <= 0.0 and current_charges <= 0 and current_skill != SkillType.NONE and current_skill != SkillType.AIR_DASH:
+		clear_skill()
 
 	if needs_signal:
 		skill_updated.emit(cooldown_timer, duration_timer, current_charges)
@@ -227,20 +235,26 @@ func on_player_landed() -> void:
 			current_charges = max_charges
 			skill_updated.emit(cooldown_timer, duration_timer, current_charges)
 
-func absorb_shield_hit(hazard: Hazard) -> bool:
+func absorb_shield_hit(hazard: Hazard, allow_solid: bool = false) -> bool:
 	if not has_shield or current_skill != SkillType.STONE_SHIELD:
 		return false
 
-	# Blocks one hit from Airborne, Crawler, or Projectile
-	# Never blocks Solid or Environmental
+	# Blocks one hit from Airborne, Crawler, or Projectile.
+	# Practice Mode (allow_solid=true) also extends one forgiving shield save to Solid/Environmental hazards.
 	var cat = hazard.category if hazard != null else Hazard.Category.SOLID
-	if cat == Hazard.Category.AIRBORNE or cat == Hazard.Category.CRAWLER or cat == Hazard.Category.PROJECTILE:
+	var absorbed := (
+		cat == Hazard.Category.AIRBORNE
+		or cat == Hazard.Category.CRAWLER
+		or cat == Hazard.Category.PROJECTILE
+		or (allow_solid and (cat == Hazard.Category.SOLID or cat == Hazard.Category.ENVIRONMENTAL))
+	)
+	if absorbed:
 		# Absorbed! Shield breaks
 		has_shield = false
 		clear_skill()
 		return true
 	
-	# Solid or Environmental cannot be blocked
+	# Solid or Environmental cannot be blocked in standard modes
 	return false
 
 func _apply_skill_effect(type: SkillType) -> void:
@@ -282,6 +296,7 @@ func _end_skill_effect(type: SkillType) -> void:
 				player.set_bounce_multiplier(1.0)
 
 func _set_world_time_scale(multiplier: float) -> void:
+	world_time_scale = multiplier
 	var player = player_ref.get_ref() if player_ref else null
 	if player and player.is_inside_tree():
 		var hazards = player.get_tree().get_nodes_in_group("hazards")

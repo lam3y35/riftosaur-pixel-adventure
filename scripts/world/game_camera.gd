@@ -12,6 +12,7 @@ extends Camera2D
 @export var reduce_motion: bool = false
 
 var current_target_y: float = 135.0
+var target_zoom: float = 1.0
 var shake_intensity: float = 0.0
 var shake_timer: float = 0.0
 var shake_total_duration: float = 0.2
@@ -42,19 +43,39 @@ func _physics_process(delta: float) -> void:
 	var smooth_y = lerpf(global_position.y, current_target_y, vertical_follow_speed * delta)
 	var final_y = clampf(smooth_y, min_camera_y, max_camera_y)
 
-	# 3. Impact Shake (Optional, disabled by reduce_motion)
+	# 3. Impact Shake via Camera2D.offset (keeps baseline global_position crisp)
 	var shake_offset = Vector2.ZERO
 	if not reduce_motion and shake_timer > 0.0:
-		shake_timer -= delta
+		shake_timer = maxf(shake_timer - delta, 0.0)
 		var damp = clampf(shake_timer / maxf(shake_total_duration, 0.001), 0.0, 1.0)
 		var current_amp = shake_intensity * damp
 		shake_offset = Vector2(randf_range(-current_amp, current_amp), randf_range(-current_amp, current_amp))
+	offset = shake_offset
 
-	global_position = Vector2(final_x, final_y) + shake_offset
+	# 4. Dynamic Speed / Action Zoom (locked to 1.0 when reduce_motion is enabled)
+	var desired_zoom = 1.0 if reduce_motion else clampf(target_zoom, 0.90, 1.08)
+	var z_val = lerpf(zoom.x, desired_zoom, clampf(delta * 4.5, 0.0, 1.0))
+	zoom = Vector2(z_val, z_val)
+
+	global_position = Vector2(final_x, final_y)
+
+func set_dynamic_zoom(z: float) -> void:
+	target_zoom = clampf(z, 0.90, 1.08)
+
+func reset_camera() -> void:
+	shake_timer = 0.0
+	shake_intensity = 0.0
+	offset = Vector2.ZERO
+	target_zoom = 1.0
+	zoom = Vector2.ONE
+	current_target_y = baseline_y
+	global_position.y = baseline_y
 
 func add_impact_shake(amount: float = 4.0, duration: float = 0.2) -> void:
 	if reduce_motion:
 		return
+	if shake_timer > 0.0 and shake_intensity > amount:
+		return
 	shake_intensity = amount
-	shake_total_duration = duration
-	shake_timer = duration
+	shake_total_duration = maxf(duration, 0.05)
+	shake_timer = shake_total_duration
