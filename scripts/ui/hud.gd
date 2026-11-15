@@ -3,6 +3,7 @@ extends CanvasLayer
 
 const SaveService = preload("res://scripts/systems/save_service.gd")
 const ChallengeService = preload("res://scripts/systems/challenge_service.gd")
+const PracticeHubUI = preload("res://scripts/ui/practice_hub_ui.gd")
 
 signal start_requested()
 signal mode_selected(mode: int)
@@ -14,7 +15,9 @@ signal resume_requested()
 signal retry_requested()
 signal menu_requested()
 signal skin_selected(skin_id: String)
+signal cosmetic_selected(category: String, cosmetic_id: String)
 signal skill_requested()
+signal skill_slot_requested(slot_index: int)
 signal flight_up_requested(pressed: bool)
 signal flight_down_requested(pressed: bool)
 signal settings_changed()
@@ -155,12 +158,38 @@ var combo_bar_fill: ColorRect
 var settings_music_btn: Button
 var settings_sfx_btn: Button
 var settings_dev_btn: Button
+var settings_ps_toggle_btn: Button
+var settings_ps_bindings_box: VBoxContainer
+var _ps_bind_buttons: Dictionary = {}
+var _listening_ps_action: String = ""
+var _ps_left_held: bool = false
+var _ps_right_held: bool = false
+var _ps_l2_held: bool = false
+var _ps_r2_held: bool = false
+const PS_ACTION_LABELS: Array[Array] = [
+	["jump", "Jump"],
+	["duck", "Duck / Slide"],
+	["move_right", "Move Right"],
+	["move_left", "Move Left (Air)"],
+	["skill_1", "Skill Slot 1"],
+	["skill_2", "Skill Slot 2"],
+	["skill_3", "Skill Slot 3"]
+]
 var career_summary_label: Label
+var practice_hub: PracticeHubUI
 var _skill_toast_tween: Tween
 var _world_toast_tween: Tween
 var _challenge_toast_tween: Tween
 var _high_contrast_active: bool = false
 var _has_active_skill_button: bool = false
+var skill_slot_buttons: Array[Button] = []
+var _skill_btn_icons: Array[TextureRect] = []
+var _skill_btn_labels: Array[Label] = []
+var _shop_category: String = "dino"
+var _shop_tab_buttons: Dictionary = {}
+var _quests_level_label: Label
+var _quests_xp_bar_fill: ColorRect
+var _tex_cache: Dictionary = {}
 
 # Quests swipe / scroll touch handling
 var _quest_scroll_dragging: bool = false
@@ -174,41 +203,22 @@ var slide_touch_index: int = -1
 const SWIPE_THRESHOLD: float = 20.0
 
 const SKINS: Array[Dictionary] = [
-	{
-		"id": "classic",
-		"name": "Classic",
-		"price": 0,
-		"icon": "res://assets/sprites/skin_icon_classic.png",
-		"desc": "Shadow"
-	},
-	{
-		"id": "emerald",
-		"name": "Emerald",
-		"price": 100,
-		"icon": "res://assets/sprites/skin_icon_emerald.png",
-		"desc": "Jungle"
-	},
-	{
-		"id": "ruby",
-		"name": "Ruby",
-		"price": 250,
-		"icon": "res://assets/sprites/skin_icon_ruby.png",
-		"desc": "Magma"
-	},
-	{
-		"id": "cyber",
-		"name": "Cyber",
-		"price": 500,
-		"icon": "res://assets/sprites/skin_icon_cyber.png",
-		"desc": "Rift"
-	},
-	{
-		"id": "gold",
-		"name": "Gold",
-		"price": 1000,
-		"icon": "res://assets/sprites/skin_icon_gold.png",
-		"desc": "24K"
-	}
+	{"id": "classic", "name": "Classic", "price": 0, "icon": "res://assets/sprites/skin_icon_classic.png", "desc": "Original"},
+	{"id": "emerald", "name": "Emerald", "price": 100, "icon": "res://assets/sprites/skin_icon_emerald.png", "desc": "Jungle"},
+	{"id": "ruby", "name": "Ruby", "price": 250, "icon": "res://assets/sprites/skin_icon_ruby.png", "desc": "Magma"},
+	{"id": "cyber", "name": "Cyber", "price": 500, "icon": "res://assets/sprites/skin_icon_cyber.png", "desc": "+5% Score"},
+	{"id": "gold", "name": "Gold", "price": 1000, "icon": "res://assets/sprites/skin_icon_gold.png", "desc": "+10% Score"},
+	{"id": "cobalt", "name": "Cobalt", "price": 1500, "icon": "res://assets/sprites/skin_icon_cobalt.png", "desc": "+12% Score"},
+	{"id": "obsidian", "name": "Obsidian", "price": 2200, "icon": "res://assets/sprites/skin_icon_obsidian.png", "desc": "+15% Score"},
+	{"id": "amethyst", "name": "Amethyst", "price": 3000, "icon": "res://assets/sprites/skin_icon_amethyst.png", "desc": "+15% Dur"},
+	{"id": "inferno", "name": "Inferno", "price": 4500, "icon": "res://assets/sprites/skin_icon_inferno.png", "desc": "+20% Score"},
+	{"id": "plasma", "name": "Plasma", "price": 6000, "icon": "res://assets/sprites/skin_icon_plasma.png", "desc": "-15% CD"},
+	{"id": "jade_emperor", "name": "Jade King", "price": 8000, "icon": "res://assets/sprites/skin_icon_jade_emperor.png", "desc": "Auto-Magnet"},
+	{"id": "crimson_rex", "name": "Crimson", "price": 10000, "icon": "res://assets/sprites/skin_icon_crimson_rex.png", "desc": "+25% Score"},
+	{"id": "celestial", "name": "Celestial", "price": 13500, "icon": "res://assets/sprites/skin_icon_celestial.png", "desc": "Start Shield"},
+	{"id": "void_walker", "name": "Void", "price": 17500, "icon": "res://assets/sprites/skin_icon_void_walker.png", "desc": "Shield -20%CD"},
+	{"id": "diamond_apex", "name": "Diamond", "price": 22000, "icon": "res://assets/sprites/skin_icon_diamond_apex.png", "desc": "2x Gems!"},
+	{"id": "chromatic_god", "name": "Prismatic", "price": 30000, "icon": "res://assets/sprites/skin_icon_chromatic_god.png", "desc": "ALL PERKS!"}
 ]
 
 func _ready() -> void:
@@ -263,6 +273,7 @@ func _ready() -> void:
 	quests_bottom_close_btn.pressed.connect(close_challenges)
 
 	if mode_practice_btn:
+		mode_practice_btn.text = "TUTORIAL &\nPRACTICE"
 		mode_practice_btn.pressed.connect(func(): select_mode(3))
 
 	if start_settings_btn:
@@ -291,7 +302,11 @@ func _ready() -> void:
 		credits_close_btn.pressed.connect(close_credits)
 
 	if start_tutorial_btn:
-		start_tutorial_btn.pressed.connect(open_tutorial)
+		start_tutorial_btn.text = "⚡ SKILLS LAB"
+		start_tutorial_btn.pressed.connect(func():
+			if practice_hub:
+				practice_hub.open_skills_lab()
+		)
 	if tutorial_close_btn:
 		tutorial_close_btn.pressed.connect(close_tutorial)
 	if tutorial_prev_btn:
@@ -307,6 +322,9 @@ func _ready() -> void:
 		quests_scroll.gui_input.connect(_on_quests_scroll_gui_input)
 
 	_create_dynamic_ui()
+	practice_hub = PracticeHubUI.new()
+	practice_hub.name = "PracticeHubUI"
+	add_child(practice_hub)
 	_wire_menu_sfx()
 
 	if distance_label:
@@ -478,8 +496,13 @@ func _apply_catchy_theme() -> void:
 func bind_services(p_save: SaveService, p_challenge: ChallengeService) -> void:
 	save_service = p_save
 	challenge_service = p_challenge
-	if challenge_service and not challenge_service.challenge_unlocked.is_connected(_on_challenge_unlocked):
-		challenge_service.challenge_unlocked.connect(_on_challenge_unlocked)
+	if practice_hub:
+		practice_hub.bind_save_service(save_service)
+	if challenge_service:
+		if not challenge_service.challenge_unlocked.is_connected(_on_challenge_unlocked):
+			challenge_service.challenge_unlocked.connect(_on_challenge_unlocked)
+		if not challenge_service.level_up.is_connected(_on_level_up):
+			challenge_service.level_up.connect(_on_level_up)
 	_update_mascot_icons()
 	refresh_settings_ui()
 	refresh_accessibility_visuals()
@@ -489,6 +512,46 @@ func _is_left_handed() -> bool:
 	if save_service:
 		return bool(save_service.get_setting("left_handed", false))
 	return false
+
+func _is_ps_controller_enabled() -> bool:
+	if save_service:
+		return bool(save_service.get_setting("ps_controller_enabled", false))
+	return false
+
+static func format_ps_code(code: String) -> String:
+	if code.begins_with("btn:"):
+		var b := int(code.substr(4))
+		match b:
+			0: return "✕ Cross"
+			1: return "○ Circle"
+			2: return "□ Square"
+			3: return "△ Triangle"
+			4: return "Share"
+			5: return "PS"
+			6: return "Options"
+			7: return "L3"
+			8: return "R3"
+			9: return "L1"
+			10: return "R1"
+			11: return "D-Pad ▲"
+			12: return "D-Pad ▼"
+			13: return "D-Pad ◀"
+			14: return "D-Pad ▶"
+			15: return "Touchpad"
+			_: return "Btn %d" % b
+	elif code.begins_with("axis:"):
+		var parts := code.split(":")
+		if parts.size() >= 3:
+			var ax := int(parts[1])
+			var dir := parts[2]
+			if ax == 4: return "L2"
+			if ax == 5: return "R2"
+			if ax == 0: return "L-Stick ▶" if dir == "+" else "L-Stick ◀"
+			if ax == 1: return "L-Stick ▼" if dir == "+" else "L-Stick ▲"
+			if ax == 2: return "R-Stick ▶" if dir == "+" else "R-Stick ◀"
+			if ax == 3: return "R-Stick ▼" if dir == "+" else "R-Stick ▲"
+			return "Axis %d %s" % [ax, dir]
+	return code if not code.is_empty() else "Unbound"
 
 func _wire_menu_sfx() -> void:
 	var btns: Array = [
@@ -577,12 +640,139 @@ func _create_dynamic_ui() -> void:
 				settings_dev_btn.text = "🛠 DEV STATS: OFF"
 				settings_dev_btn.pressed.connect(_on_dev_overlay_pressed)
 				s_list.add_child(settings_dev_btn)
+			if settings_ps_toggle_btn == null:
+				settings_ps_toggle_btn = Button.new()
+				settings_ps_toggle_btn.name = "PsControllerToggleBtn"
+				settings_ps_toggle_btn.text = "🎮 PS4 CONTROLLER: OFF"
+				settings_ps_toggle_btn.pressed.connect(_on_ps_controller_toggle_pressed)
+				s_list.add_child(settings_ps_toggle_btn)
+
+				settings_ps_bindings_box = VBoxContainer.new()
+				settings_ps_bindings_box.name = "PsBindingsBox"
+				settings_ps_bindings_box.add_theme_constant_override("separation", 3)
+				settings_ps_bindings_box.visible = false
+				s_list.add_child(settings_ps_bindings_box)
+
+				for pair in PS_ACTION_LABELS:
+					var act_key: String = pair[0]
+					var act_lbl: String = pair[1]
+					var b_btn = Button.new()
+					b_btn.name = "PsBind_%s" % act_key
+					b_btn.text = "%s: ..." % act_lbl
+					b_btn.pressed.connect(_on_ps_bind_btn_pressed.bind(act_key))
+					settings_ps_bindings_box.add_child(b_btn)
+					_ps_bind_buttons[act_key] = b_btn
+
+				var reset_ps_btn = Button.new()
+				reset_ps_btn.name = "PsResetDefaultsBtn"
+				reset_ps_btn.text = "↺ RESET PS4 DEFAULTS"
+				reset_ps_btn.pressed.connect(_on_ps_reset_defaults_pressed)
+				settings_ps_bindings_box.add_child(reset_ps_btn)
+			_attach_setting_descriptions(s_list)
 		if settings_scroll:
 			settings_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 			settings_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 
+	if touch_controls and skill_button and skill_slot_buttons.is_empty():
+		skill_slot_buttons.append(skill_button)
+		for i in range(1, 3):
+			var sb = Button.new()
+			sb.name = "SkillButton%d" % (i + 1)
+			sb.visible = false
+			sb.focus_mode = Control.FOCUS_NONE
+			sb.anchor_left = 1.0
+			sb.anchor_top = 1.0
+			sb.anchor_right = 1.0
+			sb.anchor_bottom = 1.0
+			var slot_idx := i
+			sb.button_down.connect(func(): skill_slot_requested.emit(slot_idx))
+			touch_controls.add_child(sb)
+			skill_slot_buttons.append(sb)
+
+		# Give all 3 skill buttons a crisp icon + status label
+		for i in range(skill_slot_buttons.size()):
+			var b: Button = skill_slot_buttons[i]
+			b.text = ""
+			b.clip_contents = true
+			_style_arcade_button(b, Color(0.1, 0.22, 0.36, 0.92), Color(0.4, 0.85, 1.0), 8)
+			var vb = VBoxContainer.new()
+			vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			vb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			vb.alignment = BoxContainer.ALIGNMENT_CENTER
+			vb.add_theme_constant_override("separation", 1)
+			b.add_child(vb)
+
+			var ic = TextureRect.new()
+			ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			ic.custom_minimum_size = Vector2(20, 20)
+			ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			ic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			vb.add_child(ic)
+			_skill_btn_icons.append(ic)
+
+			var lb = Label.new()
+			lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			lb.text = "RDY"
+			lb.add_theme_font_size_override("font_size", 7)
+			lb.add_theme_constant_override("outline_size", 2)
+			lb.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+			vb.add_child(lb)
+			_skill_btn_labels.append(lb)
+
+	if skin_shop_dialog and skins_hbox and _shop_tab_buttons.is_empty():
+		var shop_vbox = skins_hbox.get_parent().get_parent() if skins_hbox.get_parent() else null
+		if shop_vbox is VBoxContainer:
+			var tab_hbox = HBoxContainer.new()
+			tab_hbox.name = "ShopTabsHBox"
+			tab_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+			tab_hbox.add_theme_constant_override("separation", 4)
+			var tabs := [
+				{"id": "dino", "label": "🦖 DINO (16)"},
+				{"id": "obstacle", "label": "🌵 OBSTACLES (6)"},
+				{"id": "map", "label": "🗺 MAPS (5)"},
+				{"id": "trail", "label": "✨ TRAILS (5)"}
+			]
+			for t in tabs:
+				var tb = Button.new()
+				tb.text = t["label"]
+				var cat_id: String = t["id"]
+				tb.pressed.connect(func(): _select_shop_category(cat_id))
+				_style_arcade_button(tb, Color(0.12, 0.16, 0.28), Color(0.35, 0.55, 0.85), 8)
+				tab_hbox.add_child(tb)
+				_shop_tab_buttons[cat_id] = tb
+			shop_vbox.add_child(tab_hbox)
+			shop_vbox.move_child(tab_hbox, 1)
+
 	if challenges_dialog and quests_scroll:
 		var q_vbox = quests_scroll.get_parent()
+		if q_vbox is VBoxContainer and _quests_level_label == null:
+			var lv_box = VBoxContainer.new()
+			lv_box.name = "LevelProgressBox"
+			lv_box.add_theme_constant_override("separation", 2)
+			_quests_level_label = Label.new()
+			_quests_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			_quests_level_label.add_theme_font_size_override("font_size", 9)
+			_quests_level_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+			_quests_level_label.add_theme_constant_override("outline_size", 2)
+			_quests_level_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+			lv_box.add_child(_quests_level_label)
+
+			var xp_bg = ColorRect.new()
+			xp_bg.custom_minimum_size = Vector2(0, 5)
+			xp_bg.color = Color(0.08, 0.10, 0.18, 0.95)
+			lv_box.add_child(xp_bg)
+
+			_quests_xp_bar_fill = ColorRect.new()
+			_quests_xp_bar_fill.color = Color(0.28, 0.88, 1.0)
+			_quests_xp_bar_fill.anchor_right = 0.0
+			_quests_xp_bar_fill.anchor_bottom = 1.0
+			xp_bg.add_child(_quests_xp_bar_fill)
+
+			q_vbox.add_child(lv_box)
+			q_vbox.move_child(lv_box, quests_scroll.get_index())
+
 		if q_vbox is VBoxContainer and career_summary_label == null:
 			career_summary_label = Label.new()
 			career_summary_label.name = "CareerSummaryLabel"
@@ -640,40 +830,45 @@ func select_mode(mode: int) -> void:
 	if mode_practice_btn:
 		_style_arcade_button(mode_practice_btn, active_bg if mode == 3 else idle_bg, active_border if mode == 3 else idle_border, 9)
 
+	var ps_on := _is_ps_controller_enabled()
+	if jump_button:
+		jump_button.visible = false
+		jump_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if slide_button:
+		slide_button.visible = false
+		slide_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
 	match mode:
 		0: # Arcade Jump (Spicy)
 			mode_desc_label.text = "⚡ Fast Spicy Speed • Pure Jump Reflexes • Tap Anywhere!"
-			slide_button.visible = false
-			steer_left_btn.visible = false
-			steer_right_btn.visible = false
+			if steer_left_btn: steer_left_btn.visible = false
+			if steer_right_btn: steer_right_btn.visible = false
 		1: # Runner
-			mode_desc_label.text = "🔥 Accelerating Speed • Jump & Slide • Intense Rhythm"
-			slide_button.visible = true
-			slide_button.offset_left = 14.0
-			slide_button.offset_right = 96.0
-			slide_button.text = "▼ SLIDE"
-			steer_left_btn.visible = false
-			steer_right_btn.visible = false
+			mode_desc_label.text = "🔥 Accelerating Speed • Tap Sides = Jump/Slide"
+			if steer_left_btn: steer_left_btn.visible = not ps_on
+			if steer_right_btn: steer_right_btn.visible = not ps_on
 		2: # Freestyle
-			mode_desc_label.text = "🌀 Steer Left/Right • Air Control • Master Precision"
-			steer_left_btn.visible = true
-			steer_right_btn.visible = true
-			slide_button.visible = true
-			slide_button.offset_left = 130.0
-			slide_button.offset_right = 198.0
-			slide_button.text = "▼ DUCK"
-		3: # Practice
-			mode_desc_label.text = "🛡 Chill Practice • Shielded Start • Forgiving Timing"
-			slide_button.visible = true
-			slide_button.offset_left = 14.0
-			slide_button.offset_right = 96.0
-			slide_button.text = "▼ SLIDE"
-			steer_left_btn.visible = false
-			steer_right_btn.visible = false
+			mode_desc_label.text = "🌀 Steer Left(Air)/Right • Tap Sides = Jump/Duck"
+			if steer_left_btn: steer_left_btn.visible = not ps_on
+			if steer_right_btn: steer_right_btn.visible = not ps_on
+		3: # Tutorial & Practice
+			mode_desc_label.text = "📖 Live Tutorial • 🛡 Free Practice • ⚡ Skills Lab • 🛠 Map Builder"
+			if steer_left_btn: steer_left_btn.visible = not ps_on
+			if steer_right_btn: steer_right_btn.visible = not ps_on
+	if start_best_label and save_service:
+		if mode == 3:
+			start_best_label.text = "🛡 PRACTICE • NO SCORE"
+		else:
+			start_best_label.text = "🏆 MODE BEST: %05d" % save_service.get_mode_best_score(mode)
 	apply_control_layout(_is_left_handed())
 
 func show_start_menu(best_score: int, points: int = 0) -> void:
-	start_best_label.text = "🏆 BEST: %05d" % best_score
+	if current_mode == 3:
+		start_best_label.text = "🛡 PRACTICE • NO SCORE"
+	elif save_service:
+		start_best_label.text = "🏆 MODE BEST: %05d" % save_service.get_mode_best_score(current_mode)
+	else:
+		start_best_label.text = "🏆 BEST: %05d" % best_score
 	start_points_label.text = "💎 PTS: %05d" % points
 	points_label.text = "💎 PTS: %05d" % points
 	_update_mascot_icons()
@@ -695,15 +890,25 @@ func hide_start_menu() -> void:
 	touch_controls.visible = true
 
 func update_hud(score: int, distance_m: float = 0.0, best_score: int = 0, points: int = 0) -> void:
-	score_label.text = "SCORE: %05d" % score
-	best_label.text = "🏆 HI: %05d" % best_score
-	points_label.text = "💎 PTS: %05d" % points
+	var is_practice := (current_mode == 3)
+	if score_label:
+		score_label.visible = not is_practice
+		score_label.text = "SCORE: %05d" % score
+	if best_label:
+		best_label.visible = not is_practice
+		best_label.text = "🏆 HI: %05d" % best_score
+	if points_label:
+		points_label.visible = not is_practice
+		points_label.text = "💎 PTS: %05d" % points
 	if distance_label:
 		distance_label.text = "📏 %dm" % int(distance_m)
 		distance_label.visible = true
 
 func update_combo(count: int, mult: int, fever: bool, progress: float) -> void:
 	if combo_panel == null or combo_label == null:
+		return
+	if current_mode == 3:
+		combo_panel.visible = false
 		return
 	if count <= 0 and not fever:
 		combo_panel.visible = false
@@ -728,12 +933,121 @@ func update_gems(count: int) -> void:
 	if gems_label:
 		gems_label.text = "💎 %d" % count
 
+func _get_cached_texture(path: String) -> Texture2D:
+	if path.is_empty():
+		return null
+	if _tex_cache.has(path):
+		return _tex_cache[path]
+	if ResourceLoader.exists(path):
+		var t = load(path)
+		if t is Texture2D:
+			_tex_cache[path] = t
+			return t
+	return null
+
+func update_skill_slots(slots_snapshot: Array) -> void:
+	var in_flight := flight_controls != null and flight_controls.visible
+	var equipped_slots: Array = []
+	for sl in slots_snapshot:
+		if int(sl.get("type", 0)) != 0:
+			equipped_slots.append(sl)
+
+	if equipped_slots.is_empty():
+		_has_active_skill_button = false
+		for b in skill_slot_buttons:
+			if b:
+				b.visible = false
+		if skill_slot:
+			skill_slot.visible = false
+		return
+
+	# Update TopBar SkillSlot with primary slot (or shield/first active)
+	var top_sl: Dictionary = equipped_slots[0]
+	var top_info: Dictionary = top_sl.get("info", {})
+	var top_is_passive := float(top_info.get("duration", 0.0)) < 0.0
+	if skill_slot:
+		skill_slot.visible = true
+		if skill_icon:
+			skill_icon.texture = _get_cached_texture(str(top_info.get("icon", "")))
+		if top_is_passive and skill_label:
+			skill_label.text = "SHIELD" if equipped_slots.size() == 1 else "SHLD+%d" % (equipped_slots.size() - 1)
+			skill_label.add_theme_color_override("font_color", Color(0.55, 0.95, 1.0))
+		else:
+			update_skill_status(float(top_sl.get("cooldown", 0.0)), float(top_sl.get("duration", 0.0)), int(top_sl.get("charges", 0)))
+
+	# Check if there is any active skill or multiple skills
+	var has_any_active := false
+	for sl in equipped_slots:
+		var inf: Dictionary = sl.get("info", {})
+		if float(inf.get("duration", 0.0)) >= 0.0:
+			has_any_active = true
+			break
+	_has_active_skill_button = has_any_active
+
+	for i in range(skill_slot_buttons.size()):
+		var btn: Button = skill_slot_buttons[i]
+		if btn == null:
+			continue
+		if i >= slots_snapshot.size():
+			btn.visible = false
+			continue
+		var sl: Dictionary = slots_snapshot[i]
+		var stype := int(sl.get("type", 0))
+		if stype == 0:
+			btn.visible = false
+			continue
+		var info: Dictionary = sl.get("info", {})
+		var is_passive := float(info.get("duration", 0.0)) < 0.0
+		# Keep slot 0 hidden if Stone Shield is the ONLY skill (legacy behavior & test expectation)
+		if is_passive and equipped_slots.size() == 1:
+			btn.visible = false
+			continue
+
+		btn.visible = (not in_flight) and (not _is_ps_controller_enabled())
+		btn.disabled = is_passive
+		var tier_col := SkillManager.get_tier_color(int(info.get("tier", 1)))
+		var accent_col: Color = info.get("color", tier_col)
+		_style_arcade_button(btn, Color(0.08, 0.18, 0.32, 0.94), accent_col, 8)
+
+		if i < _skill_btn_icons.size() and _skill_btn_icons[i]:
+			_skill_btn_icons[i].texture = _get_cached_texture(str(info.get("icon", "")))
+
+		if i < _skill_btn_labels.size() and _skill_btn_labels[i]:
+			var lbl := _skill_btn_labels[i]
+			var short_tag := str(info.get("short_tag", ""))
+			if is_passive:
+				lbl.text = "SHLD"
+				lbl.add_theme_color_override("font_color", Color(0.55, 0.95, 1.0))
+			else:
+				var cd := float(sl.get("cooldown", 0.0))
+				var dur := float(sl.get("duration", 0.0))
+				var ch := int(sl.get("charges", 0))
+				if cd > 0.0:
+					lbl.text = "%.1fs" % cd
+					lbl.add_theme_color_override("font_color", Color(1.0, 0.45, 0.35))
+				elif dur > 0.0:
+					lbl.text = "%.1fs" % dur
+					lbl.add_theme_color_override("font_color", Color(0.35, 1.0, 0.6))
+				elif ch > 1:
+					lbl.text = "%s x%d" % [short_tag, ch] if not short_tag.is_empty() else "x%d" % ch
+					lbl.add_theme_color_override("font_color", Color(0.45, 0.9, 1.0))
+				elif ch == 1:
+					lbl.text = short_tag if not short_tag.is_empty() else "RDY"
+					lbl.add_theme_color_override("font_color", accent_col.lerp(Color.WHITE, 0.35))
+				else:
+					lbl.text = "--"
+					lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+
 func update_skill_slot(info: Dictionary, cd: float = 0.0, dur: float = 0.0, charges: int = 1) -> void:
 	var has_skill = info.get("name", "None") != "None"
 	var is_passive = has_skill and float(info.get("duration", 0.0)) < 0.0
 	_has_active_skill_button = has_skill and not is_passive
 	if skill_button:
 		skill_button.visible = _has_active_skill_button and (flight_controls == null or not flight_controls.visible)
+	if not has_skill:
+		for i in range(1, skill_slot_buttons.size()):
+			if skill_slot_buttons[i]:
+				skill_slot_buttons[i].visible = false
 	if skill_slot:
 		skill_slot.visible = has_skill
 		if has_skill:
@@ -786,8 +1100,9 @@ func show_flight_hud(f_type: int, total_duration: float) -> void:
 		flight_controls.visible = true
 	if jump_button:
 		jump_button.visible = false
-	if skill_button:
-		skill_button.visible = false
+	for b in skill_slot_buttons:
+		if b:
+			b.visible = false
 
 	if flight_timer_bar:
 		flight_timer_bar.visible = true
@@ -813,11 +1128,12 @@ func hide_flight_hud() -> void:
 	if flight_controls:
 		flight_controls.visible = false
 	if jump_button:
-		jump_button.visible = true
+		jump_button.visible = false
 	if skill_button:
-		skill_button.visible = _has_active_skill_button
+		skill_button.visible = _has_active_skill_button and (not _is_ps_controller_enabled())
 	if flight_timer_bar:
 		flight_timer_bar.visible = false
+	apply_control_layout(_is_left_handed())
 
 # --- Session 7 World Transitions HUD ---
 
@@ -897,22 +1213,43 @@ func open_skin_shop() -> void:
 func close_skin_shop() -> void:
 	skin_shop_dialog.visible = false
 
+func _select_shop_category(cat: String) -> void:
+	ui_interacted.emit()
+	_shop_category = cat
+	refresh_skin_shop()
+
 func refresh_skin_shop() -> void:
 	if save_service == null:
 		return
 	var current_pts = save_service.get_points()
 	var equipped = save_service.get_equipped_skin()
-	shop_points_label.text = "💎 PTS: %05d" % current_pts
-	points_label.text = "💎 PTS: %05d" % current_pts
-	start_points_label.text = "💎 PTS: %05d" % current_pts
+	shop_points_label.text = "💎 %05d" % current_pts
+	points_label.text = "💎 %05d" % current_pts
+	start_points_label.text = "💎 %05d" % current_pts
 	_update_mascot_icons()
+
+	for cat_id in _shop_tab_buttons:
+		var tb: Button = _shop_tab_buttons[cat_id]
+		if tb:
+			if cat_id == _shop_category:
+				_style_arcade_button(tb, Color(0.12, 0.48, 0.72), Color(0.38, 0.92, 1.0), 8)
+			else:
+				_style_arcade_button(tb, Color(0.10, 0.14, 0.24), Color(0.28, 0.36, 0.52), 8)
 
 	for child in skins_hbox.get_children():
 		child.queue_free()
 
-	for skin_info in SKINS:
-		var card = _create_skin_card(skin_info, current_pts, equipped)
-		skins_hbox.add_child(card)
+	if _shop_category == "dino":
+		for skin_info in SKINS:
+			var card = _create_skin_card(skin_info, current_pts, equipped)
+			skins_hbox.add_child(card)
+	else:
+		var eq_cos = save_service.get_equipped_cosmetic(_shop_category)
+		for cid in SaveService.COSMETIC_CATALOG.keys():
+			var cdata: Dictionary = SaveService.COSMETIC_CATALOG[cid]
+			if str(cdata.get("category", "")) == _shop_category:
+				var card = _create_cosmetic_card(cid, cdata, current_pts, eq_cos)
+				skins_hbox.add_child(card)
 
 func _create_skin_card(info: Dictionary, current_pts: int, equipped_skin: String) -> Control:
 	var skin_id: String = info["id"]
@@ -959,6 +1296,14 @@ func _create_skin_card(info: Dictionary, current_pts: int, equipped_skin: String
 	icon_frame.add_child(icon_rect)
 	vbox.add_child(icon_frame)
 
+	# Perk / Desc Label
+	var perk_lbl = Label.new()
+	perk_lbl.text = str(info.get("desc", ""))
+	perk_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	perk_lbl.add_theme_font_size_override("font_size", 7)
+	perk_lbl.add_theme_color_override("font_color", Color(0.55, 0.94, 1.0))
+	vbox.add_child(perk_lbl)
+
 	# Price / Status Label
 	var price_lbl = Label.new()
 	price_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -969,7 +1314,7 @@ func _create_skin_card(info: Dictionary, current_pts: int, equipped_skin: String
 		price_lbl.text = "✓ OWNED"
 		price_lbl.add_theme_color_override("font_color", Color(0.38, 0.98, 0.56))
 	else:
-		price_lbl.text = "💎 %d PTS" % info["price"]
+		price_lbl.text = "💎 %d" % info["price"]
 		price_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.22))
 	vbox.add_child(price_lbl)
 
@@ -1009,6 +1354,101 @@ func _on_equip_clicked(skin_id: String) -> void:
 		skin_selected.emit(skin_id)
 		refresh_skin_shop()
 
+func _create_cosmetic_card(cid: String, cdata: Dictionary, current_pts: int, equipped_id: String) -> Control:
+	var is_unlocked: bool = save_service.is_cosmetic_unlocked(cid)
+	var is_equipped: bool = (cid == equipped_id)
+	var price: int = int(cdata.get("price", 0))
+	var cat: String = str(cdata.get("category", "obstacle"))
+
+	var panel = PanelContainer.new()
+	panel.custom_minimum_size = Vector2(88, 155)
+	if is_equipped:
+		panel.add_theme_stylebox_override("panel", _make_box(Color(0.06, 0.22, 0.36, 0.96), Color(0.25, 0.88, 1.0), 2, 3, 8, 5, 6, 4))
+	elif is_unlocked:
+		panel.add_theme_stylebox_override("panel", _make_box(Color(0.08, 0.18, 0.24, 0.95), Color(0.28, 0.78, 0.52), 1, 3, 8, 5, 6, 2))
+	elif current_pts >= price:
+		panel.add_theme_stylebox_override("panel", _make_box(Color(0.14, 0.12, 0.22, 0.95), Color(0.98, 0.78, 0.22), 1, 3, 8, 5, 6, 2))
+	else:
+		panel.add_theme_stylebox_override("panel", _make_box(Color(0.09, 0.11, 0.18, 0.92), Color(0.26, 0.32, 0.44), 1, 2, 8, 5, 6, 1))
+
+	var vbox = VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 4)
+	panel.add_child(vbox)
+
+	var name_lbl = Label.new()
+	name_lbl.text = str(cdata.get("name", cid))
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.add_theme_font_size_override("font_size", 10)
+	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
+	name_lbl.add_theme_constant_override("outline_size", 2)
+	name_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	vbox.add_child(name_lbl)
+
+	var swatch_frame = PanelContainer.new()
+	var sw_col: Color = cdata.get("tint", cdata.get("color", Color.WHITE))
+	if sw_col.a <= 0.05:
+		sw_col = Color(0.25, 0.30, 0.40, 1.0)
+	swatch_frame.add_theme_stylebox_override("panel", _make_box(Color(0.03, 0.06, 0.12, 0.9), sw_col, 2, 2, 6, 4, 4, 0))
+	var swatch = ColorRect.new()
+	swatch.custom_minimum_size = Vector2(36, 30)
+	swatch.color = sw_col
+	swatch_frame.add_child(swatch)
+	vbox.add_child(swatch_frame)
+
+	var perk_lbl = Label.new()
+	perk_lbl.text = str(cdata.get("perk_text", ""))
+	perk_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	perk_lbl.add_theme_font_size_override("font_size", 7)
+	perk_lbl.add_theme_color_override("font_color", Color(0.55, 0.94, 1.0))
+	vbox.add_child(perk_lbl)
+
+	var price_lbl = Label.new()
+	price_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	price_lbl.add_theme_font_size_override("font_size", 9)
+	price_lbl.add_theme_constant_override("outline_size", 2)
+	price_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+	if is_unlocked:
+		price_lbl.text = "✓ OWNED"
+		price_lbl.add_theme_color_override("font_color", Color(0.38, 0.98, 0.56))
+	else:
+		price_lbl.text = "💎 %d" % price
+		price_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.22))
+	vbox.add_child(price_lbl)
+
+	var btn = Button.new()
+	if is_equipped:
+		btn.text = "★ ACTIVE"
+		btn.disabled = true
+		_style_arcade_button(btn, Color(0.08, 0.45, 0.68), Color(0.38, 0.9, 1.0), 9)
+		btn.add_theme_color_override("font_disabled_color", Color(0.45, 0.95, 1.0))
+	elif is_unlocked:
+		btn.text = "EQUIP"
+		_style_arcade_button(btn, Color(0.12, 0.58, 0.34), Color(0.42, 0.95, 0.62), 9)
+		btn.pressed.connect(func(): _on_equip_cosmetic_clicked(cat, cid))
+	elif current_pts >= price:
+		btn.text = "BUY NOW"
+		_style_arcade_button(btn, Color(0.84, 0.52, 0.06), Color(1.0, 0.88, 0.32), 9)
+		btn.pressed.connect(func(): _on_buy_cosmetic_clicked(cat, cid))
+	else:
+		btn.text = "LOCKED"
+		btn.disabled = true
+		_style_arcade_button(btn, Color(0.16, 0.19, 0.26), Color(0.32, 0.38, 0.48), 9)
+	vbox.add_child(btn)
+	return panel
+
+func _on_buy_cosmetic_clicked(cat: String, cid: String) -> void:
+	ui_interacted.emit()
+	if save_service and save_service.purchase_cosmetic(cid):
+		cosmetic_selected.emit(cat, cid)
+		refresh_skin_shop()
+
+func _on_equip_cosmetic_clicked(cat: String, cid: String) -> void:
+	ui_interacted.emit()
+	if save_service and save_service.equip_cosmetic(cid):
+		cosmetic_selected.emit(cat, cid)
+		refresh_skin_shop()
+
 # ==========================================
 # Challenges / Quests Implementation
 # ==========================================
@@ -1029,7 +1469,15 @@ func refresh_challenges() -> void:
 	if save_service == null or challenge_service == null:
 		return
 	var current_pts = save_service.get_points()
-	quests_points_label.text = "💎 PTS: %05d" % current_pts
+	quests_points_label.text = "💎 %05d" % current_pts
+
+	if _quests_level_label and _quests_xp_bar_fill:
+		var lv := save_service.get_player_level()
+		var xp := save_service.get_player_xp()
+		var needed := save_service.get_xp_for_next_level(lv)
+		var next_bonus := mini((lv + 1) * 100, SaveService.MAX_REWARD)
+		_quests_level_label.text = "⭐ LEVEL %d   •   XP: %d / %d   •   NEXT LV: +%d 💎" % [lv, xp, needed, next_bonus]
+		_quests_xp_bar_fill.anchor_right = clampf(float(xp) / float(maxi(needed, 1)), 0.02, 1.0)
 
 	if career_summary_label:
 		var runs := save_service.get_lifetime_stat("total_runs")
@@ -1045,9 +1493,18 @@ func refresh_challenges() -> void:
 	for child in quests_list.get_children():
 		child.queue_free()
 
+	var active_quests: Array[Dictionary] = []
+	var done_quests: Array[Dictionary] = []
 	for ch in challenge_service.get_all_challenges():
-		var row = _create_challenge_row(ch)
-		quests_list.add_child(row)
+		if save_service.is_challenge_completed(ch["id"]):
+			done_quests.append(ch)
+		else:
+			active_quests.append(ch)
+
+	for ch in active_quests:
+		quests_list.add_child(_create_challenge_row(ch))
+	for ch in done_quests:
+		quests_list.add_child(_create_challenge_row(ch))
 
 func _create_challenge_row(ch: Dictionary) -> Control:
 	var is_comp = save_service.is_challenge_completed(ch["id"])
@@ -1069,9 +1526,14 @@ func _create_challenge_row(ch: Dictionary) -> Control:
 	text_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_vbox.add_theme_constant_override("separation", 1)
 
+	var tier_str: String = str(ch.get("tier", "EASY"))
+	var prog: Dictionary = challenge_service.get_challenge_progress(ch)
+	var cur_val: int = int(prog.get("current", 0))
+	var tgt_val: int = int(prog.get("target", 1))
+
 	var title_lbl = Label.new()
 	title_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	title_lbl.text = ("★ " if is_comp else "☆ ") + ch["title"]
+	title_lbl.text = ("%s [%s] " % ["★" if is_comp else "☆", tier_str]) + ch["title"]
 	title_lbl.add_theme_font_size_override("font_size", 10)
 	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.32))
 	title_lbl.add_theme_constant_override("outline_size", 2)
@@ -1080,8 +1542,8 @@ func _create_challenge_row(ch: Dictionary) -> Control:
 
 	var desc_lbl = Label.new()
 	desc_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	desc_lbl.text = ch["desc"]
-	desc_lbl.add_theme_font_size_override("font_size", 9)
+	desc_lbl.text = "%s (%d/%d)" % [ch["desc"], cur_val, tgt_val]
+	desc_lbl.add_theme_font_size_override("font_size", 8)
 	desc_lbl.add_theme_color_override("font_color", Color(0.84, 0.9, 0.98))
 	text_vbox.add_child(desc_lbl)
 
@@ -1089,7 +1551,7 @@ func _create_challenge_row(ch: Dictionary) -> Control:
 
 	var reward_lbl = Label.new()
 	reward_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	reward_lbl.text = "💎 +%d PTS" % ch["reward"]
+	reward_lbl.text = "💎 +%d" % ch["reward"]
 	reward_lbl.add_theme_font_size_override("font_size", 10)
 	reward_lbl.add_theme_color_override("font_color", Color(1.0, 0.86, 0.22))
 	reward_lbl.add_theme_constant_override("outline_size", 2)
@@ -1149,6 +1611,9 @@ func _on_quests_scroll_gui_input(event: InputEvent) -> void:
 func _on_challenge_unlocked(_id: String, title: String, reward: int) -> void:
 	show_challenge_toast(title, reward)
 
+func _on_level_up(new_level: int, diamond_bonus: int) -> void:
+	show_skill_toast("🎉 LEVEL UP! LV %d (+%d 💎)" % [new_level, diamond_bonus])
+
 func show_challenge_toast(title: String, reward: int) -> void:
 	if _challenge_toast_tween and _challenge_toast_tween.is_valid():
 		_challenge_toast_tween.kill()
@@ -1166,6 +1631,25 @@ func show_challenge_toast(title: String, reward: int) -> void:
 # ==========================================
 # Input & Touch Handling
 # ==========================================
+func _event_to_ps_code(event: InputEvent) -> String:
+	if event is InputEventJoypadButton and event.pressed:
+		return "btn:%d" % event.button_index
+	if event is InputEventJoypadMotion and absf(event.axis_value) >= 0.65:
+		return "axis:%d:%s" % [event.axis, "+" if event.axis_value > 0.0 else "-"]
+	return ""
+
+func _input(event: InputEvent) -> void:
+	if _listening_ps_action != "" and settings_dialog and settings_dialog.visible:
+		var code := _event_to_ps_code(event)
+		if code != "":
+			if save_service:
+				save_service.set_ps_binding(_listening_ps_action, code)
+			_listening_ps_action = ""
+			refresh_settings_ui()
+			settings_changed.emit()
+			ui_interacted.emit()
+			get_viewport().set_input_as_handled()
+
 func _unhandled_input(event: InputEvent) -> void:
 	var any_subdialog := challenges_dialog.visible or skin_shop_dialog.visible
 	if settings_dialog and settings_dialog.visible:
@@ -1174,13 +1658,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		any_subdialog = true
 	if tutorial_dialog and tutorial_dialog.visible:
 		any_subdialog = true
+	if practice_hub and practice_hub.has_modal_open():
+		any_subdialog = true
 
 	if any_subdialog or start_menu.visible or pause_menu.visible or game_over_menu.visible:
 		if game_over_menu.visible and not any_subdialog:
 			var r_pressed: bool = event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R
-			if event.is_action_pressed("jump") or r_pressed:
+			var ps_retry: bool = _is_ps_controller_enabled() and event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_A
+			if event.is_action_pressed("jump") or r_pressed or ps_retry:
 				_on_retry_button_pressed()
 		return
+
+	if _is_ps_controller_enabled():
+		_handle_ps_controller_input(event)
 
 	if event is InputEventScreenTouch:
 		if event.pressed:
@@ -1189,6 +1679,70 @@ func _unhandled_input(event: InputEvent) -> void:
 			_handle_touch_up(event.index, event.position)
 	elif event is InputEventScreenDrag:
 		_handle_touch_drag(event.index, event.position)
+
+func _handle_ps_controller_input(event: InputEvent) -> void:
+	if save_service == null:
+		return
+	var code := ""
+	var pressed := false
+	var is_valid_ev := false
+	if event is InputEventJoypadButton:
+		code = "btn:%d" % event.button_index
+		pressed = event.pressed
+		is_valid_ev = true
+		if pressed and event.button_index == JOY_BUTTON_START:
+			pause_requested.emit()
+			return
+	elif event is InputEventJoypadMotion:
+		var ax: int = event.axis
+		var val: float = event.axis_value
+		if ax == JOY_AXIS_LEFT_X:
+			if val > 0.45:
+				_ps_right_held = true
+				_ps_left_held = false
+			elif val < -0.45:
+				_ps_left_held = true
+				_ps_right_held = false
+			else:
+				_ps_left_held = false
+				_ps_right_held = false
+			steer_requested.emit((1.0 if _ps_right_held else 0.0) - (1.0 if _ps_left_held else 0.0))
+			return
+		if ax == JOY_AXIS_TRIGGER_LEFT:
+			var now_l2 := val >= 0.55
+			if now_l2 == _ps_l2_held:
+				return
+			_ps_l2_held = now_l2
+			code = "axis:%d:+" % ax
+			pressed = now_l2
+			is_valid_ev = true
+		elif ax == JOY_AXIS_TRIGGER_RIGHT:
+			var now_r2 := val >= 0.55
+			if now_r2 == _ps_r2_held:
+				return
+			_ps_r2_held = now_r2
+			code = "axis:%d:+" % ax
+			pressed = now_r2
+			is_valid_ev = true
+	if not is_valid_ev or code == "":
+		return
+
+	if code == save_service.get_ps_binding("jump"):
+		jump_requested.emit(pressed)
+	elif code == save_service.get_ps_binding("duck"):
+		slide_requested.emit(pressed)
+	elif code == save_service.get_ps_binding("move_right"):
+		_ps_right_held = pressed
+		steer_requested.emit((1.0 if _ps_right_held else 0.0) - (1.0 if _ps_left_held else 0.0))
+	elif code == save_service.get_ps_binding("move_left"):
+		_ps_left_held = pressed
+		steer_requested.emit((1.0 if _ps_right_held else 0.0) - (1.0 if _ps_left_held else 0.0))
+	elif pressed and code == save_service.get_ps_binding("skill_1"):
+		skill_slot_requested.emit(0)
+	elif pressed and code == save_service.get_ps_binding("skill_2"):
+		skill_slot_requested.emit(1)
+	elif pressed and code == save_service.get_ps_binding("skill_3"):
+		skill_slot_requested.emit(2)
 
 func clear_touch_inputs() -> void:
 	jump_touch_index = -1
@@ -1203,10 +1757,16 @@ func clear_touch_inputs() -> void:
 func _handle_touch_down(index: int, pos: Vector2) -> void:
 	touch_start_positions[index] = pos
 
-	var vp_width = get_viewport().get_visible_rect().size.x
-	var split_x = vp_width * 0.5
+	var vp_rect := get_viewport().get_visible_rect().size
+	var vp_width := vp_rect.x
+	var vp_height := vp_rect.y
+	var split_x := vp_width * 0.5
 
 	if pos.y < 34.0:
+		return
+
+	# Reserve the bottom control dock below the ground so tapping near steer/skill buttons doesn't jump/slide
+	if not _is_ps_controller_enabled() and pos.y >= vp_height - 36.0:
 		return
 
 	if flight_controls and flight_controls.visible:
@@ -1383,6 +1943,43 @@ const TUTORIAL_STEPS: Array[Dictionary] = [
 	}
 ]
 
+const SETTING_DESCRIPTIONS: Dictionary = {
+	"SoundToggleBtn": "Turns all game sound effects and music on or off.",
+	"VibrationToggleBtn": "Phone/controller vibration on jumps, hits, and pickups.",
+	"MotionToggleBtn": "Disables camera screen shake and speed zoom effects.",
+	"ContrastToggleBtn": "Brightens obstacles & pickups so they stand out clearly.",
+	"HandedToggleBtn": "Swaps left/right on-screen touch button positions.",
+	"AutoHoldToggleBtn": "Hold jump to reach full height & auto-jump on landing.",
+	"MusicVolBtn": "Cycles background music volume (0% / 25% / 50% / 75% / 100%).",
+	"SfxVolBtn": "Cycles sound effects volume (0% / 25% / 50% / 75% / 100%).",
+	"DevOverlayBtn": "Shows live FPS, speed, and debug info on screen.",
+	"PsControllerToggleBtn": "Enables PlayStation/gamepad controls & hides touch buttons."
+}
+
+func _attach_setting_descriptions(s_list: VBoxContainer) -> void:
+	if s_list == null:
+		return
+	var children := s_list.get_children()
+	for child in children:
+		if not (child is Button):
+			continue
+		var btn := child as Button
+		if not SETTING_DESCRIPTIONS.has(btn.name):
+			continue
+		var desc_text: String = SETTING_DESCRIPTIONS[btn.name]
+		btn.tooltip_text = desc_text
+		var desc_name := "%sDesc" % btn.name
+		if s_list.get_node_or_null(desc_name) != null:
+			continue
+		var desc_lbl := Label.new()
+		desc_lbl.name = desc_name
+		desc_lbl.text = "  " + desc_text
+		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		desc_lbl.add_theme_font_size_override("font_size", 7)
+		desc_lbl.add_theme_color_override("font_color", Color(0.74, 0.84, 0.96, 0.92))
+		s_list.add_child(desc_lbl)
+		s_list.move_child(desc_lbl, btn.get_index() + 1)
+
 func open_settings(from_menu: String = "start") -> void:
 	prev_menu_before_settings = from_menu
 	if settings_dialog:
@@ -1390,6 +1987,7 @@ func open_settings(from_menu: String = "start") -> void:
 		refresh_settings_ui()
 
 func close_settings() -> void:
+	_listening_ps_action = ""
 	if settings_dialog:
 		settings_dialog.visible = false
 
@@ -1405,6 +2003,7 @@ func refresh_settings_ui() -> void:
 	var music_vol = float(save_service.get_setting("volume_music", 0.75))
 	var sfx_vol = float(save_service.get_setting("volume_sfx", 1.0))
 	var dev_on = bool(save_service.get_setting("dev_overlay", false))
+	var ps_on = bool(save_service.get_setting("ps_controller_enabled", false))
 
 	if sound_toggle_btn:
 		sound_toggle_btn.text = "🔊 SOUND EFFECTS: " + ("ON" if sound else "OFF")
@@ -1424,6 +2023,19 @@ func refresh_settings_ui() -> void:
 		settings_sfx_btn.text = "🔊 SFX VOL: %d%%" % int(round(sfx_vol * 100.0))
 	if settings_dev_btn:
 		settings_dev_btn.text = "🛠 DEV STATS: " + ("ON" if dev_on else "OFF")
+	if settings_ps_toggle_btn:
+		settings_ps_toggle_btn.text = "🎮 PS4 CONTROLLER: " + ("ON (NO BUTTONS)" if ps_on else "OFF")
+	if settings_ps_bindings_box:
+		settings_ps_bindings_box.visible = ps_on
+		for pair in PS_ACTION_LABELS:
+			var act_key: String = pair[0]
+			var act_lbl: String = pair[1]
+			if _ps_bind_buttons.has(act_key):
+				var btn: Button = _ps_bind_buttons[act_key]
+				if _listening_ps_action == act_key:
+					btn.text = "🎮 %s: PRESS PS BUTTON..." % act_lbl
+				else:
+					btn.text = "🎮 %s: %s" % [act_lbl, format_ps_code(save_service.get_ps_binding(act_key))]
 
 func _on_sound_toggle_pressed() -> void:
 	if save_service:
@@ -1507,6 +2119,30 @@ func _on_dev_overlay_pressed() -> void:
 		settings_changed.emit()
 		ui_interacted.emit()
 
+func _on_ps_controller_toggle_pressed() -> void:
+	if save_service:
+		var cur := bool(save_service.get_setting("ps_controller_enabled", false))
+		save_service.set_setting("ps_controller_enabled", not cur)
+		_listening_ps_action = ""
+		refresh_settings_ui()
+		apply_control_layout(_is_left_handed())
+		settings_changed.emit()
+		ui_interacted.emit()
+
+func _on_ps_bind_btn_pressed(action_key: String) -> void:
+	_listening_ps_action = action_key
+	refresh_settings_ui()
+	ui_interacted.emit()
+
+func _on_ps_reset_defaults_pressed() -> void:
+	if save_service:
+		var def_bindings: Dictionary = save_service.get_default_data()["settings"]["ps_bindings"]
+		save_service.set_setting("ps_bindings", def_bindings)
+		_listening_ps_action = ""
+		refresh_settings_ui()
+		settings_changed.emit()
+		ui_interacted.emit()
+
 func refresh_accessibility_visuals() -> void:
 	var dev_on := false
 	var hc := false
@@ -1564,90 +2200,124 @@ func apply_control_layout(is_left_handed: bool) -> void:
 	_update_controls_hint(is_left_handed)
 	if not touch_controls:
 		return
-	if is_left_handed:
-		jump_button.anchor_left = 0.0
-		jump_button.anchor_right = 0.0
-		jump_button.offset_left = 14.0
-		jump_button.offset_right = 160.0
+	var ps_on := _is_ps_controller_enabled()
 
-		if skill_button:
-			skill_button.anchor_left = 0.0
-			skill_button.anchor_right = 0.0
-			skill_button.offset_left = 168.0
-			skill_button.offset_right = 232.0
-			if current_mode == 2:
-				skill_button.offset_top = -104.0
-				skill_button.offset_bottom = -62.0
-			else:
-				skill_button.offset_top = -54.0
-				skill_button.offset_bottom = -12.0
+	# Jump and Slide are invisible screen-side touch zones (kept anchored for test compatibility)
+	if jump_button:
+		jump_button.visible = false
+		jump_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if slide_button:
+		slide_button.visible = false
+		slide_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# Bottom dock strip below the ground (y = -32..-2), placed on the OPPOSITE side of Jump
+	var dock_top := -32.0
+	var dock_bot := -2.0
+
+	if is_left_handed:
+		# Jump is on LEFT -> Steer & Skills go on RIGHT bottom dock
+		if jump_button:
+			jump_button.anchor_left = 0.0
+			jump_button.anchor_right = 0.0
+		if slide_button:
+			slide_button.anchor_left = 1.0
+			slide_button.anchor_right = 1.0
 
 		if flight_controls:
+			flight_controls.visible = false if ps_on else flight_controls.visible
 			flight_controls.anchor_left = 0.0
 			flight_controls.anchor_right = 0.0
 			flight_controls.offset_left = 14.0
 			flight_controls.offset_right = 160.0
 
-		slide_button.anchor_left = 1.0
-		slide_button.anchor_right = 1.0
-		if current_mode == 2:
-			slide_button.offset_left = -212.0
-			slide_button.offset_right = -144.0
-		else:
-			slide_button.offset_left = -96.0
-			slide_button.offset_right = -14.0
-
 		if steer_left_btn and steer_right_btn:
+			var show_steer := (not ps_on) and (current_mode != 0)
+			steer_left_btn.visible = show_steer
+			steer_right_btn.visible = show_steer
 			steer_left_btn.anchor_left = 1.0
 			steer_left_btn.anchor_right = 1.0
-			steer_left_btn.offset_left = -136.0
-			steer_left_btn.offset_right = -78.0
+			steer_left_btn.anchor_top = 1.0
+			steer_left_btn.anchor_bottom = 1.0
+			steer_left_btn.offset_left = -88.0
+			steer_left_btn.offset_right = -50.0
+			steer_left_btn.offset_top = dock_top
+			steer_left_btn.offset_bottom = dock_bot
+
 			steer_right_btn.anchor_left = 1.0
 			steer_right_btn.anchor_right = 1.0
-			steer_right_btn.offset_left = -72.0
-			steer_right_btn.offset_right = -14.0
-	else:
-		jump_button.anchor_left = 1.0
-		jump_button.anchor_right = 1.0
-		jump_button.offset_left = -160.0
-		jump_button.offset_right = -14.0
+			steer_right_btn.anchor_top = 1.0
+			steer_right_btn.anchor_bottom = 1.0
+			steer_right_btn.offset_left = -46.0
+			steer_right_btn.offset_right = -8.0
+			steer_right_btn.offset_top = dock_top
+			steer_right_btn.offset_bottom = dock_bot
 
-		if skill_button:
-			skill_button.anchor_left = 1.0
-			skill_button.anchor_right = 1.0
-			skill_button.offset_left = -232.0
-			skill_button.offset_right = -168.0
-			if current_mode == 2:
-				skill_button.offset_top = -104.0
-				skill_button.offset_bottom = -62.0
-			else:
-				skill_button.offset_top = -54.0
-				skill_button.offset_bottom = -12.0
+		for i in range(skill_slot_buttons.size()):
+			var sb: Button = skill_slot_buttons[i]
+			if sb == null:
+				continue
+			if ps_on:
+				sb.visible = false
+			sb.anchor_left = 1.0
+			sb.anchor_right = 1.0
+			sb.anchor_top = 1.0
+			sb.anchor_bottom = 1.0
+			sb.offset_right = -94.0 - float(i) * 42.0
+			sb.offset_left = sb.offset_right - 38.0
+			sb.offset_top = dock_top
+			sb.offset_bottom = dock_bot
+	else:
+		# Jump is on RIGHT -> Steer & Skills go on LEFT bottom dock
+		if jump_button:
+			jump_button.anchor_left = 1.0
+			jump_button.anchor_right = 1.0
+		if slide_button:
+			slide_button.anchor_left = 0.0
+			slide_button.anchor_right = 0.0
 
 		if flight_controls:
+			flight_controls.visible = false if ps_on else flight_controls.visible
 			flight_controls.anchor_left = 1.0
 			flight_controls.anchor_right = 1.0
 			flight_controls.offset_left = -160.0
 			flight_controls.offset_right = -14.0
 
-		slide_button.anchor_left = 0.0
-		slide_button.anchor_right = 0.0
-		if current_mode == 2:
-			slide_button.offset_left = 144.0
-			slide_button.offset_right = 212.0
-		else:
-			slide_button.offset_left = 14.0
-			slide_button.offset_right = 96.0
-
 		if steer_left_btn and steer_right_btn:
+			var show_steer := (not ps_on) and (current_mode != 0)
+			steer_left_btn.visible = show_steer
+			steer_right_btn.visible = show_steer
 			steer_left_btn.anchor_left = 0.0
 			steer_left_btn.anchor_right = 0.0
-			steer_left_btn.offset_left = 14.0
-			steer_left_btn.offset_right = 72.0
+			steer_left_btn.anchor_top = 1.0
+			steer_left_btn.anchor_bottom = 1.0
+			steer_left_btn.offset_left = 8.0
+			steer_left_btn.offset_right = 46.0
+			steer_left_btn.offset_top = dock_top
+			steer_left_btn.offset_bottom = dock_bot
+
 			steer_right_btn.anchor_left = 0.0
 			steer_right_btn.anchor_right = 0.0
-			steer_right_btn.offset_left = 78.0
-			steer_right_btn.offset_right = 136.0
+			steer_right_btn.anchor_top = 1.0
+			steer_right_btn.anchor_bottom = 1.0
+			steer_right_btn.offset_left = 50.0
+			steer_right_btn.offset_right = 88.0
+			steer_right_btn.offset_top = dock_top
+			steer_right_btn.offset_bottom = dock_bot
+
+		for i in range(skill_slot_buttons.size()):
+			var sb: Button = skill_slot_buttons[i]
+			if sb == null:
+				continue
+			if ps_on:
+				sb.visible = false
+			sb.anchor_left = 0.0
+			sb.anchor_right = 0.0
+			sb.anchor_top = 1.0
+			sb.anchor_bottom = 1.0
+			sb.offset_left = 94.0 + float(i) * 42.0
+			sb.offset_right = sb.offset_left + 38.0
+			sb.offset_top = dock_top
+			sb.offset_bottom = dock_bot
 
 func open_credits() -> void:
 	if credits_dialog:

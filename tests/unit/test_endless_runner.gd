@@ -209,9 +209,10 @@ func test_quests_dialog_scroll_and_touch_swipe() -> Variant:
 		_destroy_runner_world(w)
 		return "Quests scroll container or list is null"
 
-	if list.get_child_count() != 8:
+	var cnt: int = list.get_child_count()
+	if cnt != ChallengeService.CHALLENGES.size():
 		_destroy_runner_world(w)
-		return "Expected 8 challenge cards, got %d" % list.get_child_count()
+		return "Expected %d challenge cards, got %d" % [ChallengeService.CHALLENGES.size(), cnt]
 
 	if list.mouse_filter != Control.MOUSE_FILTER_IGNORE:
 		_destroy_runner_world(w)

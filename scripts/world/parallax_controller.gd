@@ -8,8 +8,16 @@ extends ParallaxBackground
 var current_theme: WorldTheme
 
 var _transition_tween: Tween = null
+var _sky_backdrop: ColorRect = null
 var _subground_fill: ColorRect = null
 var _subground_strata: Sprite2D = null
+
+const SKY_BACKDROP_COLORS: Dictionary = {
+	"plains": Color(0.45, 0.74, 0.96, 1.0),
+	"jungle": Color(0.18, 0.36, 0.28, 1.0),
+	"frozen": Color(0.28, 0.44, 0.62, 1.0),
+	"volcanic": Color(0.24, 0.10, 0.08, 1.0)
+}
 
 const SUBGROUND_COLORS: Dictionary = {
 	"plains": Color(0.24, 0.16, 0.10, 1.0),
@@ -26,15 +34,41 @@ const SUBGROUND_STRATA_TINTS: Dictionary = {
 }
 
 func _ready() -> void:
-	# Ensure tall / 4:3 screens never expose sky clear color beneath ground tiles
+	# Full-screen sky backdrop behind all parallax layers so default_clear_color never bleeds through
+	# on ultrawide monitors, high-jump ascents, or zoomed-out camera frames.
+	var sky_back_layer := ParallaxLayer.new()
+	sky_back_layer.name = "SkyBackdropLayer"
+	sky_back_layer.motion_scale = Vector2.ZERO
+	sky_back_layer.z_index = -10
+	_sky_backdrop = ColorRect.new()
+	_sky_backdrop.name = "SkyBackdrop"
+	_sky_backdrop.position = Vector2(-1200.0, -1200.0)
+	_sky_backdrop.size = Vector2(4000.0, 2600.0)
+	_sky_backdrop.color = SKY_BACKDROP_COLORS["plains"]
+	sky_back_layer.add_child(_sky_backdrop)
+	add_child(sky_back_layer)
+	move_child(sky_back_layer, 0)
+
+	# Tile sky, mountains, and hills across 1440px (3x480) so aspect="expand" and zoom-out never show edges
+	for spr in [sky_sprite, mountains_sprite, hills_sprite]:
+		if spr:
+			spr.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+			spr.region_enabled = true
+			spr.region_rect = Rect2(0, 0, 1440, 270)
+			spr.position.x = -480.0
+			var parent_layer := spr.get_parent() as ParallaxLayer
+			if parent_layer:
+				parent_layer.motion_mirroring = Vector2(1440.0, 0.0)
+
+	# Ensure tall / wide screens never expose sky clear color beneath ground tiles
 	var sub_layer := ParallaxLayer.new()
 	sub_layer.name = "SubGroundFillLayer"
 	sub_layer.motion_scale = Vector2.ZERO
 	sub_layer.z_index = -1
 	_subground_fill = ColorRect.new()
 	_subground_fill.name = "SubGroundFill"
-	_subground_fill.position = Vector2(-160.0, 236.0)
-	_subground_fill.size = Vector2(1600.0, 420.0)
+	_subground_fill.position = Vector2(-1200.0, 236.0)
+	_subground_fill.size = Vector2(4000.0, 1200.0)
 	_subground_fill.color = SUBGROUND_COLORS["plains"]
 	sub_layer.add_child(_subground_fill)
 
@@ -45,8 +79,8 @@ func _ready() -> void:
 		_subground_strata.centered = false
 		_subground_strata.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 		_subground_strata.region_enabled = true
-		_subground_strata.region_rect = Rect2(0, 0, 1600, 384)
-		_subground_strata.position = Vector2(-160.0, 240.0)
+		_subground_strata.region_rect = Rect2(0, 0, 4000, 384)
+		_subground_strata.position = Vector2(-1200.0, 240.0)
 		_subground_strata.modulate = SUBGROUND_STRATA_TINTS["plains"]
 		sub_layer.add_child(_subground_strata)
 
@@ -59,6 +93,8 @@ func _kill_transition_tween() -> void:
 
 func _apply_theme_textures(theme: WorldTheme) -> void:
 	current_theme = theme
+	if _sky_backdrop and theme and SKY_BACKDROP_COLORS.has(theme.world_id):
+		_sky_backdrop.color = SKY_BACKDROP_COLORS[theme.world_id] * theme.ambient_tint
 	if _subground_fill and theme and SUBGROUND_COLORS.has(theme.world_id):
 		_subground_fill.color = SUBGROUND_COLORS[theme.world_id]
 	if _subground_strata and theme and SUBGROUND_STRATA_TINTS.has(theme.world_id):

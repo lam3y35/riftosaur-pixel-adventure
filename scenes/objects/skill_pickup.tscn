@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/skill_bone_blade.png" id="3_skill_tex"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_orb"]
-radius = 10.0
+radius = 14.0
 
 [node name="SkillPickup" type="Area2D"]
 collision_layer = 8
@@ -13,10 +13,13 @@ collision_mask = 1
 script = ExtResource("1_pickup")
 
 [node name="OrbSprite" type="Sprite2D" parent="."]
+scale = Vector2(1.35, 1.35)
+texture_filter = 2
 texture = ExtResource("2_orb_tex")
 
 [node name="IconSprite" type="Sprite2D" parent="."]
-scale = Vector2(0.45, 0.45)
+scale = Vector2(0.72, 0.72)
+texture_filter = 2
 texture = ExtResource("3_skill_tex")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]

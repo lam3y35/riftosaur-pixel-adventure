@@ -10,13 +10,48 @@
 
 **Riftosaur** is an original endless-runner platformer built in Godot Engine 4.x. It reimagines the classic desert runner with dynamic verticality, jumping/sliding/diving mechanics, active elemental abilities, flight pickups, and procedural generation across 4 distinct worlds (Plains, Jungle, Frozen, Volcanic).
 
-- **Current Version:** `v1.1.0` (Production Release)
+- **Current Version:** `v1.2.0` (Production Release)
 - **Root Directory:** `C:\Users\Tweety\Desktop\DINO`
 - **Target Engine:** Godot Engine 4.7.2-stable official (`ed1daf0bf`)
 - **Render Mode:** `gl_compatibility` (OpenGL ES 3.0 compatible for broad mobile and desktop support)
 - **Logical Viewport:** 480 × 270 (16:9 pixel-perfect logical grid with nearest-neighbor scaling)
-- **Automated Test Suite:** 90 passing tests (100% pass rate) + 24/24 verified procedural patterns.
-- **Android Release:** `releases/Riftosaur-release.apk` (55.24 MB, SHA-256: `351F12E64BA93A6F907A9C16D0C9FD4636185DC7B8022BED764937C7BD8C4295`)
+- **Automated Test Suite:** 101 passing tests (100% pass rate) + 24/24 verified procedural patterns + 12/12 QA Matrix scenarios.
+- **Android Release:** `releases/Riftosaur-release.apk` (55.38 MB, SHA-256: `36A2FC70DD9FA0992802F910C74838C99D9C885D19EDDA6E81F34064404CCED2`)
+
+---
+
+## Download & Setup
+
+### Android (Direct APK Install)
+1. Download **`Riftosaur-release.apk`** from the [Latest GitHub Release](https://github.com/lam3y35/riftosaur-pixel-adventure/releases/latest).
+2. Open the downloaded `.apk` on your Android device (Android 7.0+ / API 24+, `arm64-v8a` & `x86_64`) and allow installation from your browser/file manager if prompted.
+3. Verify checksum (optional):
+   ```powershell
+   Get-FileHash Riftosaur-release.apk -Algorithm SHA256
+   ```
+   Expected: `36A2FC70DD9FA0992802F910C74838C99D9C885D19EDDA6E81F34064404CCED2`
+4. See [docs/ANDROID_INSTALL_GUIDE_AR.md](docs/ANDROID_INSTALL_GUIDE_AR.md) for a step-by-step Arabic installation guide.
+
+### Desktop / Run from Source
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/lam3y35/riftosaur-pixel-adventure.git
+   cd riftosaur-pixel-adventure
+   ```
+2. Open the folder in **Godot Engine 4.7.2-stable** and press `F5` (or run from CLI):
+   ```powershell
+   & "C:\Users\Tweety\Godot\4.7.2\Godot_v4.7.2-stable_win64_console.exe" --path .
+   ```
+
+---
+
+## What's New in v1.2.0
+
+- **3-Slot Multi-Skill System & Traps:** Equip up to 3 simultaneous skills out of 12 total abilities with independent HUD activation buttons, tier/rarity badges, and `TrapPickup` speed-surge hazards.
+- **16+ Dinosaur Skins & Cosmetics Shop:** 11 new unlockable skins (including *Chromatic God*, *Void Walker*, *Diamond Apex*, *Celestial*, *Crimson Rex*, and more) with starter/passive perks plus obstacle, map, and trail cosmetics.
+- **Tutorial & Practice Hub:** Interactive first-launch tutorial, practice immortality with adaptive hints, section practice, custom map builder, and isolated per-mode high scores.
+- **Quests & Player Leveling:** 25+ quests with XP progression and level-up diamond bonuses.
+- **Controls & PS4 Gamepad Support:** Slide-hold continuation, air-only left steering, crawler stomp (+1 gem), and PS4 controller mode with custom button remapping.
 
 ---
 

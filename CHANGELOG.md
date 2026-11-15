@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-11-15 (Multi-Skill Slots, 16+ Skins, Practice Hub, Leveling & Controls Overhaul)
+
+### Added & Improved
+- **Multi-Skill System & Traps:**
+  - Upgraded `SkillManager` and HUD to support 3 simultaneous skill slots with independent activation buttons (`scripts/systems/skill_manager.gd`, `scripts/ui/hud.gd`).
+  - Expanded to 12 skills with tiers, rarity, short tags, usage hints, and `SkillTagBadge` visuals on `SkillPickup` (`scenes/objects/skill_pickup.tscn`, `scripts/objects/skill_pickup.gd`).
+  - Added `TrapPickup` (`scenes/objects/trap_pickup.tscn`, `scripts/objects/trap_pickup.gd`) applying speed-surge debuffs.
+- **Expanded Skins, Cosmetics & Perks:**
+  - Added 11 new dinosaur skins (`Amethyst`, `Celestial`, `Chromatic God`, `Cobalt`, `Crimson Rex`, `Diamond Apex`, `Inferno`, `Jade Emperor`, `Obsidian`, `Plasma`, `Void Walker`) with sprite sheets and shop icons (`assets/sprites/`).
+  - Added obstacle, map, and trail cosmetics in the Skin Shop plus passive/starter skin perks (`scripts/systems/save_service.gd`, `scripts/player/player.gd`).
+- **Tutorial & Practice Hub:**
+  - Added `PracticeHubUI` (`scripts/ui/practice_hub_ui.gd`) with first-launch auto-tutorial flow, live tutorial steps & skip, practice immortality with adaptive hints, section practice, and custom map builder.
+  - Isolated per-mode high scores (`mode_best_scores`) with score/best hidden in Tutorial & Practice mode.
+- **Quests & Player Leveling:**
+  - Expanded `ChallengeService` to 25+ quests and added XP-based player leveling with diamond bonus rewards (`scripts/systems/challenge_service.gd`).
+- **Controls & PS4 Gamepad Support:**
+  - Added slide-hold continuation, air-only left steering, crawler stomp from above/dive (+1 gem), and PS4 controller mode with custom remapping (`scripts/player/player.gd`, `scripts/obstacles/hazard.gd`, `scripts/ui/hud.gd`).
+- **Rendering, Camera & Parallax Polish:**
+  - Enabled `physics_interpolation` and disabled pixel-snap jitter in `project.godot`.
+  - Improved high-jump camera ground locking (`scripts/world/game_camera.gd`) and 1440px parallax tiling with `SkyBackdropLayer` (`scripts/world/parallax_controller.gd`).
+- **Testing:**
+  - Expanded the L2 automated test suite to 101/101 passing tests with `tests/unit/test_tutorial_practice_and_builder.gd` and `tests/unit/test_v3_features.gd`.
+
+---
+
 ## [1.1.0] - 2026-11-15 (Security Hardening, Visual/Audio Upgrade & Biome Expansion)
 
 ### Added & Improved

@@ -26,7 +26,11 @@ var _anim_timer: float = 0.0
 
 func _ready() -> void:
 	base_speed = speed
+	z_index = 5
 	add_to_group("hazards")
+	if sprite and sprite.scale == Vector2.ONE:
+		if category == Category.CRAWLER or hazard_name.contains("Cactus") or category == Category.ENVIRONMENTAL:
+			sprite.scale = Vector2(1.18, 1.18)
 	if not body_entered.is_connected(_on_body_entered):
 		body_entered.connect(_on_body_entered)
 
@@ -55,6 +59,18 @@ func _on_body_entered(body: Node2D) -> void:
 	if is_destroyed:
 		return
 	if body is Player:
+		if category == Category.CRAWLER:
+			var is_diving: bool = body.state_machine.current_state == PlayerStateMachine.State.DIVE or body.is_ground_slamming
+			var is_falling_above: bool = body.velocity.y > 0.0 and body.global_position.y < global_position.y - 1.0
+			if is_diving or is_falling_above:
+				destroy_hazard()
+				body.velocity.y = -240.0
+				body.is_ground_slamming = false
+				if body.state_machine.current_state == PlayerStateMachine.State.DIVE:
+					body.state_machine.change_state(PlayerStateMachine.State.JUMP_RISE)
+				body.add_gems(1, 50)
+				body.hazard_broken.emit(self, "stomp")
+				return
 		body.hit_hazard("Hit by %s" % hazard_name, false, self)
 
 func destroy_hazard() -> void:

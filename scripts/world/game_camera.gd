@@ -18,6 +18,7 @@ var shake_timer: float = 0.0
 var shake_total_duration: float = 0.2
 
 func _ready() -> void:
+	process_callback = Camera2D.CAMERA2D_PROCESS_PHYSICS
 	global_position.y = baseline_y
 	current_target_y = baseline_y
 
@@ -25,22 +26,26 @@ func _physics_process(delta: float) -> void:
 	if target == null:
 		return
 
-	# 1. Horizontal Tracking: dinosaur locked in left third (look-ahead)
+	# 1. Horizontal Tracking: dinosaur locked in left third (look-ahead), smooth sub-pixel float
 	var target_x = target.global_position.x + horizontal_lead
-	var final_x = roundf(target_x)
+	var final_x = target_x
 
-	# 2. Vertical Tracking with Deadzone & Smooth Easing (Spec D)
+	# 2. Vertical Tracking with Deadzone & Ground-Safe Framing
+	# Ensures that even on very high jumps/bounces/flight, the ground (y=230) and obstacles below stay visible.
 	var player_y = target.global_position.y
+	var elevation_zoom: float = 1.0
 	if player_y > deadzone_threshold_y:
 		# Player is on or near ground level — stay anchored at baseline
 		current_target_y = baseline_y
 	else:
-		# Player is elevated on high platforms or launched by springs
-		# Frame dinosaur nicely in lower-middle of viewport
-		var desired_y = player_y - 70.0
+		var span: float = maxf(248.0 - (player_y - 52.0), 270.0)
+		elevation_zoom = clampf(270.0 / span, 0.65, 1.0)
+		var half_h: float = 135.0 / elevation_zoom
+		var min_y_for_ground: float = clampf(248.0 - half_h, min_camera_y, max_camera_y)
+		var desired_y: float = clampf(player_y - 20.0, min_y_for_ground, max_camera_y)
 		current_target_y = clampf(desired_y, min_camera_y, max_camera_y)
 
-	var smooth_y = lerpf(global_position.y, current_target_y, vertical_follow_speed * delta)
+	var smooth_y = lerpf(global_position.y, current_target_y, clampf(vertical_follow_speed * delta, 0.0, 1.0))
 	var final_y = clampf(smooth_y, min_camera_y, max_camera_y)
 
 	# 3. Impact Shake via Camera2D.offset (keeps baseline global_position crisp)
@@ -52,15 +57,16 @@ func _physics_process(delta: float) -> void:
 		shake_offset = Vector2(randf_range(-current_amp, current_amp), randf_range(-current_amp, current_amp))
 	offset = shake_offset
 
-	# 4. Dynamic Speed / Action Zoom (locked to 1.0 when reduce_motion is enabled)
-	var desired_zoom = 1.0 if reduce_motion else clampf(target_zoom, 0.90, 1.08)
-	var z_val = lerpf(zoom.x, desired_zoom, clampf(delta * 4.5, 0.0, 1.0))
+	# 4. Dynamic Speed / Action Zoom + Elevation Ground-Safety Zoom
+	var speed_zoom: float = 1.0 if reduce_motion else clampf(target_zoom, 0.85, 1.08)
+	var desired_zoom = minf(speed_zoom, elevation_zoom)
+	var z_val = lerpf(zoom.x, desired_zoom, clampf(delta * 5.0, 0.0, 1.0))
 	zoom = Vector2(z_val, z_val)
 
 	global_position = Vector2(final_x, final_y)
 
 func set_dynamic_zoom(z: float) -> void:
-	target_zoom = clampf(z, 0.90, 1.08)
+	target_zoom = clampf(z, 0.85, 1.08)
 
 func reset_camera() -> void:
 	shake_timer = 0.0
@@ -70,6 +76,7 @@ func reset_camera() -> void:
 	zoom = Vector2.ONE
 	current_target_y = baseline_y
 	global_position.y = baseline_y
+	reset_physics_interpolation()
 
 func add_impact_shake(amount: float = 4.0, duration: float = 0.2) -> void:
 	if reduce_motion:

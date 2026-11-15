@@ -68,17 +68,23 @@ func test_skill_pickup_and_replacement() -> Variant:
 		replace_state["new"] = n
 	)
 
-	# Replace with Air Dash
+	# 2nd and 3rd skills should BOTH be kept simultaneously (up to 3 slots)
 	sm.equip_skill(SkillManager.SkillType.AIR_DASH)
-	if sm.current_skill != SkillManager.SkillType.AIR_DASH:
+	sm.equip_skill(SkillManager.SkillType.BOOMERANG)
+	if replace_state["triggered"]:
 		_destroy_test_world(w)
-		return "Expected current_skill to be AIR_DASH"
+		return "Should NOT replace existing skills while under 3-slot limit"
+	if sm.get_equipped_count() != 3 or not sm.has_skill(SkillManager.SkillType.BONE_BLADE) or not sm.has_skill(SkillManager.SkillType.AIR_DASH) or not sm.has_skill(SkillManager.SkillType.BOOMERANG):
+		_destroy_test_world(w)
+		return "Expected all 3 skills (Bone Blade, Air Dash, Boomerang) to be equipped simultaneously"
 
+	# 4th skill replaces oldest slot (Bone Blade) and emits skill_replaced
+	sm.equip_skill(SkillManager.SkillType.MAGNET_RELIC)
 	if not replace_state["triggered"]:
 		_destroy_test_world(w)
-		return "Expected skill_replaced signal to be emitted"
+		return "Expected skill_replaced signal to be emitted when 4th skill overflows 3 slots"
 
-	if replace_state["old"] != "Bone Blade" or replace_state["new"] != "Air Dash":
+	if replace_state["old"] != "Bone Blade" or replace_state["new"] != "Magnet Relic":
 		_destroy_test_world(w)
 		return "Unexpected replaced names: old=%s, new=%s" % [replace_state["old"], replace_state["new"]]
 

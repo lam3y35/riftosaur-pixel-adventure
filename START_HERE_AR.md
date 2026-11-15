@@ -1,6 +1,6 @@
 # ابدأ هنا: الدليل الشامل لمالك مشروع Riftosaur
 
-> **مرحباً بك في الإصدار النهائي 1.1.0 من لعبة Riftosaur!**
+> **مرحباً بك في الإصدار النهائي 1.2.0 من لعبة Riftosaur!**
 > هذا الملف هو مرجعك الشامل لفهم المشروع بالكامل، تشغيل اللعبة، تثبيت حزمة الإصدار النهائي على هاتفك، أو إعادة بنائها ونشرها.
 
 ---
@@ -8,11 +8,11 @@
 ## 1. المسارات الأساسية في جهازك
 
 - **مسار المشروع بالكامل:** `C:\Users\Tweety\Desktop\DINO`
-- **حزمة الإصدار النهائي للأندرويد (Release APK):** `releases/Riftosaur-release.apk` (55.24 MB)
-  - **بصمة SHA-256:** `351F12E64BA93A6F907A9C16D0C9FD4636185DC7B8022BED764937C7BD8C4295`
-- **حزمة التطوير للأندرويد (Debug APK):** `releases/Riftosaur-debug.apk` (59.71 MB)
-  - **بصمة SHA-256:** `F06CAE64C9BCDE1EB381638C9FE1CB16A66F999815AB952C403A82D226838AD8`
-- **ملف الكود المصدري المضغوط:** `releases/Riftosaur-source-v1.1.0.zip`
+- **حزمة الإصدار النهائي للأندرويد (Release APK):** `releases/Riftosaur-release.apk` (55.38 MB)
+  - **بصمة SHA-256:** `36A2FC70DD9FA0992802F910C74838C99D9C885D19EDDA6E81F34064404CCED2`
+- **حزمة التطوير للأندرويد (Debug APK):** `releases/Riftosaur-debug.apk` (59.84 MB)
+  - **بصمة SHA-256:** `CE1B86A9ED58C92F2FEECF97012DA6020DFE815D6AFEB16496808ABB25C91D16`
+- **ملف الكود المصدري المضغوط:** `releases/Riftosaur-source-v1.2.0.zip`
 - **محرك اللعبة المعتمد:** Godot 4.7.2 في `C:\Users\Tweety\Godot\4.7.2\Godot_v4.7.2-stable_win64_console.exe`
 - **مفتاح توقيع الإصدار الرسمي (Release Keystore):**
   - **المسار:** `C:\Users\Tweety\.android\riftosaur-release.keystore`

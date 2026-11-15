@@ -8,6 +8,7 @@ const AudioManager = preload("res://scripts/systems/audio_manager.gd")
 const FXManagerScript = preload("res://scripts/effects/fx_manager.gd")
 const GemScene = preload("res://scenes/objects/collectible_gem.tscn")
 const SkillPickupScene = preload("res://scenes/objects/skill_pickup.tscn")
+const TrapPickupScene = preload("res://scenes/objects/trap_pickup.tscn")
 
 @onready var player: Player = $Player
 @onready var camera: GameCamera = $GameCamera
@@ -50,6 +51,13 @@ var is_fever_active: bool = false
 var _hitstop_timer: float = 0.0
 var _dash_trail_timer: float = 0.0
 var _slide_spark_timer: float = 0.0
+var _cosmetic_trail_timer: float = 0.0
+var _cached_score_mult: float = 1.0
+var _cached_gem_mult: int = 1
+var _cached_near_miss_mult: float = 1.0
+var _cached_shatter_bonus: int = 0
+var _cached_obs_tint: Color = Color.WHITE
+var _cached_trail_color: Color = Color(1, 1, 1, 0)
 var _procedural_chunks_spawned: int = 0
 var _skill_bag: Array[int] = []
 
@@ -60,6 +68,23 @@ const CHUNK_WIDTH: float = 480.0
 # Session 8 Level Generator & Deterministic Seeding
 var level_generator: LevelGenerator = LevelGenerator.new()
 var run_seed: int = 0
+
+# Live Tutorial, Practice Sections, Adaptive Hints & Custom Maps
+var tutorial_active: bool = false
+var tutorial_phase: int = 0
+var _tut_jump_hold_accum: float = 0.0
+var _tut_short_jump_done: bool = false
+var _tut_long_jump_done: bool = false
+var _tut_slide_done: bool = false
+var _tut_skill_done: bool = false
+var _tut_phase_timer: float = 0.0
+var _tut_celebrate_timer: float = 0.0
+var _practice_entry_pending: bool = false
+var practice_section_index: int = -1
+var _practice_section_counter: int = 0
+var _practice_pattern_hits: Dictionary = {}
+var custom_map_active: bool = false
+var custom_map_data: Dictionary = {}
 
 func _ready() -> void:
 	save_service = SaveService.new()
@@ -80,6 +105,11 @@ func _ready() -> void:
 	player.fx_container = fx_container
 
 	hud.bind_services(save_service, challenge_service)
+	if challenge_service:
+		if not challenge_service.challenge_unlocked.is_connected(_on_quest_trick):
+			challenge_service.challenge_unlocked.connect(_on_quest_trick)
+		if not challenge_service.level_up.is_connected(_on_level_up_trick):
+			challenge_service.level_up.connect(_on_level_up_trick)
 
 	# Load chunk scenes
 	chunk_scenes = [
@@ -113,7 +143,11 @@ func _ready() -> void:
 	hud.retry_requested.connect(restart_run)
 	hud.menu_requested.connect(go_to_title_menu)
 	hud.skin_selected.connect(_on_skin_selected)
+	if hud.has_signal("cosmetic_selected"):
+		hud.cosmetic_selected.connect(_on_cosmetic_selected)
 	hud.skill_requested.connect(_on_hud_skill)
+	if hud.has_signal("skill_slot_requested"):
+		hud.skill_slot_requested.connect(_on_hud_skill_slot)
 	hud.flight_up_requested.connect(func(p): player.flight_up_input = p)
 	hud.flight_down_requested.connect(func(p): player.flight_down_input = p)
 	if hud.has_signal("settings_changed"):
@@ -132,6 +166,7 @@ func _ready() -> void:
 	player.gem_collected.connect(_on_player_gem_collected)
 	player.skill_used.connect(_on_player_skill_used)
 	player.shield_broken.connect(_on_player_shield_broken)
+	player.practice_hit_absorbed.connect(_on_practice_hit_absorbed)
 	player.flight_started.connect(_on_player_flight_started)
 	player.flight_time_updated.connect(func(r, tot): hud.update_flight_timer(r, tot))
 	player.flight_ended.connect(_on_player_flight_ended)
@@ -140,9 +175,11 @@ func _ready() -> void:
 		player.skill_manager.skill_equipped.connect(_on_skill_equipped)
 		player.skill_manager.skill_replaced.connect(_on_skill_replaced)
 		player.skill_manager.skill_updated.connect(_on_skill_updated)
+		player.skill_manager.slots_changed.connect(_on_skill_slots_changed)
 
-	# Apply initial skin & settings
+	# Apply initial skin, perks & settings
 	player.set_skin(save_service.get_equipped_skin())
+	_apply_equipped_perks_and_cosmetics(false)
 	_sync_settings()
 
 	# Load world themes and cache ground tile textures
@@ -156,7 +193,33 @@ func _ready() -> void:
 		if t and not t.ground_tile_path.is_empty() and ResourceLoader.exists(t.ground_tile_path):
 			theme_tile_textures[t.world_id] = load(t.ground_tile_path)
 
+	if hud.practice_hub:
+		hud.practice_hub.start_live_tutorial_requested.connect(_on_start_live_tutorial)
+		hud.practice_hub.skip_to_practice_requested.connect(_on_skip_to_practice)
+		hud.practice_hub.exit_to_menu_requested.connect(go_to_title_menu)
+		hud.practice_hub.test_skill_requested.connect(_on_test_skill_requested)
+		hud.practice_hub.map_skills_updated.connect(func(_s): _refill_skill_bag())
+		hud.practice_hub.section_practice_requested.connect(_on_section_practice_requested)
+		hud.practice_hub.random_practice_requested.connect(_on_random_practice_requested)
+		hud.practice_hub.play_custom_map_requested.connect(start_custom_map)
+		hud.practice_hub.modal_opened.connect(_on_practice_modal_opened)
+		hud.practice_hub.modal_closed.connect(_on_practice_modal_closed)
+
 	init_title_screen()
+	if should_auto_launch_tutorial() and DisplayServer.get_name() != "headless":
+		enter_first_launch_tutorial_practice()
+
+func should_auto_launch_tutorial() -> bool:
+	return save_service != null and not save_service.is_first_launch_completed()
+
+func enter_first_launch_tutorial_practice() -> void:
+	hud.select_mode(3)
+	current_mode = 3
+	begin_run()
+	if hud.practice_hub:
+		_practice_entry_pending = true
+		get_tree().paused = true
+		hud.practice_hub.show_entry_choice()
 
 func _sync_settings() -> void:
 	if save_service == null:
@@ -180,7 +243,13 @@ func _on_mode_selected(mode: int) -> void:
 	current_mode = mode
 
 func _apply_mode_settings() -> void:
-	player.practice_shield_enabled = (current_mode == 3)
+	var is_practice_mode := (current_mode == 3)
+	if custom_map_active:
+		player.practice_immortal = bool(custom_map_data.get("immortal", false))
+		player.practice_shield_enabled = false
+	else:
+		player.practice_shield_enabled = is_practice_mode
+		player.practice_immortal = is_practice_mode
 	match current_mode:
 		0: # Spicy Jump: fast opening speed, pure jump focus
 			player.is_steer_enabled = false
@@ -189,8 +258,8 @@ func _apply_mode_settings() -> void:
 			player.config.jump_buffer_time = 0.12
 			if player.skill_manager:
 				player.skill_manager.clear_skill()
-		1: # Runner: accelerating speed, jump & slide
-			player.is_steer_enabled = false
+		1: # Runner: accelerating speed, jump & slide (+ air-only left / anytime right steer)
+			player.is_steer_enabled = true
 			player.current_speed = 280.0
 			player.config.coyote_time = 0.08
 			player.config.jump_buffer_time = 0.12
@@ -203,8 +272,8 @@ func _apply_mode_settings() -> void:
 			player.config.jump_buffer_time = 0.12
 			if player.skill_manager:
 				player.skill_manager.clear_skill()
-		3: # Practice mode: 70% speed, 1.5x coyote/buffer, free hit shield
-			player.is_steer_enabled = false
+		3: # Tutorial & Practice mode: 70% speed, 1.5x coyote/buffer, immortal + starter shield
+			player.is_steer_enabled = true
 			player.current_speed = 196.0
 			player.config.coyote_time = 0.12
 			player.config.jump_buffer_time = 0.20
@@ -262,6 +331,17 @@ func begin_run() -> void:
 	audio_manager.set_music_pitch(1.0)
 	audio_manager.play_music("run")
 
+	if current_mode == 3 and hud.practice_hub:
+		hud.update_hud(0, 0.0, 0, save_service.get_points())
+		if DisplayServer.get_name() != "headless" and not tutorial_active and practice_section_index < 0 and not custom_map_active and not _practice_entry_pending:
+			_practice_entry_pending = true
+			get_tree().paused = true
+			hud.practice_hub.show_entry_choice()
+		else:
+			hud.practice_hub.show_practice_bar()
+	elif hud.practice_hub:
+		hud.practice_hub.hide_all()
+
 func start_new_run() -> void:
 	is_game_over = false
 	is_paused = false
@@ -276,28 +356,35 @@ func start_new_run() -> void:
 	player.set_physics_process(true)
 	chunk_container.process_mode = Node.PROCESS_MODE_PAUSABLE
 
+	_practice_pattern_hits.clear()
 	_reset_world_state()
 
 	player.reset()
 	_apply_mode_settings()
 	_apply_biome_modifier()
+	_apply_equipped_perks_and_cosmetics(true)
 
-	hud.update_hud(0, 0.0, save_service.get_best_score(), save_service.get_points())
+	if custom_map_active and not custom_map_data.is_empty():
+		_populate_custom_map_items()
+
+	hud.update_hud(0, 0.0, save_service.get_mode_best_score(current_mode), save_service.get_points())
 	audio_manager.set_music_ducked(false)
 	audio_manager.set_music_pitch(1.0)
 	audio_manager.play_music("run")
 
 func _refill_skill_bag() -> void:
-	_skill_bag = [
-		SkillManager.SkillType.STONE_SHIELD,
-		SkillManager.SkillType.BONE_BLADE,
-		SkillManager.SkillType.BOOMERANG,
-		SkillManager.SkillType.GROUND_SLAM,
-		SkillManager.SkillType.TIME_SHARD,
-		SkillManager.SkillType.MAGNET_RELIC,
-		SkillManager.SkillType.AIR_DASH,
-		SkillManager.SkillType.BOUNCE_POWER
-	]
+	_skill_bag.clear()
+	var enabled: Array[int] = save_service.get_enabled_map_skills() if save_service else [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+	for sk_id in enabled:
+		var info: Dictionary = SkillManager.SKILL_DATA.get(sk_id, {})
+		if info.is_empty():
+			continue
+		var weight: int = int(info.get("spawn_weight", 10))
+		var copies: int = maxi(1, roundi(float(weight) / 8.0))
+		for _c in range(copies):
+			_skill_bag.append(sk_id)
+	if _skill_bag.is_empty():
+		return
 	# Deterministic shuffle using level_generator.rng
 	for i in range(_skill_bag.size() - 1, 0, -1):
 		var j = int(level_generator.rng.randi() % (i + 1))
@@ -323,8 +410,10 @@ func _reset_world_state() -> void:
 
 	start_x = 100.0
 	player.position = Vector2(start_x, 216.0)
+	player.reset_physics_interpolation()
 	if camera:
-		camera.global_position.x = roundf(player.global_position.x + camera.horizontal_lead)
+		camera.global_position.x = player.global_position.x + camera.horizontal_lead
+		camera.reset_physics_interpolation()
 
 	next_chunk_x = 0.0
 	distance_px = 0.0
@@ -340,12 +429,18 @@ func _reset_world_state() -> void:
 	is_fever_active = false
 	_procedural_chunks_spawned = 0
 	_skill_bag.clear()
+	if challenge_service:
+		challenge_service.reset_session_run_stats()
 
 	hud.update_gems(0)
 	if hud.has_method("update_combo"):
 		hud.update_combo(0, 1, false, 0.0)
-	hud.update_skill_slot({}, 0.0, 0.0, 0)
+	if hud.has_method("update_skill_slots") and player.skill_manager:
+		hud.update_skill_slots(player.skill_manager.get_slots_snapshot())
+	else:
+		hud.update_skill_slot({}, 0.0, 0.0, 0)
 	hud.hide_flight_hud()
+	_apply_equipped_perks_and_cosmetics(false)
 
 	current_world_index = 0
 	if not world_themes.is_empty() and world_themes[0] != null:
@@ -362,6 +457,7 @@ func _reset_world_state() -> void:
 	_refill_skill_bag()
 
 	# Initial opening chunks: exciting gem-arc breather + single hop + crate step hurdle (>= 3 chunks preloaded)
+	_spawn_left_ground_extension()
 	_spawn_chunk_by_index(0, true)  # Chunk 1: Opening gem arc breather (0..480)
 	_spawn_chunk_by_index(1, true)  # Chunk 2: First low hop + glittering gem arc (480..960)
 	_spawn_chunk_by_index(5, true)  # Chunk 3: Stepping crate + reward trail (960..1440)
@@ -384,22 +480,28 @@ func _physics_process(delta: float) -> void:
 	distance_px = maxf(player.global_position.x - start_x, 0.0)
 	distance_m = distance_px * 0.1
 	var world_mult: float = 1.15 if _get_current_modifier() == "VOLCANIC_ERUPTIONS" else 1.0
-	current_score = int(distance_m * 1.5 * world_mult) + bonus_score
+	current_score = int(distance_m * 1.5 * world_mult * _cached_score_mult) + bonus_score
 
-	# Dynamic speed progression based on difficulty mode
+	# Dynamic speed progression based on difficulty mode (smooth, readable cap)
 	var base_spd: float = 280.0
 	match current_mode:
 		0:
-			base_spd = minf(310.0 + (distance_m * 0.25), 520.0)
+			base_spd = minf(300.0 + (distance_m * 0.18), 460.0)
 		1:
-			base_spd = minf(280.0 + (distance_m * 0.22), 520.0)
+			base_spd = minf(280.0 + (distance_m * 0.16), 460.0)
 		2:
-			base_spd = minf(280.0 + (distance_m * 0.20), 520.0)
+			base_spd = minf(280.0 + (distance_m * 0.15), 450.0)
 		3:
 			base_spd = minf(196.0 + (distance_m * 0.10), 320.0)
+	if custom_map_active:
+		var preset: int = int(custom_map_data.get("speed_preset", 1))
+		base_spd = 196.0 if preset == 0 else (340.0 if preset == 2 else 260.0)
 	if player.skill_manager and player.skill_manager.world_time_scale < 0.99:
 		base_spd *= 0.78
 	player.current_speed = base_spd
+
+	if tutorial_active:
+		_update_live_tutorial(delta)
 
 	# Combo decay & Fever feedback
 	if combo_count > 0:
@@ -414,8 +516,8 @@ func _physics_process(delta: float) -> void:
 
 	# Camera dynamic speed/flight zoom framing
 	if camera:
-		var spd_ratio = clampf((player.current_speed - 280.0) / 240.0, 0.0, 1.0)
-		var target_z = 0.92 if player.is_flying else (1.0 - 0.055 * spd_ratio)
+		var spd_ratio = clampf((player.current_speed - 280.0) / 180.0, 0.0, 1.0)
+		var target_z = 0.90 if player.is_flying else (1.0 - 0.08 * spd_ratio)
 		camera.set_dynamic_zoom(target_z)
 
 	# Dash / Rocket / Fever afterimages & Slide gravel sparks
@@ -424,7 +526,7 @@ func _physics_process(delta: float) -> void:
 	# Near-miss grazing reward check
 	_check_near_misses()
 
-	if challenge_service and current_mode != 3:
+	if challenge_service and current_mode != 3 and not custom_map_active:
 		challenge_service.check_run_progress(distance_m, current_score, current_mode)
 		_check_mastery_progress()
 
@@ -432,7 +534,7 @@ func _physics_process(delta: float) -> void:
 	if distance_m >= next_transition_distance_m and not world_themes.is_empty():
 		_trigger_world_transition()
 
-	hud.update_hud(current_score, distance_m, save_service.get_best_score(), save_service.get_points())
+	hud.update_hud(current_score, distance_m, save_service.get_mode_best_score(current_mode), save_service.get_points())
 
 	if player.global_position.x + CHUNK_WIDTH * 2.0 > next_chunk_x:
 		_spawn_next_procedural_chunk()
@@ -456,6 +558,15 @@ func _update_continuous_fx(delta: float) -> void:
 			var region = _get_sprite_frame_rect(player.sprite)
 			var tcol = Color(1.0, 0.85, 0.25, 0.5) if is_fever_active else (Color(1.0, 0.55, 0.2, 0.55) if player.is_flying else Color(0.35, 0.95, 1.0, 0.6))
 			fx_manager.spawn_afterimage(player.sprite.texture, region, player.global_position, tcol)
+
+	if _cached_trail_color.a > 0.05:
+		_cosmetic_trail_timer -= delta
+		if _cosmetic_trail_timer <= 0.0:
+			_cosmetic_trail_timer = 0.07
+			var col := _cached_trail_color
+			if save_service and save_service.get_equipped_cosmetic("trail") == "trail_rainbow":
+				col = Color.from_hsv(fmod(Time.get_ticks_msec() * 0.001, 1.0), 0.85, 1.0, 0.9)
+			fx_manager.spawn_burst(player.global_position + Vector2(-8, 6), col, 2, 30.0, 0.7, 2.2, 15.0, 0.24)
 
 	if st == PlayerStateMachine.State.SLIDE and player.is_on_floor():
 		_slide_spark_timer -= delta
@@ -497,7 +608,7 @@ func _check_near_misses() -> void:
 				near_misses_this_run += 1
 				if save_service and current_mode != 3:
 					save_service.record_milestone("total_near_misses", 1, false)
-				var pts = 30 * combo_multiplier
+				var pts = int(roundf(30.0 * _cached_near_miss_mult)) * combo_multiplier
 				bonus_score += pts
 				_bump_combo(player.global_position + Vector2(0, -14), "CLOSE SLIDE! +%d" % pts, Color(0.45, 0.98, 1.0))
 			continue
@@ -509,7 +620,7 @@ func _check_near_misses() -> void:
 				near_misses_this_run += 1
 				if save_service and current_mode != 3:
 					save_service.record_milestone("total_near_misses", 1, false)
-				var pts = 25 * combo_multiplier
+				var pts = int(roundf(25.0 * _cached_near_miss_mult)) * combo_multiplier
 				bonus_score += pts
 				_bump_combo(player.global_position + Vector2(0, -18), "CLOSE CALL! +%d" % pts, Color(0.45, 0.98, 1.0))
 
@@ -522,6 +633,8 @@ func _bump_combo(popup_pos: Vector2, label_text: String = "", popup_color: Color
 		if save_service and current_mode != 3 and combo_max_this_run > save_service.get_milestone("max_combo_best"):
 			save_service.data["milestones"]["max_combo_best"] = combo_max_this_run
 			save_service.mark_dirty()
+	if challenge_service and current_mode != 3 and not custom_map_active:
+		challenge_service.record_combo(combo_count)
 
 	if combo_count >= 15:
 		combo_multiplier = 5
@@ -587,6 +700,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		toggle_pause()
 	elif is_game_over and (event.is_action_pressed("jump") or (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R)):
 		restart_run()
+	elif not is_game_over and not is_paused and event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_1:
+			player.use_skill(0)
+		elif event.keycode == KEY_2:
+			player.use_skill(1)
+		elif event.keycode == KEY_3:
+			player.use_skill(2)
 
 func _is_any_modal_open() -> bool:
 	if hud == null:
@@ -596,6 +716,7 @@ func _is_any_modal_open() -> bool:
 	if hud.tutorial_dialog and hud.tutorial_dialog.visible: return true
 	if hud.skin_shop_dialog and hud.skin_shop_dialog.visible: return true
 	if hud.challenges_dialog and hud.challenges_dialog.visible: return true
+	if hud.practice_hub and hud.practice_hub.has_modal_open(): return true
 	return false
 
 func _notification(what: int) -> void:
@@ -618,6 +739,8 @@ func _clear_all_held_inputs() -> void:
 		hud.clear_touch_inputs()
 
 func _handle_back_action() -> void:
+	if hud.practice_hub and hud.practice_hub.close_active_modal():
+		return
 	if hud.settings_dialog and hud.settings_dialog.visible:
 		hud.close_settings()
 	elif hud.credits_dialog and hud.credits_dialog.visible:
@@ -636,6 +759,22 @@ func _handle_back_action() -> void:
 	elif is_game_over:
 		go_to_title_menu()
 
+func _spawn_left_ground_extension() -> void:
+	if chunk_container == null or not ResourceLoader.exists("res://assets/sprites/ground_tile.png"):
+		return
+	var ext := Node2D.new()
+	ext.name = "LeftGroundExtension"
+	var tex: Texture2D = theme_tile_textures.get("plains", load("res://assets/sprites/ground_tile.png"))
+	var spr := Sprite2D.new()
+	spr.texture = tex
+	spr.centered = false
+	spr.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	spr.region_enabled = true
+	spr.region_rect = Rect2(0, 0, 480, 16)
+	spr.position = Vector2(-480.0, 230.0)
+	ext.add_child(spr)
+	chunk_container.add_child(ext)
+
 func _spawn_chunk_by_index(idx: int, inject_starter_rewards: bool = false) -> void:
 	var scene = chunk_scenes[idx % chunk_scenes.size()]
 	var chunk = scene.instantiate() as Node2D
@@ -646,6 +785,20 @@ func _spawn_chunk_by_index(idx: int, inject_starter_rewards: bool = false) -> vo
 	next_chunk_x += CHUNK_WIDTH
 
 func _spawn_next_procedural_chunk() -> void:
+	if tutorial_active:
+		_spawn_chunk_by_index(0, false)
+		return
+	if custom_map_active:
+		_spawn_chunk_by_index(0, false)
+		return
+	if practice_section_index >= 0:
+		_practice_section_counter += 1
+		if _practice_section_counter % 4 == 0:
+			_spawn_chunk_by_index(0, false)
+		else:
+			_spawn_chunk_by_index(practice_section_index, true)
+		return
+
 	var world_id = "plains"
 	if current_world_index < world_themes.size() and world_themes[current_world_index] != null:
 		world_id = world_themes[current_world_index].world_id
@@ -697,6 +850,8 @@ func _decorate_and_wire_chunk(chunk: Node2D, allow_rewards: bool, is_procedural:
 			stack.append(ch)
 		if cur is Hazard:
 			existing_hazards.append((cur as Node2D).position)
+			if _cached_obs_tint != Color.WHITE:
+				(cur as Node2D).modulate = _cached_obs_tint
 			if active_ts != 1.0:
 				cur.set_time_scale(active_ts)
 			if not cur.destroyed.is_connected(_on_hazard_destroyed):
@@ -726,27 +881,65 @@ func _decorate_and_wire_chunk(chunk: Node2D, allow_rewards: bool, is_procedural:
 		if _procedural_chunks_spawned == 2 or (_procedural_chunks_spawned % 3 == 0):
 			if _skill_bag.is_empty():
 				_refill_skill_bag()
-			var chosen_skill: int = _skill_bag.pop_front()
-			var pickup = SkillPickupScene.instantiate() as SkillPickup
-			pickup.skill_type = chosen_skill
-			var candidates: Array[Vector2] = [Vector2(240.0, 178.0), Vector2(315.0, 172.0), Vector2(405.0, 178.0), Vector2(165.0, 178.0)]
-			var best_pos: Vector2 = candidates[0]
-			for cand in candidates:
-				var clear := true
-				for hp in existing_hazards:
-					if absf(cand.x - hp.x) < 44.0:
-						clear = false
-						break
-				if clear:
-					for gp in existing_gems:
-						if cand.distance_to(gp) < 28.0:
+			if not _skill_bag.is_empty():
+				var chosen_skill: int = _skill_bag.pop_front()
+				var pickup = SkillPickupScene.instantiate() as SkillPickup
+				pickup.skill_type = chosen_skill
+				var candidates: Array[Vector2] = [Vector2(240.0, 178.0), Vector2(315.0, 172.0), Vector2(405.0, 178.0), Vector2(165.0, 178.0)]
+				var best_pos: Vector2 = candidates[0]
+				for cand in candidates:
+					var clear := true
+					for hp in existing_hazards:
+						if absf(cand.x - hp.x) < 44.0:
 							clear = false
 							break
-				if clear:
-					best_pos = cand
+					if clear:
+						for gp in existing_gems:
+							if cand.distance_to(gp) < 28.0:
+								clear = false
+								break
+					if clear:
+						best_pos = cand
+						break
+				pickup.position = best_pos
+				chunk.add_child(pickup)
+
+	# Spawn avoidable yellow-triangle warning trap pickup on select procedural chunks
+	if is_procedural and allow_rewards and current_mode != 0 and distance_m >= 60.0 and (_procedural_chunks_spawned % 4 == 1):
+		var trap_candidates: Array[Vector2] = [Vector2(210.0, 148.0), Vector2(305.0, 148.0), Vector2(390.0, 148.0)]
+		for tcand in trap_candidates:
+			var t_clear := true
+			for hp in existing_hazards:
+				if absf(tcand.x - hp.x) < 62.0:
+					t_clear = false
 					break
-			pickup.position = best_pos
-			chunk.add_child(pickup)
+			if t_clear:
+				for gp in existing_gems:
+					if tcand.distance_to(gp) < 36.0:
+						t_clear = false
+						break
+			if t_clear:
+				var trap = TrapPickupScene.instantiate()
+				trap.position = tcand
+				trap.trap_triggered.connect(_on_trap_triggered)
+				chunk.add_child(trap)
+				break
+
+func _on_quest_trick(_id: String, _title: String, _reward: int) -> void:
+	if player and is_game_started and not is_game_over:
+		player.perform_trick()
+
+func _on_level_up_trick(_new_level: int, _diamond_bonus: int) -> void:
+	if player and is_game_started and not is_game_over:
+		player.perform_trick()
+
+func _on_trap_triggered(_trap) -> void:
+	if hud:
+		hud.show_skill_toast("⚠ TRAP! SPEED SURGE!")
+	if camera:
+		camera.add_impact_shake(6.0, 0.25)
+	if fx_manager and player:
+		fx_manager.spawn_burst(player.global_position, Color(1.0, 0.85, 0.1), 14, 140.0, TAU, 3.0, 220.0, 0.4)
 
 func _on_hazard_destroyed(hazard: Hazard) -> void:
 	hazards_broken_this_run += 1
@@ -754,6 +947,10 @@ func _on_hazard_destroyed(hazard: Hazard) -> void:
 	bonus_score += pts
 	if save_service and current_mode != 3:
 		save_service.record_milestone("hazards_broken_total", 1, false)
+		if _cached_shatter_bonus > 0:
+			save_service.add_points(_cached_shatter_bonus, false)
+		if challenge_service and not custom_map_active:
+			challenge_service.record_hazard_broken()
 	audio_manager.play_obstacle_break()
 	if camera:
 		camera.add_impact_shake(4.0, 0.16)
@@ -807,7 +1004,7 @@ func _on_player_died(cause: String) -> void:
 
 	var is_new_best = false
 	if current_mode != 3:
-		is_new_best = save_service.update_high_score(current_score, distance_m, true)
+		is_new_best = save_service.update_mode_high_score(current_mode, current_score, distance_m, true)
 	else:
 		save_service.flush_if_dirty()
 
@@ -831,7 +1028,7 @@ func _on_player_died(cause: String) -> void:
 			var dist_left = maxf(next_transition_distance_m - distance_m, 1.0)
 			next_biome_hint = "%.0fm to %s!" % [dist_left, world_themes[next_idx].world_name]
 
-	hud.show_game_over(cause, current_score, distance_m, save_service.get_best_score(), is_new_best, run_pts, save_service.get_points(), combo_max_this_run, next_biome_hint)
+	hud.show_game_over(cause, current_score, distance_m, save_service.get_mode_best_score(current_mode), is_new_best, run_pts, save_service.get_points(), combo_max_this_run, next_biome_hint)
 
 func toggle_pause() -> void:
 	if is_game_over or not is_game_started:
@@ -864,8 +1061,17 @@ func restart_run() -> void:
 
 func go_to_title_menu() -> void:
 	if save_service:
+		if current_mode == 3 and not save_service.is_first_launch_completed():
+			save_service.set_first_launch_completed(true, false)
 		save_service.flush_if_dirty()
 	run_seed = 0
+	tutorial_active = false
+	_practice_entry_pending = false
+	practice_section_index = -1
+	custom_map_active = false
+	_practice_pattern_hits.clear()
+	if hud.practice_hub:
+		hud.practice_hub.hide_all()
 	hud.hide_pause_menu()
 	hud.hide_game_over()
 	init_title_screen()
@@ -907,6 +1113,13 @@ func _on_player_ground_slammed() -> void:
 		fx_manager.spawn_burst(player.global_position + Vector2(0, 10), Color(1.0, 0.82, 0.35), 16, 150.0, PI, 3.0, 260.0, 0.42)
 
 func _on_player_skill_used(skill_type: int) -> void:
+	if tutorial_active:
+		_tut_skill_done = true
+	if current_mode != 3 and not custom_map_active:
+		if save_service:
+			save_service.record_milestone("skills_used_total", 1, false)
+		if challenge_service:
+			challenge_service.record_skill_used()
 	match skill_type:
 		SkillManager.SkillType.BONE_BLADE:
 			audio_manager.play_skill_activation()
@@ -949,6 +1162,49 @@ func _on_player_flight_ended() -> void:
 
 func _on_skin_selected(skin_id: String) -> void:
 	player.set_skin(skin_id)
+	_apply_equipped_perks_and_cosmetics(false)
+
+func _on_cosmetic_selected(_cat: String, _cid: String) -> void:
+	_apply_equipped_perks_and_cosmetics(false)
+
+func _apply_equipped_perks_and_cosmetics(is_run_start: bool) -> void:
+	if save_service == null or player == null:
+		return
+	var perks: Dictionary = save_service.get_equipped_skin_perks()
+	var obs_data: Dictionary = save_service.get_equipped_cosmetic_data("obstacle")
+	var map_data: Dictionary = save_service.get_equipped_cosmetic_data("map")
+	var trail_data: Dictionary = save_service.get_equipped_cosmetic_data("trail")
+
+	_cached_score_mult = float(perks.get("score_mult", 1.0)) * float(map_data.get("dist_mult", 1.0)) * float(trail_data.get("score_mult", 1.0))
+	_cached_gem_mult = int(perks.get("gem_mult", 1))
+	_cached_near_miss_mult = float(obs_data.get("near_miss_mult", 1.0))
+	_cached_shatter_bonus = int(obs_data.get("shatter_bonus", 0))
+	_cached_obs_tint = obs_data.get("tint", Color.WHITE)
+	_cached_trail_color = trail_data.get("color", Color(1, 1, 1, 0))
+
+	if parallax_bg:
+		var map_tint: Color = map_data.get("tint", Color.WHITE)
+		for child in parallax_bg.get_children():
+			if child is CanvasItem:
+				child.modulate = map_tint
+
+	player.passive_magnet = bool(perks.get("magnet", false))
+	player.is_magnet_active = player.passive_magnet
+	player.base_bounce_multiplier = 1.0 + float(perks.get("bounce_bonus", 0.0))
+	player.bounce_multiplier = player.base_bounce_multiplier
+
+	if player.skill_manager:
+		player.skill_manager.cooldown_scale = float(perks.get("cd_scale", 1.0))
+		player.skill_manager.duration_scale = float(perks.get("dur_scale", 1.0))
+
+	if is_run_start and current_mode != 3:
+		if bool(perks.get("start_shield", false)) and player.skill_manager:
+			player.skill_manager.equip_skill(SkillManager.SkillType.STONE_SHIELD)
+		var sg: int = int(perks.get("start_gems", 0))
+		if sg > 0:
+			player.gems_collected += sg
+			hud.update_gems(player.gems_collected)
+			save_service.add_points(sg, false)
 
 func _on_hud_jump(pressed: bool) -> void:
 	if not is_game_started:
@@ -990,18 +1246,27 @@ func _on_hud_steer(dir: float) -> void:
 func _on_hud_skill() -> void:
 	if not is_game_started or is_game_over or is_paused:
 		return
-	player.use_skill()
+	player.use_skill(0)
+
+func _on_hud_skill_slot(slot_idx: int) -> void:
+	if not is_game_started or is_game_over or is_paused:
+		return
+	player.use_skill(slot_idx)
 
 func _on_player_gem_collected(count: int, bonus: int) -> void:
 	var canopy_mult = 1.25 if _get_current_modifier() == "CANOPY_ROUTES" else 1.0
-	var final_bonus = int(roundf(float(bonus) * canopy_mult)) * combo_multiplier
+	var skill_gem_mult = 2.0 if (player.skill_manager and player.skill_manager.double_gem_active) else 1.0
+	var final_bonus = int(roundf(float(bonus) * canopy_mult * skill_gem_mult * _cached_score_mult)) * combo_multiplier
 	bonus_score += final_bonus
 	var world_mult: float = 1.15 if _get_current_modifier() == "VOLCANIC_ERUPTIONS" else 1.0
-	current_score = int(distance_m * 1.5 * world_mult) + bonus_score
+	current_score = int(distance_m * 1.5 * world_mult * _cached_score_mult) + bonus_score
 	hud.update_gems(count)
+	var diamond_gain := maxi(1, _cached_gem_mult)
 	if current_mode != 3:
-		save_service.add_points(1, false)
-		save_service.record_milestone("gems_collected_total", 1, false)
+		save_service.add_points(diamond_gain, false)
+		save_service.record_milestone("gems_collected_total", diamond_gain, false)
+		if challenge_service:
+			challenge_service.record_gem(diamond_gain)
 	audio_manager.play_collect(combo_count)
 	if fx_manager:
 		fx_manager.spawn_burst(player.global_position, Color(0.35, 0.92, 1.0), 8, 95.0, TAU, 2.2, 140.0, 0.30)
@@ -1009,8 +1274,15 @@ func _on_player_gem_collected(count: int, bonus: int) -> void:
 	_bump_combo(player.global_position + Vector2(0, -14), tag, Color(0.45, 0.96, 1.0))
 
 func _on_skill_equipped(_type: int, info: Dictionary) -> void:
-	hud.update_skill_slot(info, 0.0, 0.0, player.skill_manager.current_charges)
-	hud.show_skill_toast("%s Equipped!" % info.get("name", "Skill"))
+	if hud.has_method("update_skill_slots") and player.skill_manager:
+		hud.update_skill_slots(player.skill_manager.get_slots_snapshot())
+	else:
+		hud.update_skill_slot(info, 0.0, 0.0, player.skill_manager.current_charges)
+	var s_name := str(info.get("name", "Skill"))
+	var s_hint := str(info.get("when_hint", ""))
+	var is_passive := float(info.get("duration", 0.0)) < 0.0
+	var toast_msg := s_name if s_hint.is_empty() else ("%s • %s" % [s_name, s_hint] if is_passive else "%s • %s [E]" % [s_name, s_hint])
+	hud.show_skill_toast(toast_msg)
 	audio_manager.play_pickup()
 	if fx_manager:
 		fx_manager.spawn_burst(player.global_position, Color(1.0, 0.85, 0.35), 10, 110.0, TAU, 2.4, 120.0, 0.35)
@@ -1018,8 +1290,14 @@ func _on_skill_equipped(_type: int, info: Dictionary) -> void:
 func _on_skill_replaced(old_name: String, new_name: String) -> void:
 	hud.show_skill_toast("Replaced %s with %s!" % [old_name, new_name])
 
+func _on_skill_slots_changed(slots_snapshot: Array) -> void:
+	if hud.has_method("update_skill_slots"):
+		hud.update_skill_slots(slots_snapshot)
+
 func _on_skill_updated(cd: float, dur: float, charges: int) -> void:
-	if player and player.skill_manager and player.skill_manager.current_skill == SkillManager.SkillType.NONE:
+	if hud.has_method("update_skill_slots") and player and player.skill_manager:
+		hud.update_skill_slots(player.skill_manager.get_slots_snapshot())
+	elif player and player.skill_manager and player.skill_manager.current_skill == SkillManager.SkillType.NONE:
 		hud.update_skill_slot({}, 0.0, 0.0, 0)
 	elif player and player.skill_manager and player.skill_manager.current_skill == SkillManager.SkillType.STONE_SHIELD:
 		hud.update_skill_slot(player.skill_manager.get_skill_info(SkillManager.SkillType.STONE_SHIELD), cd, dur, charges)
@@ -1045,6 +1323,8 @@ func _trigger_world_transition() -> void:
 	if save_service and current_mode != 3 and current_world_index + 1 > save_service.get_milestone("max_world_reached"):
 		save_service.data["milestones"]["max_world_reached"] = current_world_index + 1
 		save_service.mark_dirty()
+	if challenge_service and current_mode != 3 and not custom_map_active:
+		challenge_service.record_world(current_world_index + 1)
 
 	var pat = level_generator.get_world_transition_pattern()
 	var trans_scene = preload("res://scenes/obstacles/chunks/chunk_00_world_transition.tscn")
@@ -1067,3 +1347,314 @@ func _trigger_world_transition() -> void:
 		hud.update_world_name(new_theme.world_name)
 		hud.show_world_transition_card(new_theme.world_name, new_theme.mechanic_intro)
 	audio_manager.play_world_enter()
+
+# ==============================================================================
+# Live Interactive Tutorial, Adaptive Hints, Section Practice & Custom Maps
+# ==============================================================================
+
+func _on_start_live_tutorial() -> void:
+	_practice_entry_pending = false
+	practice_section_index = -1
+	custom_map_active = false
+	_practice_pattern_hits.clear()
+	get_tree().paused = false
+	is_paused = false
+	start_live_tutorial()
+
+func _on_skip_to_practice() -> void:
+	_practice_entry_pending = false
+	tutorial_active = false
+	get_tree().paused = false
+	is_paused = false
+	if save_service and not save_service.is_first_launch_completed():
+		save_service.set_first_launch_completed(true)
+	if hud.practice_hub:
+		hud.practice_hub.hide_tutorial_banner()
+		hud.practice_hub.show_practice_bar("🛡 FREE PRACTICE • NO DEATH • NO SCORE")
+
+func start_live_tutorial() -> void:
+	tutorial_active = true
+	tutorial_phase = 0
+	_tut_jump_hold_accum = 0.0
+	_tut_short_jump_done = false
+	_tut_long_jump_done = false
+	_tut_slide_done = false
+	_tut_skill_done = false
+	_tut_phase_timer = 0.0
+	if hud.practice_hub:
+		hud.practice_hub.hide_practice_bar()
+	_setup_tutorial_phase(0)
+
+func _setup_tutorial_phase(phase: int) -> void:
+	tutorial_phase = phase
+	_tut_phase_timer = 0.0
+	if not hud.practice_hub:
+		return
+	match phase:
+		0:
+			hud.practice_hub.show_tutorial_step(
+				"STEP 1/5 • TAP JUMP",
+				"Your Dino runs automatically. TAP Jump briefly for a quick low hop over the small cactus!",
+				"TAP\nJUMP", Color(0.22, 0.65, 0.35), "Tap Jump once!"
+			)
+			_spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_ground_low.tscn", Vector2(player.global_position.x + 280.0, 224.0))
+		1:
+			hud.practice_hub.show_tutorial_step(
+				"STEP 2/5 • HOLD FOR HIGH JUMP",
+				"Jump height depends on press duration! HOLD Jump longer to soar high over the tall crate!",
+				"HOLD\nJUMP", Color(0.25, 0.55, 0.92), "Hold Jump to clear higher!"
+			)
+			_spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_crate_block.tscn", Vector2(player.global_position.x + 300.0, 212.0))
+		2:
+			hud.practice_hub.show_tutorial_step(
+				"STEP 3/5 • DUCK / SLIDE & DIVE",
+				"Hold SLIDE (Down) to duck under stone arches! In mid-air, tap SLIDE to fast-dive!",
+				"SLIDE\n▼", Color(0.85, 0.55, 0.2), "Slide under the arch!"
+			)
+			_spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_overhang.tscn", Vector2(player.global_position.x + 300.0, 176.0))
+		3:
+			hud.practice_hub.show_tutorial_step(
+				"STEP 4/5 • BOUNCE & PLATFORMS",
+				"Hit Bounce Pads to launch skyward! Press Down on one-way platforms to drop through.",
+				"BOUNCE\n▲", Color(0.72, 0.42, 0.92), "Ride the bounce pad!"
+			)
+			_spawn_tutorial_obstacle("res://scenes/objects/bounce_mushroom.tscn", Vector2(player.global_position.x + 280.0, 220.0))
+		4:
+			hud.practice_hub.show_tutorial_step(
+				"STEP 5/5 • SKILLS SHOWCASE",
+				"Press SKILL to unleash active powers! Here is Bone Blade — slash the wooden barrier ahead!",
+				"SKILL\n⚡", Color(0.95, 0.72, 0.2), "Activate your Skill!"
+			)
+			if player.skill_manager:
+				player.skill_manager.equip_skill(SkillManager.SkillType.BONE_BLADE)
+			_spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_wooden_barrier.tscn", Vector2(player.global_position.x + 300.0, 208.0))
+
+func _spawn_tutorial_obstacle(scene_path: String, world_pos: Vector2) -> void:
+	if not ResourceLoader.exists(scene_path):
+		return
+	var packed = load(scene_path) as PackedScene
+	if not packed:
+		return
+	var inst = packed.instantiate() as Node2D
+	inst.position = world_pos
+	chunk_container.add_child(inst)
+	if inst is Hazard and not inst.destroyed.is_connected(_on_hazard_destroyed):
+		inst.destroyed.connect(_on_hazard_destroyed)
+
+func _update_live_tutorial(delta: float) -> void:
+	if _tut_celebrate_timer > 0.0:
+		_tut_celebrate_timer -= delta
+		if _tut_celebrate_timer <= 0.0:
+			if tutorial_phase < 4:
+				_setup_tutorial_phase(tutorial_phase + 1)
+			else:
+				_finish_live_tutorial()
+		return
+	_tut_phase_timer += delta
+	match tutorial_phase:
+		0:
+			if player.state_machine.current_state == PlayerStateMachine.State.JUMP_RISE:
+				_tut_short_jump_done = true
+			if _tut_short_jump_done and _tut_phase_timer > 1.8:
+				_advance_tutorial_phase()
+		1:
+			if player.is_jump_holding or Input.is_action_pressed("jump") or player.jump_held:
+				_tut_jump_hold_accum += delta
+			if _tut_jump_hold_accum >= 0.14 or _tut_phase_timer > 3.2:
+				_tut_long_jump_done = true
+				_advance_tutorial_phase()
+		2:
+			if player.state_machine.current_state == PlayerStateMachine.State.SLIDE or player.state_machine.current_state == PlayerStateMachine.State.DIVE:
+				_tut_slide_done = true
+			if _tut_slide_done and _tut_phase_timer > 1.6:
+				_advance_tutorial_phase()
+		3:
+			if _tut_phase_timer > 2.8:
+				_advance_tutorial_phase()
+		4:
+			if _tut_skill_done and _tut_phase_timer > 1.5:
+				_advance_tutorial_phase()
+
+func _advance_tutorial_phase() -> void:
+	if hud.practice_hub:
+		hud.practice_hub.update_tutorial_status("✔ Great job!", true)
+	_tut_celebrate_timer = 0.65
+
+func _finish_live_tutorial() -> void:
+	tutorial_active = false
+	if save_service and not save_service.is_first_launch_completed():
+		save_service.set_first_launch_completed(true)
+	if hud.practice_hub:
+		hud.practice_hub.hide_tutorial_banner()
+		hud.practice_hub.show_practice_bar("🛡 FREE PRACTICE • TUTORIAL COMPLETE!")
+		hud.practice_hub.show_adaptive_hint("Tutorial complete! Try Skills Lab to test all 12 skills & pick which ones spawn in your maps!", 5.0)
+
+func _on_practice_hit_absorbed(cause: String, hazard: Hazard) -> void:
+	audio_manager.play_shield_break()
+	if fx_manager:
+		fx_manager.spawn_floating_text(player.global_position + Vector2(0, -18), "NO DEATH!", Color(0.55, 0.95, 1.0), 1.0)
+	if tutorial_active:
+		if hud.practice_hub:
+			hud.practice_hub.update_tutorial_status("Oops! Try again — you can't die in Tutorial!", false)
+		return
+	# Adaptive Hint tracking in Free Practice / Section Practice
+	var h_key := _classify_practice_hit(cause, hazard)
+	_practice_pattern_hits[h_key] = int(_practice_pattern_hits.get(h_key, 0)) + 1
+	if int(_practice_pattern_hits[h_key]) >= 2 and hud.practice_hub:
+		hud.practice_hub.show_adaptive_hint(_get_adaptive_hint_for_key(h_key), 6.0)
+
+func _classify_practice_hit(cause: String, hazard: Hazard) -> String:
+	var c := cause.to_lower()
+	if is_instance_valid(hazard):
+		c = (c + " " + hazard.hazard_name.to_lower())
+	if c.contains("overhang") or c.contains("arch"):
+		return "overhang"
+	if c.contains("crate"):
+		return "crate_step"
+	if c.contains("pterodactyl") or c.contains("fly") or c.contains("cloud"):
+		return "airborne"
+	if c.contains("lava"):
+		return "lava"
+	if c.contains("crawler"):
+		return "crawler"
+	return "cactus"
+
+func _get_adaptive_hint_for_key(key: String) -> String:
+	match key:
+		"overhang":
+			return "Stone Arch: Slide/Duck early before reaching it, or dive mid-air to drop underneath!"
+		"crate_step":
+			return "Crate + Cactus: A light tap hits the cactus after; HOLD Jump to clear both, or land on the crate first!"
+		"airborne":
+			return "Flying Hazard: Stay low and slide underneath, or hit it with Boomerang / Shockwave Roar!"
+		"lava":
+			return "Lava Pit: Hold Jump for a full arc, or use Bounce Pads / Air Dash to cross safely!"
+		"crawler":
+			return "Crawler: Jump clean over it, or smash it with Ground Slam / Boomerang!"
+		_:
+			return "Cactus Timing: Tap Jump for a single cactus, or HOLD Jump longer to clear wide doubles/triples!"
+
+func _on_practice_modal_opened() -> void:
+	if is_game_started and not is_game_over and not is_paused:
+		get_tree().paused = true
+
+func _on_practice_modal_closed() -> void:
+	if is_game_started and not is_game_over and not is_paused and not _practice_entry_pending:
+		get_tree().paused = false
+
+func _on_test_skill_requested(skill_id: int) -> void:
+	_practice_entry_pending = false
+	tutorial_active = false
+	get_tree().paused = false
+	is_paused = false
+	if current_mode != 3:
+		hud.select_mode(3)
+		current_mode = 3
+	if not is_game_started:
+		begin_run()
+	if player.skill_manager:
+		player.skill_manager.equip_skill(skill_id as SkillManager.SkillType)
+	# Spawn a live target ahead so the player can immediately see what the skill does!
+	_spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_wooden_barrier.tscn", Vector2(player.global_position.x + 260.0, 208.0))
+	if hud.practice_hub:
+		hud.practice_hub.show_practice_bar("⚡ SKILLS LAB • PRESS SKILL TO TEST")
+
+func _on_section_practice_requested(chunk_idx: int, section_name: String) -> void:
+	_practice_entry_pending = false
+	tutorial_active = false
+	custom_map_active = false
+	practice_section_index = chunk_idx
+	_practice_section_counter = 0
+	get_tree().paused = false
+	is_paused = false
+	if current_mode != 3:
+		hud.select_mode(3)
+		current_mode = 3
+	start_new_run()
+	if hud.practice_hub:
+		hud.practice_hub.show_practice_bar("🎯 SECTION: %s" % section_name.to_upper())
+
+func _on_random_practice_requested() -> void:
+	_practice_entry_pending = false
+	tutorial_active = false
+	custom_map_active = false
+	practice_section_index = -1
+	get_tree().paused = false
+	is_paused = false
+	if current_mode != 3:
+		hud.select_mode(3)
+		current_mode = 3
+	start_new_run()
+	if hud.practice_hub:
+		hud.practice_hub.show_practice_bar("🛡 FREE PRACTICE • NO DEATH • NO SCORE")
+
+func start_custom_map(map_dict: Dictionary) -> void:
+	_practice_entry_pending = false
+	tutorial_active = false
+	practice_section_index = -1
+	custom_map_active = true
+	custom_map_data = map_dict.duplicate(true)
+	get_tree().paused = false
+	is_paused = false
+	if current_mode != 3:
+		hud.select_mode(3)
+		current_mode = 3
+	start_new_run()
+	if hud.practice_hub:
+		hud.practice_hub.show_practice_bar("🛠 CUSTOM MAP: %s" % str(custom_map_data.get("name", "Custom")).to_upper())
+
+func _populate_custom_map_items() -> void:
+	var w_idx: int = clampi(int(custom_map_data.get("world_index", 0)), 0, world_themes.size() - 1)
+	if w_idx >= 0 and w_idx < world_themes.size() and world_themes[w_idx] != null:
+		current_world_index = w_idx
+		if parallax_bg:
+			parallax_bg.apply_theme_immediate(world_themes[w_idx])
+		hud.update_world_name(world_themes[w_idx].world_name)
+
+	for c in chunk_container.get_children():
+		chunk_container.remove_child(c)
+		c.queue_free()
+	chunk_pool.clear()
+	next_chunk_x = 0.0
+	for _i in range(8):
+		_spawn_chunk_by_index(0, false)
+
+	var item_scenes: Dictionary = {
+		"cactus": "res://scenes/obstacles/obstacle_ground_low.tscn",
+		"overhang": "res://scenes/obstacles/obstacle_overhang.tscn",
+		"crate": "res://scenes/obstacles/obstacle_crate_block.tscn",
+		"barrier": "res://scenes/obstacles/obstacle_wooden_barrier.tscn",
+		"crawler": "res://scenes/obstacles/obstacle_crawler.tscn",
+		"flyer": "res://scenes/obstacles/obstacle_pterodactyl.tscn",
+		"lava": "res://scenes/obstacles/hazard_lava_pit.tscn",
+		"platform": "res://scenes/objects/platform_one_way.tscn",
+		"bounce": "res://scenes/objects/bounce_mushroom.tscn",
+		"wind": "res://scenes/objects/boost_wind_vent.tscn",
+		"gem": "res://scenes/objects/collectible_gem.tscn",
+		"skill": "res://scenes/objects/skill_pickup.tscn"
+	}
+	for it in custom_map_data.get("items", []):
+		if typeof(it) != TYPE_DICTIONARY:
+			continue
+		var t: String = str(it.get("type", "cactus"))
+		var path: String = item_scenes.get(t, "")
+		if path != "" and ResourceLoader.exists(path):
+			var sc = load(path) as PackedScene
+			if sc:
+				var node = sc.instantiate() as Node2D
+				node.position = Vector2(float(it.get("x", 300.0)), float(it.get("y", 216.0)))
+				chunk_container.add_child(node)
+				_wire_custom_node_recursive(node)
+
+func _wire_custom_node_recursive(root_node: Node) -> void:
+	var stack: Array[Node] = [root_node]
+	while not stack.is_empty():
+		var cur = stack.pop_back()
+		for ch in cur.get_children():
+			stack.append(ch)
+		if cur is Hazard and not cur.destroyed.is_connected(_on_hazard_destroyed):
+			cur.destroyed.connect(_on_hazard_destroyed)
+		elif cur is BouncePad:
+			var pad := cur as BouncePad
+			if not pad.launched.is_connected(_on_bounce_pad_triggered):
+				pad.launched.connect(_on_bounce_pad_triggered.bind(pad))

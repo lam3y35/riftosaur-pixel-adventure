@@ -201,10 +201,10 @@ func test_hud_skill_button_single_emit_and_practice_mode() -> Variant:
 		runner.get_parent().remove_child(runner)
 		runner.free()
 		return "Practice mode description missing"
-	if not runner.hud.slide_button.visible:
+	if runner.hud.slide_button.visible or runner.hud.jump_button.visible:
 		runner.get_parent().remove_child(runner)
 		runner.free()
-		return "Practice mode should keep slide button visible"
+		return "Practice mode should keep jump and slide buttons visually hidden"
 
 	runner.get_parent().remove_child(runner)
 	runner.free()
@@ -294,13 +294,13 @@ func test_skill_manager_guards_and_passive_shield() -> Variant:
 		runner.free()
 		return "Expected BONE_BLADE 1 charge spent, got %d" % sm.current_charges
 
-	# Step cooldown to completion -> should auto-clear NONE
+	# Step cooldown to completion -> BONE_BLADE should auto-clear
 	for _i in range(40):
 		sm.update(0.05)
-	if sm.current_skill != SkillManager.SkillType.NONE:
+	if sm.has_skill(SkillManager.SkillType.BONE_BLADE):
 		runner.get_parent().remove_child(runner)
 		runner.free()
-		return "Expected spent single-charge skill to auto-clear to NONE after cooldown"
+		return "Expected spent single-charge skill BONE_BLADE to auto-clear after cooldown"
 
 	runner.get_parent().remove_child(runner)
 	runner.free()

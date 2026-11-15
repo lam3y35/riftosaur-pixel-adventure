@@ -13,6 +13,7 @@ signal died(cause: String)
 signal gem_collected(count: int, score_bonus: int)
 signal skill_used(type: int)
 signal shield_broken()
+signal practice_hit_absorbed(cause: String, hazard: Hazard)
 signal flight_started(flight_type: int, duration: float)
 signal flight_warning(remaining_time: float)
 signal flight_ended()
@@ -47,11 +48,18 @@ var _flash_tween: Tween = null
 var skill_manager: SkillManager
 var gems_collected: int = 0
 var is_magnet_active: bool = false
+var passive_magnet: bool = false
+var base_bounce_multiplier: float = 1.0
 var bounce_multiplier: float = 1.0
 var is_ground_slamming: bool = false
 var is_air_dashing: bool = false
 var air_dash_timer: float = 0.0
 var practice_shield_enabled: bool = false
+var practice_immortal: bool = false
+var gravity_scale_modifier: float = 1.0
+var trap_debuff_timer: float = 0.0
+var trap_speed_penalty: float = 0.0
+var _trick_tween: Tween = null
 
 # Session 6 Flight State (M5)
 var is_flying: bool = false
@@ -70,7 +78,18 @@ const SKIN_TEXTURES: Dictionary = {
 	"emerald": "res://assets/sprites/dinosaur_sheet_emerald.png",
 	"ruby": "res://assets/sprites/dinosaur_sheet_ruby.png",
 	"cyber": "res://assets/sprites/dinosaur_sheet_cyber.png",
-	"gold": "res://assets/sprites/dinosaur_sheet_gold.png"
+	"gold": "res://assets/sprites/dinosaur_sheet_gold.png",
+	"cobalt": "res://assets/sprites/dinosaur_sheet_cobalt.png",
+	"obsidian": "res://assets/sprites/dinosaur_sheet_obsidian.png",
+	"amethyst": "res://assets/sprites/dinosaur_sheet_amethyst.png",
+	"inferno": "res://assets/sprites/dinosaur_sheet_inferno.png",
+	"plasma": "res://assets/sprites/dinosaur_sheet_plasma.png",
+	"jade_emperor": "res://assets/sprites/dinosaur_sheet_jade_emperor.png",
+	"crimson_rex": "res://assets/sprites/dinosaur_sheet_crimson_rex.png",
+	"celestial": "res://assets/sprites/dinosaur_sheet_celestial.png",
+	"void_walker": "res://assets/sprites/dinosaur_sheet_void_walker.png",
+	"diamond_apex": "res://assets/sprites/dinosaur_sheet_diamond_apex.png",
+	"chromatic_god": "res://assets/sprites/dinosaur_sheet_chromatic_god.png"
 }
 
 @onready var sprite: Sprite2D = $Sprite2D
@@ -128,6 +147,33 @@ func _process(delta: float) -> void:
 	if not is_physics_processing() and state_machine.current_state == PlayerStateMachine.State.IDLE:
 		state_machine.time_in_state += delta
 		_update_presentation(delta)
+	if global_position.y < 200.0:
+		queue_redraw()
+	elif _was_drawing_landing_guide:
+		_was_drawing_landing_guide = false
+		queue_redraw()
+
+var _was_drawing_landing_guide: bool = false
+
+func _draw() -> void:
+	if global_position.y >= 195.0 or state_machine.current_state == PlayerStateMachine.State.DEAD:
+		return
+	_was_drawing_landing_guide = true
+	var ground_local_y: float = 229.0 - global_position.y
+	if ground_local_y <= 16.0:
+		return
+	var height_ratio: float = clampf((195.0 - global_position.y) / 140.0, 0.25, 1.0)
+	var shadow_w: float = lerpf(11.0, 6.0, height_ratio)
+	var shadow_alpha: float = lerpf(0.42, 0.22, height_ratio)
+	# Crisp ground shadow + subtle landing ring so player always sees exact landing spot
+	draw_rect(Rect2(-shadow_w, ground_local_y - 1.5, shadow_w * 2.0, 3.0), Color(0.05, 0.08, 0.14, shadow_alpha))
+	draw_line(Vector2(-shadow_w * 0.7, ground_local_y), Vector2(shadow_w * 0.7, ground_local_y), Color(0.55, 0.92, 1.0, 0.55), 1.0)
+	# Subtle vertical guide ticks when very high
+	if global_position.y < 145.0:
+		var y_cursor: float = 18.0
+		while y_cursor < ground_local_y - 6.0:
+			draw_line(Vector2(0.0, y_cursor), Vector2(0.0, minf(y_cursor + 4.0, ground_local_y - 6.0)), Color(0.55, 0.92, 1.0, 0.28), 1.0)
+			y_cursor += 12.0
 
 func _physics_process(delta: float) -> void:
 	# Update timers
@@ -142,7 +188,7 @@ func _physics_process(delta: float) -> void:
 
 	# Horizontal speed progression
 	if state_machine.current_state != PlayerStateMachine.State.DEAD and state_machine.current_state != PlayerStateMachine.State.IDLE:
-		var extra_vx: float = bonus_forward_vx
+		var extra_vx: float = bonus_forward_vx + (trap_speed_penalty if trap_debuff_timer > 0.0 else 0.0)
 		if state_machine.current_state == PlayerStateMachine.State.SLIDE and icy_slide_boost > 0.0:
 			extra_vx += icy_slide_boost
 		if state_machine.current_state == PlayerStateMachine.State.AIR_DASH:
@@ -150,6 +196,9 @@ func _physics_process(delta: float) -> void:
 		elif is_steer_enabled:
 			var kb_steer = Input.get_axis("ui_left", "ui_right")
 			var final_steer = steer_input if absf(steer_input) > 0.1 else kb_steer
+			# Left movement only works while jumping / airborne; right movement works anytime
+			if final_steer < 0.0 and is_on_floor():
+				final_steer = 0.0
 			velocity.x = maxf(current_speed + extra_vx + (final_steer * 150.0), 60.0)
 		else:
 			velocity.x = current_speed + extra_vx
@@ -173,6 +222,13 @@ func _update_timers(delta: float) -> void:
 
 	if invulnerability_timer > 0.0:
 		invulnerability_timer = maxf(invulnerability_timer - delta, 0.0)
+
+	if trap_debuff_timer > 0.0:
+		trap_debuff_timer = maxf(trap_debuff_timer - delta, 0.0)
+		if trap_debuff_timer <= 0.0:
+			trap_speed_penalty = 0.0
+			if sprite:
+				sprite.modulate = Color.WHITE
 
 	if jump_buffer_timer > 0.0:
 		jump_buffer_timer = maxf(jump_buffer_timer - delta, 0.0)
@@ -303,7 +359,7 @@ func _handle_jump_rise_state(delta: float) -> void:
 		is_jump_holding = false
 
 	# Apply gravity
-	velocity.y += config.gravity * delta
+	velocity.y += config.gravity * gravity_scale_modifier * delta
 
 	# Check for dive input
 	if Input.is_action_just_pressed("slide"):
@@ -315,7 +371,7 @@ func _handle_jump_rise_state(delta: float) -> void:
 		state_machine.change_state(PlayerStateMachine.State.JUMP_APEX)
 
 func _handle_jump_apex_state(delta: float) -> void:
-	velocity.y += config.gravity * 0.75 * delta # Slight float at apex
+	velocity.y += config.gravity * 0.75 * gravity_scale_modifier * delta # Slight float at apex
 
 	if Input.is_action_just_pressed("slide"):
 		_trigger_dive()
@@ -326,7 +382,7 @@ func _handle_jump_apex_state(delta: float) -> void:
 
 func _handle_jump_fall_state(delta: float) -> void:
 	# Fall gravity multiplier for snappy descent
-	velocity.y += config.gravity * config.fall_gravity_multiplier * delta
+	velocity.y += config.gravity * config.fall_gravity_multiplier * gravity_scale_modifier * delta
 
 	# Coyote jump check
 	if coyote_timer > 0.0 and jump_buffer_timer > 0.0:
@@ -371,9 +427,9 @@ func _handle_slide_state(delta: float) -> void:
 		state_machine.change_state(PlayerStateMachine.State.JUMP_FALL)
 		return
 
-	# Try to stand if duration expired or slide key released
+	# Stay sliding continuously as long as slide input is held; recover once released
 	var is_sliding = _is_slide_pressed()
-	var wants_to_recover = slide_timer >= config.slide_duration or not is_sliding
+	var wants_to_recover = not is_sliding
 	if wants_to_recover:
 		# Ensure ceiling is clear (both front and back rays) before standing
 		var front_blocked = ceiling_ray != null and ceiling_ray.is_colliding()
@@ -553,6 +609,17 @@ func hit_hazard(cause: String = "Collision", force: bool = false, hazard: Hazard
 			shield_broken.emit()
 			return # Absorbed hit!
 
+	# Practice & Tutorial immortality: never die, absorb hit and notify runner for adaptive hints / retry
+	if not force and practice_immortal:
+		invulnerability_timer = maxf(invulnerability_timer, 1.1)
+		if is_instance_valid(hazard) and hazard.category == Hazard.Category.ENVIRONMENTAL:
+			velocity.y = -280.0
+		elif is_on_floor():
+			velocity.y = minf(velocity.y, -180.0)
+		_play_shield_break_fx()
+		practice_hit_absorbed.emit(cause, hazard)
+		return
+
 	if is_flying:
 		end_flight()
 	jump_held = false
@@ -581,9 +648,9 @@ func _play_shield_break_fx() -> void:
 
 # --- Skill Actions ---
 
-func use_skill() -> bool:
+func use_skill(slot_idx: int = -1) -> bool:
 	if skill_manager:
-		var success = skill_manager.activate()
+		var success: bool = skill_manager.activate_slot(slot_idx) if slot_idx >= 0 else skill_manager.activate()
 		if success:
 			skill_used.emit(skill_manager.current_skill)
 		return success
@@ -665,11 +732,22 @@ func execute_air_dash() -> void:
 	_apply_takeoff_stretch()
 	air_dashed.emit()
 
+func execute_shockwave_roar() -> void:
+	if not is_inside_tree():
+		return
+	var hazards = get_tree().get_nodes_in_group("hazards")
+	for h in hazards:
+		if is_instance_valid(h) and h is Hazard:
+			var dx = h.global_position.x - global_position.x
+			if dx >= -40.0 and dx <= 340.0 and h.category != Hazard.Category.ENVIRONMENTAL:
+				h.destroy_hazard()
+				hazard_broken.emit(h, "shockwave_roar")
+
 func set_magnet_active(active: bool) -> void:
-	is_magnet_active = active
+	is_magnet_active = active or passive_magnet
 
 func set_bounce_multiplier(mult: float) -> void:
-	bounce_multiplier = mult
+	bounce_multiplier = mult * base_bounce_multiplier
 
 func add_gems(amount: int = 1, score_bonus: int = 15) -> void:
 	gems_collected += amount
@@ -689,6 +767,41 @@ func _play_attack_anim() -> void:
 		if _anim_tween:
 			_anim_tween.tween_property(sprite, "rotation_degrees", 15.0, 0.08)
 			_anim_tween.tween_property(sprite, "rotation_degrees", 0.0, 0.12)
+
+func perform_trick() -> void:
+	if state_machine.current_state == PlayerStateMachine.State.DEAD:
+		return
+	if is_inside_tree() and sprite:
+		if _trick_tween and _trick_tween.is_valid():
+			_trick_tween.kill()
+		sprite.rotation_degrees = 0.0
+		_trick_tween = create_tween()
+		if _trick_tween:
+			_trick_tween.set_parallel(true)
+			_trick_tween.tween_property(sprite, "rotation_degrees", 360.0, 0.42).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			_trick_tween.tween_property(sprite, "scale", Vector2(1.22, 1.22), 0.14)
+			_trick_tween.chain().tween_property(sprite, "scale", Vector2.ONE, 0.16)
+			_trick_tween.chain().tween_callback(func():
+				if is_instance_valid(sprite):
+					sprite.rotation_degrees = 0.0
+			)
+		_kill_flash_tween()
+		_flash_tween = create_tween()
+		if _flash_tween:
+			_flash_tween.tween_property(sprite, "modulate", Color(1.4, 1.35, 0.5), 0.12)
+			_flash_tween.tween_property(sprite, "modulate", Color.WHITE, 0.25)
+
+func apply_trap_debuff(duration: float = 4.0, speed_boost: float = 125.0) -> void:
+	if state_machine.current_state == PlayerStateMachine.State.DEAD or practice_immortal:
+		return
+	trap_debuff_timer = maxf(trap_debuff_timer, duration)
+	trap_speed_penalty = speed_boost
+	if is_inside_tree() and sprite:
+		_kill_flash_tween()
+		_flash_tween = create_tween()
+		if _flash_tween:
+			_flash_tween.tween_property(sprite, "modulate", Color(1.5, 0.85, 0.2), 0.14)
+			_flash_tween.tween_property(sprite, "modulate", Color(1.2, 0.9, 0.35), 0.25)
 
 # --- Session 6 Flight System ---
 
@@ -778,8 +891,14 @@ func reset() -> void:
 	icy_slide_boost = 0.0
 	invulnerability_timer = 0.35 # Spawn shield against stale overlaps
 	gems_collected = 0
-	is_magnet_active = false
-	bounce_multiplier = 1.0
+	is_magnet_active = passive_magnet
+	bounce_multiplier = base_bounce_multiplier
+	gravity_scale_modifier = 1.0
+	trap_debuff_timer = 0.0
+	trap_speed_penalty = 0.0
+	if _trick_tween and _trick_tween.is_valid():
+		_trick_tween.kill()
+		_trick_tween = null
 	is_ground_slamming = false
 	is_air_dashing = false
 	air_dash_timer = 0.0
