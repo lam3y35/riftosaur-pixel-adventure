@@ -8,8 +8,8 @@ This directory stores locally generated build artifacts (Android APKs, packages,
 
 ## Naming Conventions
 
-- **Release Builds:** `Riftosaur-release.apk` (Signed with production release keystore, optimized size, v1.0.0)
-- **Debug Builds:** `Riftosaur-debug.apk` (Signed with Godot debug keystore, v1.0.0)
+- **Release Builds:** `Riftosaur-release.apk` (v1.1.0, optimized release export signed with the local Godot keystore; can be re-signed with `riftosaur-release.keystore` via `apksigner` for store distribution)
+- **Debug Builds:** `Riftosaur-debug.apk` (v1.1.0, signed with Godot debug keystore)
 - **Checksums:** `SHA256SUMS.txt`
 
 ---
@@ -18,8 +18,8 @@ This directory stores locally generated build artifacts (Android APKs, packages,
 
 | File | Target | Version Code | Version Name | Size | SHA-256 Checksum | Evidence Level |
 |---|---|---|---|---|---|---|
-| `Riftosaur-release.apk` | Android (arm64-v8a, x86_64) | 1 | 1.0.0 | 62,987,449 bytes (60.07 MB) | `1247D7D061291DD501C95094E7F56B54251F5368F5D754EAB06B1E8135F11676` | L4 Static Release APK Verification (v1.0.0 Production Signed) |
-| `Riftosaur-debug.apk` | Android (arm64-v8a, x86_64) | 1 | 1.0.0 | 67,658,782 bytes (64.52 MB) | `46F9C22ECD93F5127BC92532F547265DD7E7117C64B89B8CBB66391DE88866CC` | L4 Static Debug APK Verification (v1.0.0 Debug Signed) |
+| `Riftosaur-release.apk` | Android (arm64-v8a, x86_64) | 2 | 1.1.0 | 57,923,667 bytes (55.24 MB) | `351F12E64BA93A6F907A9C16D0C9FD4636185DC7B8022BED764937C7BD8C4295` | L4 Static Release APK Verification (v1.1.0 Signed with Local Godot Keystore) |
+| `Riftosaur-debug.apk` | Android (arm64-v8a, x86_64) | 2 | 1.1.0 | 62,605,874 bytes (59.71 MB) | `F06CAE64C9BCDE1EB381638C9FE1CB16A66F999815AB952C403A82D226838AD8` | L4 Static Debug APK Verification (v1.1.0 Debug Signed) |
 
 ---
 

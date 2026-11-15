@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-11-15 (Security Hardening, Visual/Audio Upgrade & Biome Expansion)
+
+### Added & Improved
+- **Save Security & Input Replay Hardening:**
+  - Added HMAC-SHA256 signature verification, tamper rejection/quarantine, canonical skin pricing validation, and type-confusion guards in `scripts/systems/save_service.gd`.
+  - Added action whitelist and monotonic timestamp guards in `scripts/systems/input_replay.gd`.
+- **Visuals, VFX & Audio:**
+  - Added `FXManager` (`scripts/effects/fx_manager.gd`) for pixel-art particles, shockwaves, slash arcs, afterimages, speed lines, and biome ambient effects.
+  - Upgraded character sprite sheets, parallax backgrounds, subground strata (`assets/sprites/subground_strata.png`), and launcher icons (`tools/generate_enhanced_art.py`, `tools/generate_icon.py`).
+  - Added looping menu and gameplay background music (`assets/audio/bgm_menu.wav`, `assets/audio/bgm_run.wav`) and expanded synthesized SFX in `scripts/systems/audio_manager.gd` (`tools/generate_enhanced_audio.py`).
+- **Biomes, Hazards & Procedural Patterns:**
+  - Added 4 biome-specific chunks (`scenes/obstacles/chunks/chunk_20_jungle_canopy_run.tscn` through `chunk_23_plains_sky_trail.tscn`) and `scenes/obstacles/hazard_lava_pit.tscn`, bringing total verified chunks/patterns to 24/24.
+  - Added near-miss combo/fever feedback, HUD layout/safe-area refinements, and practice mode state resets (`scripts/gameplay/endless_runner.gd`, `scripts/ui/hud.gd`).
+- **Testing & Android Packaging:**
+  - Expanded the L2 automated test suite to 90/90 passing tests with `tests/unit/test_v2_improvements_and_security.gd`.
+  - Configured strict APK exclusion filters in `export_presets.cfg` (`gini/*,docs/*,tests/*,tools/*,.agents/*,.godot_tmp/*,releases/*,*.md,*.ps1,*.py`) and privacy leak checks in `tools/verify_apk.ps1`.
+
+---
+
 ## [1.0.0] - 2026-11-06 (Milestones M3 - M10: Production Release)
 
 ### Added
