@@ -37,3 +37,7 @@ Thumbs.db
 # Python cache
 __pycache__/
 *.pyc
+
+# Promo materials & marketing renders
+promo/
+
