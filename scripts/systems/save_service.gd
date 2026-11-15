@@ -312,8 +312,9 @@ func _sanitize_data(raw: Dictionary) -> Dictionary:
 						if typeof(it) == TYPE_DICTIONARY and items_clean.size() < 200:
 							items_clean.append({
 								"type": str(it.get("type", "cactus")),
-								"x": clampf(_safe_float(it.get("x", 300.0), 300.0), 120.0, 4800.0),
-								"y": clampf(_safe_float(it.get("y", 216.0), 216.0), 30.0, 240.0)
+								"x": clampf(_safe_float(it.get("x", 300.0), 300.0), 120.0, 5000.0),
+								"y": clampf(_safe_float(it.get("y", 216.0), 216.0), 30.0, 240.0),
+								"trap_type": clampi(_safe_int(it.get("trap_type", 0), 0), 0, 3)
 							})
 				valid_maps.append({
 					"id": m_id.substr(0, 48),
@@ -321,7 +322,7 @@ func _sanitize_data(raw: Dictionary) -> Dictionary:
 					"world_index": clampi(_safe_int(cm.get("world_index", 0), 0), 0, 3),
 					"speed_preset": clampi(_safe_int(cm.get("speed_preset", 1), 1), 0, 2),
 					"immortal": bool(cm.get("immortal", false)),
-					"length_px": clampf(_safe_float(cm.get("length_px", 1800.0), 1800.0), 960.0, 4800.0),
+					"length_px": clampf(_safe_float(cm.get("length_px", 3800.0), 3800.0), 960.0, 5000.0),
 					"linked_next_id": str(cm.get("linked_next_id", "")).substr(0, 48),
 					"items": items_clean
 				})

@@ -270,8 +270,12 @@ var shop_scroll: ScrollContainer
 var _shop_scroll_dragging: bool = false
 var _shop_scroll_drag_touch_id: int = -1
 var _shop_scroll_velocity: float = 0.0
+var _shop_drag_start_pos: Vector2 = Vector2.ZERO
+var _shop_drag_moved: bool = false
 var _ps_dpad_left_held: bool = false
 var _ps_dpad_right_held: bool = false
+var _ps_stick_jump_held: bool = false
+var _ps_stick_slide_held: bool = false
 
 # Quests swipe / scroll touch handling
 var _quest_scroll_dragging: bool = false
@@ -325,11 +329,9 @@ func _ready() -> void:
 	mode_runner_btn.pressed.connect(func(): select_mode(1))
 	mode_freestyle_btn.pressed.connect(func(): select_mode(2))
 
-	# Action buttons (also paired with generous corner hit pads below)
-	slide_button.button_down.connect(func(): slide_requested.emit(true))
-	slide_button.button_up.connect(func(): slide_requested.emit(false))
-	jump_button.button_down.connect(func(): jump_requested.emit(true))
-	jump_button.button_up.connect(func(): jump_requested.emit(false))
+	# Action buttons (paired with corner hit pads; use gui_input for true mobile multi-touch)
+	slide_button.gui_input.connect(_on_hit_pad_gui_input.bind(false))
+	jump_button.gui_input.connect(_on_hit_pad_gui_input.bind(true))
 	if skill_button:
 		skill_button.button_down.connect(func(): skill_requested.emit())
 
@@ -1424,6 +1426,7 @@ func open_skin_shop() -> void:
 	_shop_scroll_dragging = false
 	_shop_scroll_drag_touch_id = -1
 	_shop_scroll_velocity = 0.0
+	_shop_drag_moved = false
 	skin_shop_dialog.visible = true
 	refresh_skin_shop()
 
@@ -1431,6 +1434,7 @@ func close_skin_shop() -> void:
 	_shop_scroll_dragging = false
 	_shop_scroll_drag_touch_id = -1
 	_shop_scroll_velocity = 0.0
+	_shop_drag_moved = false
 	skin_shop_dialog.visible = false
 
 func _select_shop_category(cat: String) -> void:
@@ -1571,12 +1575,16 @@ func _create_skin_card(info: Dictionary, current_pts: int, equipped_skin: String
 	return panel
 
 func _on_buy_clicked(skin_id: String, _price: int) -> void:
+	if _shop_drag_moved:
+		return
 	ui_interacted.emit()
 	if save_service and save_service.purchase_skin(skin_id):
 		skin_selected.emit(skin_id)
 		refresh_skin_shop()
 
 func _on_equip_clicked(skin_id: String) -> void:
+	if _shop_drag_moved:
+		return
 	ui_interacted.emit()
 	if save_service and save_service.equip_skin(skin_id):
 		skin_selected.emit(skin_id)
@@ -1671,12 +1679,16 @@ func _create_cosmetic_card(cid: String, cdata: Dictionary, current_pts: int, equ
 	return panel
 
 func _on_buy_cosmetic_clicked(cat: String, cid: String) -> void:
+	if _shop_drag_moved:
+		return
 	ui_interacted.emit()
 	if save_service and save_service.purchase_cosmetic(cid):
 		cosmetic_selected.emit(cat, cid)
 		refresh_skin_shop()
 
 func _on_equip_cosmetic_clicked(cat: String, cid: String) -> void:
+	if _shop_drag_moved:
+		return
 	ui_interacted.emit()
 	if save_service and save_service.equip_cosmetic(cid):
 		cosmetic_selected.emit(cat, cid)
@@ -1844,40 +1856,14 @@ func _on_quests_scroll_gui_input(event: InputEvent) -> void:
 func _on_shop_scroll_gui_input(event: InputEvent) -> void:
 	if shop_scroll == null:
 		return
-	if event is InputEventScreenTouch:
-		if event.pressed:
-			_shop_scroll_dragging = true
-			_shop_scroll_drag_touch_id = event.index
-			_shop_scroll_velocity = 0.0
-		elif event.index == _shop_scroll_drag_touch_id:
-			_shop_scroll_dragging = false
-			_shop_scroll_drag_touch_id = -1
-		shop_scroll.accept_event()
-	elif event is InputEventScreenDrag:
-		if event.index == _shop_scroll_drag_touch_id or _shop_scroll_drag_touch_id == -1:
-			_shop_scroll_dragging = true
-			_shop_scroll_drag_touch_id = event.index
-			shop_scroll.scroll_horizontal -= int(event.relative.x)
-			_shop_scroll_velocity = event.velocity.x
-		shop_scroll.accept_event()
-	elif event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			if event.pressed:
-				_shop_scroll_dragging = true
-				_shop_scroll_velocity = 0.0
-			else:
-				_shop_scroll_dragging = false
-			shop_scroll.accept_event()
-		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
+	# Drag/swipe horizontal scrolling is handled uniformly in _input() across cards and container;
+	# keep mouse-wheel horizontal scrolling here without double-applying drag movement.
+	if event is InputEventMouseButton:
+		if event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			shop_scroll.scroll_horizontal -= 42
 			shop_scroll.accept_event()
 		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			shop_scroll.scroll_horizontal += 42
-			shop_scroll.accept_event()
-	elif event is InputEventMouseMotion:
-		if _shop_scroll_dragging:
-			shop_scroll.scroll_horizontal -= int(event.relative.x)
-			_shop_scroll_velocity = event.velocity.x
 			shop_scroll.accept_event()
 
 func _on_challenge_unlocked(_id: String, title: String, reward: int) -> void:
@@ -1965,20 +1951,30 @@ func _input(event: InputEvent) -> void:
 				_shop_scroll_dragging = true
 				_shop_scroll_drag_touch_id = event.index
 				_shop_scroll_velocity = 0.0
+				_shop_drag_start_pos = event.position
+				_shop_drag_moved = false
 			elif not event.pressed and event.index == _shop_scroll_drag_touch_id:
 				_shop_scroll_dragging = false
 				_shop_scroll_drag_touch_id = -1
+				set_deferred("_shop_drag_moved", false)
 		elif event is InputEventScreenDrag and (event.index == _shop_scroll_drag_touch_id or _shop_scroll_drag_touch_id == -1):
 			if _shop_scroll_dragging and absf(event.relative.x) > 0.5:
+				if event.position.distance_to(_shop_drag_start_pos) > 8.0:
+					_shop_drag_moved = true
 				shop_scroll.scroll_horizontal -= int(event.relative.x)
 				_shop_scroll_velocity = event.velocity.x
-		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.device != -1:
 			if event.pressed and shop_scroll.get_global_rect().has_point(event.position):
 				_shop_scroll_dragging = true
 				_shop_scroll_velocity = 0.0
+				_shop_drag_start_pos = event.position
+				_shop_drag_moved = false
 			elif not event.pressed:
 				_shop_scroll_dragging = false
+				set_deferred("_shop_drag_moved", false)
 		elif event is InputEventMouseMotion and _shop_scroll_dragging:
+			if event.position.distance_to(_shop_drag_start_pos) > 8.0:
+				_shop_drag_moved = true
 			shop_scroll.scroll_horizontal -= int(event.relative.x)
 			_shop_scroll_velocity = event.velocity.x
 
@@ -1990,7 +1986,7 @@ func _input(event: InputEvent) -> void:
 		elif event.index == _slide_pad_touch_id:
 			_slide_pad_touch_id = -1
 			slide_requested.emit(false)
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed and event.device != -1:
 		if _jump_pad_mouse_held:
 			_jump_pad_mouse_held = false
 			jump_requested.emit(false)
@@ -2004,6 +2000,27 @@ func _input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 
 func _handle_ps_menu_button(btn_idx: int) -> bool:
+	if practice_hub and practice_hub.entry_panel and practice_hub.entry_panel.visible:
+		var in_subtool: bool = (practice_hub.skills_lab_dialog != null and practice_hub.skills_lab_dialog.visible) or (practice_hub.section_dialog != null and practice_hub.section_dialog.visible) or (practice_hub.enemies_dialog != null and practice_hub.enemies_dialog.visible) or (practice_hub.builder_dialog != null and practice_hub.builder_dialog.visible)
+		if not in_subtool:
+			match btn_idx:
+				JOY_BUTTON_A:
+					practice_hub.hide_entry_choice()
+					practice_hub.start_live_tutorial_requested.emit()
+					return true
+				JOY_BUTTON_X:
+					practice_hub.hide_entry_choice()
+					practice_hub.skip_to_practice_requested.emit()
+					return true
+				JOY_BUTTON_Y:
+					practice_hub.open_skills_lab()
+					return true
+				JOY_BUTTON_START:
+					practice_hub.open_map_builder()
+					return true
+				JOY_BUTTON_B:
+					return _close_active_subdialog_ps()
+			return false
 	var any_sub := _has_any_subdialog_open()
 	if any_sub:
 		if btn_idx == JOY_BUTTON_B:
@@ -2118,12 +2135,14 @@ func _handle_ps_controller_input(event: InputEvent) -> void:
 				flight_up_requested.emit(val < -0.45)
 				flight_down_requested.emit(val > 0.45)
 				return
-			elif val > 0.55:
-				slide_requested.emit(true)
-			elif val < -0.55:
-				jump_requested.emit(true)
-			else:
-				slide_requested.emit(false)
+			var want_slide := val > 0.55
+			var want_jump := val < -0.55
+			if want_slide != _ps_stick_slide_held:
+				_ps_stick_slide_held = want_slide
+				slide_requested.emit(want_slide)
+			if want_jump != _ps_stick_jump_held:
+				_ps_stick_jump_held = want_jump
+				jump_requested.emit(want_jump)
 			return
 		if ax == JOY_AXIS_TRIGGER_LEFT:
 			var now_l2 := val >= 0.45
@@ -2184,6 +2203,8 @@ func clear_touch_inputs() -> void:
 	_ps_right_held = false
 	_ps_l2_held = false
 	_ps_r2_held = false
+	_ps_stick_jump_held = false
+	_ps_stick_slide_held = false
 	touch_start_positions.clear()
 	jump_requested.emit(false)
 	slide_requested.emit(false)
@@ -2606,6 +2627,11 @@ func refresh_accessibility_visuals() -> void:
 func _is_mobile_touch_device() -> bool:
 	return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
 
+func _sync_hit_zone_visibility() -> void:
+	var hz := get_node_or_null("HitZoneLayer") as Control
+	if hz and touch_controls:
+		hz.visible = touch_controls.visible
+
 func _create_hit_pads() -> void:
 	if touch_controls == null:
 		return
@@ -2618,11 +2644,8 @@ func _create_hit_pads() -> void:
 		hz.visible = touch_controls.visible
 		add_child(hz)
 		move_child(hz, touch_controls.get_index())
-		if not touch_controls.visibility_changed.is_connected(func(): hz.visible = touch_controls.visible):
-			touch_controls.visibility_changed.connect(func():
-				if is_instance_valid(hz) and is_instance_valid(touch_controls):
-					hz.visible = touch_controls.visible
-			)
+		if not touch_controls.visibility_changed.is_connected(_sync_hit_zone_visibility):
+			touch_controls.visibility_changed.connect(_sync_hit_zone_visibility)
 	if _jump_hit_pad == null:
 		_jump_hit_pad = Control.new()
 		_jump_hit_pad.name = "JumpHitPad"
@@ -2654,8 +2677,9 @@ func _on_hit_pad_gui_input(event: InputEvent, is_jump: bool) -> void:
 			elif not is_jump and event.index == _slide_pad_touch_id:
 				_slide_pad_touch_id = -1
 				slide_requested.emit(false)
-		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if get_viewport():
+			get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.device != -1:
 		if event.pressed:
 			if is_jump:
 				_jump_pad_mouse_held = true
@@ -2670,7 +2694,8 @@ func _on_hit_pad_gui_input(event: InputEvent, is_jump: bool) -> void:
 			elif not is_jump and _slide_pad_mouse_held:
 				_slide_pad_mouse_held = false
 				slide_requested.emit(false)
-		get_viewport().set_input_as_handled()
+		if get_viewport():
+			get_viewport().set_input_as_handled()
 
 func _update_controls_hint(is_left_handed: bool) -> void:
 	if retry_button:
@@ -2704,7 +2729,7 @@ func apply_control_layout(is_left_handed: bool) -> void:
 	var show_slide := show_pads
 	var show_steer := show_pads
 
-	# Keep Jump & Slide buttons generous (84x44) + forgiving 200x145 corner HitPads behind them
+	# Keep Jump & Slide buttons generous (84x44) + clean 96x92 corner HitPads behind them (no overlap with Steer/Skills)
 	if jump_button:
 		jump_button.focus_mode = Control.FOCUS_NONE
 		jump_button.visible = show_pads
@@ -2733,17 +2758,17 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			_jump_hit_pad.anchor_top = 1.0
 			_jump_hit_pad.anchor_bottom = 1.0
 			_jump_hit_pad.offset_left = 0.0
-			_jump_hit_pad.offset_right = 200.0
-			_jump_hit_pad.offset_top = -145.0
+			_jump_hit_pad.offset_right = 96.0
+			_jump_hit_pad.offset_top = -92.0
 			_jump_hit_pad.offset_bottom = 0.0
 		if _slide_hit_pad:
 			_slide_hit_pad.anchor_left = 1.0
 			_slide_hit_pad.anchor_right = 1.0
 			_slide_hit_pad.anchor_top = 1.0
 			_slide_hit_pad.anchor_bottom = 1.0
-			_slide_hit_pad.offset_left = -200.0
+			_slide_hit_pad.offset_left = -96.0
 			_slide_hit_pad.offset_right = 0.0
-			_slide_hit_pad.offset_top = -145.0
+			_slide_hit_pad.offset_top = -92.0
 			_slide_hit_pad.offset_bottom = 0.0
 		if jump_button:
 			jump_button.anchor_left = 0.0
@@ -2816,9 +2841,9 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			_jump_hit_pad.anchor_right = 1.0
 			_jump_hit_pad.anchor_top = 1.0
 			_jump_hit_pad.anchor_bottom = 1.0
-			_jump_hit_pad.offset_left = -200.0
+			_jump_hit_pad.offset_left = -96.0
 			_jump_hit_pad.offset_right = 0.0
-			_jump_hit_pad.offset_top = -145.0
+			_jump_hit_pad.offset_top = -92.0
 			_jump_hit_pad.offset_bottom = 0.0
 		if _slide_hit_pad:
 			_slide_hit_pad.anchor_left = 0.0
@@ -2826,8 +2851,8 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			_slide_hit_pad.anchor_top = 1.0
 			_slide_hit_pad.anchor_bottom = 1.0
 			_slide_hit_pad.offset_left = 0.0
-			_slide_hit_pad.offset_right = 200.0
-			_slide_hit_pad.offset_top = -145.0
+			_slide_hit_pad.offset_right = 96.0
+			_slide_hit_pad.offset_top = -92.0
 			_slide_hit_pad.offset_bottom = 0.0
 		if jump_button:
 			jump_button.anchor_left = 1.0

@@ -6,6 +6,7 @@ extends ParallaxBackground
 @onready var hills_sprite: Sprite2D = get_node_or_null("HillsLayer/HillsSprite")
 
 var current_theme: WorldTheme
+var cosmetic_tint: Color = Color.WHITE
 
 var _transition_tween: Tween = null
 var _sky_backdrop: ColorRect = null
@@ -91,23 +92,37 @@ func _kill_transition_tween() -> void:
 		_transition_tween.kill()
 	_transition_tween = null
 
+func set_cosmetic_tint(tint: Color) -> void:
+	cosmetic_tint = tint
+	if current_theme:
+		var composed: Color = current_theme.ambient_tint * cosmetic_tint
+		if _sky_backdrop and SKY_BACKDROP_COLORS.has(current_theme.world_id):
+			_sky_backdrop.color = SKY_BACKDROP_COLORS[current_theme.world_id] * composed
+		if sky_sprite:
+			sky_sprite.modulate = composed
+		if mountains_sprite:
+			mountains_sprite.modulate = composed
+		if hills_sprite:
+			hills_sprite.modulate = composed
+
 func _apply_theme_textures(theme: WorldTheme) -> void:
 	current_theme = theme
+	var composed: Color = (theme.ambient_tint if theme else Color.WHITE) * cosmetic_tint
 	if _sky_backdrop and theme and SKY_BACKDROP_COLORS.has(theme.world_id):
-		_sky_backdrop.color = SKY_BACKDROP_COLORS[theme.world_id] * theme.ambient_tint
+		_sky_backdrop.color = SKY_BACKDROP_COLORS[theme.world_id] * composed
 	if _subground_fill and theme and SUBGROUND_COLORS.has(theme.world_id):
 		_subground_fill.color = SUBGROUND_COLORS[theme.world_id]
 	if _subground_strata and theme and SUBGROUND_STRATA_TINTS.has(theme.world_id):
 		_subground_strata.modulate = SUBGROUND_STRATA_TINTS[theme.world_id]
 	if sky_sprite and ResourceLoader.exists(theme.sky_texture_path):
 		sky_sprite.texture = load(theme.sky_texture_path)
-		sky_sprite.modulate = theme.ambient_tint
+		sky_sprite.modulate = composed
 	if mountains_sprite and ResourceLoader.exists(theme.distant_texture_path):
 		mountains_sprite.texture = load(theme.distant_texture_path)
-		mountains_sprite.modulate = theme.ambient_tint
+		mountains_sprite.modulate = composed
 	if hills_sprite and ResourceLoader.exists(theme.mid_texture_path):
 		hills_sprite.texture = load(theme.mid_texture_path)
-		hills_sprite.modulate = theme.ambient_tint
+		hills_sprite.modulate = composed
 
 func apply_theme_immediate(theme: WorldTheme) -> void:
 	_kill_transition_tween()
@@ -119,7 +134,7 @@ func transition_to_theme(theme: WorldTheme, duration: float = 1.5) -> void:
 	var tw = create_tween()
 	_transition_tween = tw
 	if tw:
-		var target_tint: Color = theme.ambient_tint if theme else Color(1, 1, 1, 1)
+		var target_tint: Color = (theme.ambient_tint if theme else Color(1, 1, 1, 1)) * cosmetic_tint
 		var sky_veil := Color(0.18, 0.15, 0.30, 1.0)
 		tw.set_parallel(true)
 		# Keep sky_sprite opaque (a=1.0) so default_clear_color never bleeds through dark skies

@@ -63,6 +63,8 @@ var gravity_scale_modifier: float = 1.0
 var trap_debuff_timer: float = 0.0
 var trap_speed_penalty: float = 0.0
 var trap_type: int = 0
+var trap_speed_timer: float = 0.0
+var trap_gravity_timer: float = 0.0
 var trap_gravity_mult: float = 1.0
 var trap_glitch_timer: float = 0.0
 var trap_skill_jam_timer: float = 0.0
@@ -232,19 +234,28 @@ func _update_timers(delta: float) -> void:
 	if invulnerability_timer > 0.0:
 		invulnerability_timer = maxf(invulnerability_timer - delta, 0.0)
 
-	if trap_debuff_timer > 0.0:
-		trap_debuff_timer = maxf(trap_debuff_timer - delta, 0.0)
-		if trap_debuff_timer <= 0.0:
+	if trap_speed_timer > 0.0:
+		trap_speed_timer = maxf(trap_speed_timer - delta, 0.0)
+		if trap_speed_timer <= 0.0:
 			trap_speed_penalty = 0.0
+
+	if trap_gravity_timer > 0.0:
+		trap_gravity_timer = maxf(trap_gravity_timer - delta, 0.0)
+		if trap_gravity_timer <= 0.0:
 			trap_gravity_mult = 1.0
-			if sprite:
-				sprite.modulate = Color.WHITE
 
 	if trap_glitch_timer > 0.0:
 		trap_glitch_timer = maxf(trap_glitch_timer - delta, 0.0)
 
 	if trap_skill_jam_timer > 0.0:
 		trap_skill_jam_timer = maxf(trap_skill_jam_timer - delta, 0.0)
+
+	trap_debuff_timer = maxf(trap_speed_timer, maxf(trap_gravity_timer, maxf(trap_glitch_timer, trap_skill_jam_timer)))
+	if trap_debuff_timer <= 0.0:
+		trap_speed_penalty = 0.0
+		trap_gravity_mult = 1.0
+		if sprite:
+			sprite.modulate = Color.WHITE
 
 	if jump_buffer_timer > 0.0:
 		jump_buffer_timer = maxf(jump_buffer_timer - delta, 0.0)
@@ -653,7 +664,8 @@ func hit_hazard(cause: String = "Collision", force: bool = false, hazard: Hazard
 	if not force and practice_immortal:
 		invulnerability_timer = maxf(invulnerability_timer, 1.1)
 		if is_instance_valid(hazard) and hazard.category == Hazard.Category.ENVIRONMENTAL:
-			velocity.y = -280.0
+			velocity.y = -320.0
+			bonus_forward_vx = maxf(bonus_forward_vx, 115.0)
 		elif is_on_floor():
 			velocity.y = minf(velocity.y, -180.0)
 		_play_shield_break_fx()
@@ -666,7 +678,8 @@ func hit_hazard(cause: String = "Collision", force: bool = false, hazard: Hazard
 		invulnerability_timer = maxf(invulnerability_timer, 1.25)
 		if is_instance_valid(hazard):
 			if hazard.category == Hazard.Category.ENVIRONMENTAL:
-				velocity.y = -280.0
+				velocity.y = -320.0
+				bonus_forward_vx = maxf(bonus_forward_vx, 115.0)
 			else:
 				hazard.destroy_hazard()
 				hazard_broken.emit(hazard, "heart_shield")
@@ -862,21 +875,20 @@ func apply_trap_debuff(duration: float = 3.5, speed_boost: float = 115.0, kind: 
 	var tint := Color(1.5, 0.85, 0.2)
 	match trap_type:
 		1: # HEAVY_GRAVITY
-			trap_debuff_timer = maxf(trap_debuff_timer, duration)
+			trap_gravity_timer = maxf(trap_gravity_timer, duration)
 			trap_gravity_mult = 1.55
 			tint = Color(0.85, 0.55, 1.45)
 		2: # VISION_GLITCH
-			trap_debuff_timer = maxf(trap_debuff_timer, duration)
 			trap_glitch_timer = maxf(trap_glitch_timer, duration)
 			tint = Color(0.45, 1.35, 1.45)
 		3: # SKILL_JAM
-			trap_debuff_timer = maxf(trap_debuff_timer, duration)
 			trap_skill_jam_timer = maxf(trap_skill_jam_timer, duration)
 			tint = Color(1.45, 0.42, 0.45)
 		_: # SPEED_SURGE
-			trap_debuff_timer = maxf(trap_debuff_timer, duration)
+			trap_speed_timer = maxf(trap_speed_timer, duration)
 			trap_speed_penalty = speed_boost
 			tint = Color(1.5, 0.85, 0.2)
+	trap_debuff_timer = maxf(trap_speed_timer, maxf(trap_gravity_timer, maxf(trap_glitch_timer, trap_skill_jam_timer)))
 
 	trap_debuff_started.emit(trap_type, duration)
 	if is_inside_tree() and sprite:
@@ -978,6 +990,8 @@ func reset() -> void:
 	bounce_multiplier = base_bounce_multiplier
 	gravity_scale_modifier = 1.0
 	trap_debuff_timer = 0.0
+	trap_speed_timer = 0.0
+	trap_gravity_timer = 0.0
 	trap_speed_penalty = 0.0
 	trap_type = 0
 	trap_gravity_mult = 1.0

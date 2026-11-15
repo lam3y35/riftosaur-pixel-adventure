@@ -101,6 +101,7 @@ var builder_len_btn: Button
 var builder_linked_next_id: String = ""
 var builder_link_btn: Button
 var builder_selected_tool: String = "cactus"
+var builder_trap_type: int = 0
 var builder_palette_btns: Dictionary = {}
 var builder_canvas: Control
 var builder_items: Array[Dictionary] = []
@@ -295,6 +296,10 @@ func close_active_modal() -> bool:
 		return true
 	if skills_lab_dialog and skills_lab_dialog.visible:
 		close_skills_lab()
+		return true
+	if entry_panel and entry_panel.visible:
+		hide_all()
+		exit_to_menu_requested.emit()
 		return true
 	return false
 
@@ -1160,7 +1165,12 @@ func _get_builder_world_length() -> float:
 		_: return 3800.0
 
 func _select_builder_tool(tool_id: String) -> void:
+	if tool_id == "trap" and builder_selected_tool == "trap":
+		builder_trap_type = (builder_trap_type + 1) % 4
 	builder_selected_tool = tool_id
+	if builder_palette_btns.has("trap") and builder_palette_btns["trap"] is Button:
+		var tnames := ["Trap:Surge", "Trap:Grav", "Trap:Glitch", "Trap:Jam"]
+		(builder_palette_btns["trap"] as Button).text = tnames[builder_trap_type] if tool_id == "trap" else "Trap"
 	_update_builder_info()
 
 func _cycle_builder_world() -> void:
@@ -1519,7 +1529,9 @@ class _BuilderTrackCanvas extends Control:
 				"lava":
 					draw_rect(Rect2(cx - 14, CANVAS_GROUND_Y - 2, 28, 10), col)
 				"trap":
-					draw_colored_polygon(PackedVector2Array([Vector2(cx, cy - 7), Vector2(cx - 6, cy + 5), Vector2(cx + 6, cy + 5)]), col)
+					var tkind := int(it.get("trap_type", 0))
+					var tcols := [Color(1.0, 0.85, 0.18), Color(0.68, 0.34, 1.0), Color(0.18, 0.92, 0.96), Color(1.0, 0.25, 0.32)]
+					draw_colored_polygon(PackedVector2Array([Vector2(cx, cy - 7), Vector2(cx - 6, cy + 5), Vector2(cx + 6, cy + 5)]), tcols[clampi(tkind, 0, 3)])
 				"platform":
 					draw_rect(Rect2(cx - 12, cy - 2, 24, 5), col)
 				"bounce":
@@ -1563,11 +1575,14 @@ class _BuilderTrackCanvas extends Control:
 					if p["id"] == owner_ui.builder_selected_tool and bool(p.get("ground_locked", false)):
 						wy = float(p.get("default_y", 230.0))
 						break
-				owner_ui.builder_items.append({
+				var new_item: Dictionary = {
 					"type": owner_ui.builder_selected_tool,
 					"x": wx,
 					"y": wy
-				})
+				}
+				if owner_ui.builder_selected_tool == "trap":
+					new_item["trap_type"] = owner_ui.builder_trap_type
+				owner_ui.builder_items.append(new_item)
 			owner_ui._update_builder_info()
 			queue_redraw()
 			accept_event()

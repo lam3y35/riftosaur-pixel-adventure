@@ -97,6 +97,10 @@ var _skill_lab_next_wave_x: float = 360.0
 var custom_map_active: bool = false
 var custom_map_data: Dictionary = {}
 var custom_map_chain: Array = []
+var _custom_map_sections: Array[Dictionary] = []
+var _custom_active_section_idx: int = 0
+var _custom_total_end_x: float = 0.0
+var _custom_map_completed: bool = false
 
 func _ready() -> void:
 	save_service = SaveService.new()
@@ -473,6 +477,10 @@ func _reset_world_state() -> void:
 	_skill_bag.clear()
 	_next_skill_spawn_m = 40.0
 	_skill_lab_next_wave_x = 340.0
+	_custom_map_sections.clear()
+	_custom_active_section_idx = 0
+	_custom_total_end_x = 0.0
+	_custom_map_completed = false
 	if player.skill_manager:
 		player.skill_manager.skill_lab_infinite = skill_lab_active
 	if hud.has_method("clear_trap_hud"):
@@ -556,6 +564,8 @@ func _physics_process(delta: float) -> void:
 		_update_live_tutorial(delta)
 	elif skill_lab_active:
 		_update_skill_lab_arena()
+	elif custom_map_active:
+		_update_custom_map_progression()
 
 	# Combo decay & Fever feedback
 	if combo_count > 0:
@@ -996,7 +1006,9 @@ func _decorate_and_wire_chunk(chunk: Node2D, allow_rewards: bool, is_procedural:
 	if is_procedural and allow_rewards and not has_skill and distance_m >= _next_skill_spawn_m:
 		if _skill_bag.is_empty():
 			_refill_skill_bag()
-		if not _skill_bag.is_empty():
+		if _skill_bag.is_empty():
+			_next_skill_spawn_m = distance_m + 120.0
+		else:
 			var chosen_skill: int = _pick_contextual_skill_from_bag(has_breakable, has_flyer_or_crawler, has_aerial_or_bounce, existing_gems.size() >= 3)
 			var pickup = SkillPickupScene.instantiate() as SkillPickup
 			pickup.skill_type = chosen_skill
@@ -1009,10 +1021,11 @@ func _decorate_and_wire_chunk(chunk: Node2D, allow_rewards: bool, is_procedural:
 			var jitter: float = float(level_generator.rng.randi_range(-10, 18))
 			_next_skill_spawn_m = distance_m + maxf(55.0, base_gap_m + jitter)
 
-	# Spawn varied avoidable hazard traps (Speed Surge, Heavy Gravity, Glitch Static, Skill Jam)
+	# Spawn varied avoidable hazard traps on ground / low-air / jump-arc tracks
 	var trap_mod: int = 3 if current_mode == 2 else 4
 	if is_procedural and allow_rewards and current_mode != 3 and distance_m >= 50.0 and (_procedural_chunks_spawned % trap_mod == 1):
-		var trap_candidates: Array[Vector2] = [Vector2(210.0, 148.0), Vector2(305.0, 148.0), Vector2(390.0, 148.0)]
+		var trap_y: float = 216.0 if (_procedural_chunks_spawned % 2 == 1) else 184.0
+		var trap_candidates: Array[Vector2] = [Vector2(210.0, trap_y), Vector2(305.0, trap_y), Vector2(390.0, 152.0)]
 		for tcand in trap_candidates:
 			var t_clear := true
 			for hp in existing_hazards:
@@ -1206,6 +1219,10 @@ func go_to_title_menu() -> void:
 	practice_section_index = -1
 	custom_map_active = false
 	custom_map_chain.clear()
+	_custom_map_sections.clear()
+	_custom_active_section_idx = 0
+	_custom_total_end_x = 0.0
+	_custom_map_completed = false
 	_practice_pattern_hits.clear()
 	if player and player.skill_manager:
 		player.skill_manager.skill_lab_infinite = false
@@ -1327,9 +1344,12 @@ func _apply_equipped_perks_and_cosmetics(is_run_start: bool) -> void:
 
 	if parallax_bg:
 		var map_tint: Color = map_data.get("tint", Color.WHITE)
-		for child in parallax_bg.get_children():
-			if child is CanvasItem:
-				child.modulate = map_tint
+		if parallax_bg.has_method("set_cosmetic_tint"):
+			parallax_bg.set_cosmetic_tint(map_tint)
+		else:
+			for child in parallax_bg.get_children():
+				if child is CanvasItem:
+					child.modulate = map_tint
 
 	player.passive_magnet = bool(perks.get("magnet", false))
 	player.is_magnet_active = player.passive_magnet
@@ -1556,7 +1576,13 @@ func _pick_contextual_skill_pos(skill_id: int, has_breakable: bool, breakable_po
 	for cand in candidates:
 		var clear := true
 		for hp in existing_hazards:
-			if absf(cand.x - hp.x) < 42.0 and absf(cand.y - hp.y) < 34.0:
+			var dx := absf(cand.x - hp.x)
+			if hp.y >= 195.0:
+				# Ground / overhang hazard column: enforce horizontal clearance so pickups never sit above spikes/lava
+				if dx < 58.0:
+					clear = false
+					break
+			elif dx < 46.0 and absf(cand.y - hp.y) < 38.0:
 				clear = false
 				break
 		if clear:
@@ -1566,7 +1592,16 @@ func _pick_contextual_skill_pos(skill_id: int, has_breakable: bool, breakable_po
 					break
 		if clear:
 			return cand
-	return Vector2(240.0, 176.0)
+	# Safe fallback scan across the chunk if default candidates overlap hazards
+	for fx in [96.0, 148.0, 200.0, 268.0, 340.0, 412.0]:
+		var ok := true
+		for hp in existing_hazards:
+			if absf(fx - hp.x) < 56.0:
+				ok = false
+				break
+		if ok:
+			return Vector2(fx, 176.0)
+	return Vector2(120.0, 148.0)
 
 func _clear_tutorial_lane_hazards() -> void:
 	if _tut_target_node and is_instance_valid(_tut_target_node):
@@ -1674,8 +1709,8 @@ func _setup_tutorial_phase(phase: int) -> void:
 				"Dodge glowing Hazard Triangles (Speed/Gravity/Glitch/Jam) & jump across Lava Pits!",
 				"AVOID\n⚠", Color(0.96, 0.72, 0.14), "Jump over the lava & dodge traps!"
 			)
-			_tut_extra_node = _spawn_tutorial_obstacle("res://scenes/objects/trap_pickup.tscn", Vector2(player.global_position.x + 210.0, 148.0))
-			_tut_target_node = _spawn_tutorial_obstacle("res://scenes/obstacles/hazard_lava_pit.tscn", Vector2(player.global_position.x + 310.0, 230.0))
+			_tut_extra_node = _spawn_tutorial_obstacle("res://scenes/objects/trap_pickup.tscn", Vector2(player.global_position.x + 195.0, 212.0))
+			_tut_target_node = _spawn_tutorial_obstacle("res://scenes/obstacles/hazard_lava_pit.tscn", Vector2(player.global_position.x + 335.0, 230.0))
 		6:
 			hud.practice_hub.show_tutorial_step(
 				"STEP 7/7 • BREAKABLES & SKILLS",
@@ -1783,8 +1818,16 @@ func _update_live_tutorial(delta: float) -> void:
 				else:
 					_tut_hazard_done = false
 					player.trap_debuff_timer = 0.0
-					_respawn_tutorial_target("res://scenes/obstacles/hazard_lava_pit.tscn", 300.0, 230.0, "Jump cleanly over the Lava Pit & dodge the Triangle Trap!")
-					_tut_extra_node = _spawn_tutorial_obstacle("res://scenes/objects/trap_pickup.tscn", Vector2(player.global_position.x + 210.0, 148.0))
+					player.trap_speed_timer = 0.0
+					player.trap_gravity_timer = 0.0
+					player.trap_glitch_timer = 0.0
+					player.trap_skill_jam_timer = 0.0
+					player.trap_gravity_mult = 1.0
+					player.trap_speed_penalty = 0.0
+					if hud.has_method("clear_trap_hud"):
+						hud.clear_trap_hud()
+					_respawn_tutorial_target("res://scenes/obstacles/hazard_lava_pit.tscn", 335.0, 230.0, "Jump over the Triangle Trap & Lava Pit!")
+					_tut_extra_node = _spawn_tutorial_obstacle("res://scenes/objects/trap_pickup.tscn", Vector2(player.global_position.x + 195.0, 212.0))
 		6:
 			var barrier_broken: bool = (not target_valid) or (_tut_target_node is Hazard and (_tut_target_node as Hazard).is_destroyed)
 			if barrier_broken:
@@ -1998,6 +2041,11 @@ func start_custom_map(map_dict: Dictionary) -> void:
 		hud.practice_hub.show_practice_bar("🛠 CUSTOM MAP: %s%s" % [str(custom_map_data.get("name", "Custom")).to_upper(), chain_suffix])
 
 func _populate_custom_map_items() -> void:
+	_custom_map_sections.clear()
+	_custom_active_section_idx = 0
+	_custom_total_end_x = 0.0
+	_custom_map_completed = false
+
 	var w_idx: int = clampi(int(custom_map_data.get("world_index", 0)), 0, world_themes.size() - 1)
 	if w_idx >= 0 and w_idx < world_themes.size() and world_themes[w_idx] != null:
 		current_world_index = w_idx
@@ -2014,8 +2062,8 @@ func _populate_custom_map_items() -> void:
 	var chain_list: Array = custom_map_chain if not custom_map_chain.is_empty() else [custom_map_data]
 	var total_span: float = 0.0
 	for m in chain_list:
-		total_span += maxf(960.0, float(m.get("length_px", 1800.0)))
-	var num_chunks: int = maxi(8, int(ceilf(total_span / CHUNK_WIDTH)) + 3)
+		total_span += clampf(float(m.get("length_px", 1800.0)), 960.0, 5000.0)
+	var num_chunks: int = maxi(8, int(ceilf(total_span / CHUNK_WIDTH)) + 4)
 	for _i in range(num_chunks):
 		_spawn_chunk_by_index(0, false)
 
@@ -2036,6 +2084,12 @@ func _populate_custom_map_items() -> void:
 	}
 	var base_offset_x: float = 0.0
 	for map_entry in chain_list:
+		var map_len: float = clampf(float(map_entry.get("length_px", 1800.0)), 960.0, 5000.0)
+		_custom_map_sections.append({
+			"start_x": base_offset_x,
+			"end_x": base_offset_x + map_len,
+			"data": map_entry.duplicate(true)
+		})
 		for it in map_entry.get("items", []):
 			if typeof(it) != TYPE_DICTIONARY:
 				continue
@@ -2046,9 +2100,55 @@ func _populate_custom_map_items() -> void:
 				if sc:
 					var node = sc.instantiate() as Node2D
 					node.position = Vector2(base_offset_x + float(it.get("x", 300.0)), float(it.get("y", 216.0)))
+					if node is TrapPickup:
+						node.set_trap_type(int(it.get("trap_type", 0)))
 					chunk_container.add_child(node)
 					_wire_custom_node_recursive(node)
-		base_offset_x += maxf(960.0, float(map_entry.get("length_px", 1800.0))) - 120.0
+		base_offset_x += map_len
+	_custom_total_end_x = maxf(base_offset_x, 960.0)
+
+func _update_custom_map_progression() -> void:
+	if player == null or _custom_map_sections.is_empty():
+		return
+	var px: float = player.global_position.x
+	var new_idx: int = _custom_active_section_idx
+	for i in range(_custom_map_sections.size()):
+		var sec: Dictionary = _custom_map_sections[i]
+		if px >= float(sec.get("start_x", 0.0)) and px < float(sec.get("end_x", 999999.0)):
+			new_idx = i
+			break
+	if new_idx != _custom_active_section_idx and new_idx < _custom_map_sections.size():
+		_custom_active_section_idx = new_idx
+		var sec_data: Dictionary = _custom_map_sections[new_idx].get("data", {})
+		if not sec_data.is_empty():
+			custom_map_data = sec_data.duplicate(true)
+			var next_w: int = clampi(int(sec_data.get("world_index", current_world_index)), 0, world_themes.size() - 1)
+			if next_w != current_world_index and next_w >= 0 and next_w < world_themes.size() and world_themes[next_w] != null:
+				current_world_index = next_w
+				if parallax_bg:
+					parallax_bg.transition_to_theme(world_themes[next_w], 1.1)
+				hud.update_world_name(world_themes[next_w].world_name)
+			player.practice_immortal = bool(sec_data.get("immortal", false))
+			if fx_manager:
+				fx_manager.active_immortal_shield = player.practice_immortal
+			if hud and hud.has_method("update_hearts"):
+				hud.update_hearts(player.current_hearts, player.max_hearts, player.practice_immortal)
+			if hud and hud.practice_hub:
+				hud.practice_hub.show_practice_bar("🛠 STAGE %d/%d: %s" % [new_idx + 1, _custom_map_sections.size(), str(sec_data.get("name", "Custom")).to_upper()])
+			audio_manager.play_world_enter()
+			if fx_manager:
+				fx_manager.spawn_burst(player.global_position, Color(0.42, 0.94, 1.0), 12, 130.0, TAU, 2.8, 120.0, 0.4)
+
+	if not _custom_map_completed and _custom_total_end_x > 0.0 and px >= _custom_total_end_x:
+		_custom_map_completed = true
+		audio_manager.play_world_enter()
+		if fx_manager:
+			fx_manager.spawn_shockwave(player.global_position, 160.0, Color(0.45, 0.98, 0.62), 0.5, 3.0)
+			fx_manager.spawn_burst(player.global_position, Color(1.0, 0.88, 0.3), 18, 150.0, TAU, 3.0, 110.0, 0.5)
+		if hud:
+			hud.show_skill_toast("🏁 CUSTOM COURSE COMPLETE!")
+			if hud.practice_hub:
+				hud.practice_hub.show_practice_bar("🏁 COURSE COMPLETE! KEEP RUNNING OR OPEN MENU")
 
 func _wire_custom_node_recursive(root_node: Node) -> void:
 	var stack: Array[Node] = [root_node]
@@ -2058,6 +2158,10 @@ func _wire_custom_node_recursive(root_node: Node) -> void:
 			stack.append(ch)
 		if cur is Hazard and not cur.destroyed.is_connected(_on_hazard_destroyed):
 			cur.destroyed.connect(_on_hazard_destroyed)
+		elif cur is TrapPickup:
+			var tp := cur as TrapPickup
+			if not tp.trap_triggered.is_connected(_on_trap_triggered):
+				tp.trap_triggered.connect(_on_trap_triggered)
 		elif cur is BouncePad:
 			var pad := cur as BouncePad
 			if not pad.launched.is_connected(_on_bounce_pad_triggered):

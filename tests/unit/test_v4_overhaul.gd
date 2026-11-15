@@ -323,3 +323,126 @@ func test_ps4_controller_menu_and_gameplay() -> Variant:
 
 	_destroy_runner(r)
 	return true
+
+func test_v130_regression_audit_fixes() -> Variant:
+	var r := _create_runner()
+
+	# 1. SaveService preserves 5000px map length & trap_type
+	var big_map := {
+		"id": "max_map",
+		"name": "Max Span",
+		"world_index": 1,
+		"speed_preset": 1,
+		"immortal": false,
+		"length_px": 5000.0,
+		"items": [{"type": "trap", "x": 4900.0, "y": 216.0, "trap_type": 2}]
+	}
+	r.save_service.save_custom_map(big_map, false)
+	var loaded := r.save_service.get_custom_maps()
+	var found := {}
+	for m in loaded:
+		if str(m.get("id", "")) == "max_map":
+			found = m
+			break
+	if found.is_empty() or not is_equal_approx(float(found.get("length_px", 0.0)), 5000.0):
+		_destroy_runner(r)
+		return "SaveService must preserve custom map length_px=5000.0"
+	var first_item: Dictionary = found.get("items", [{}])[0]
+	if not is_equal_approx(float(first_item.get("x", 0.0)), 4900.0) or int(first_item.get("trap_type", -1)) != 2:
+		_destroy_runner(r)
+		return "SaveService must preserve trailing item x=4900 and trap_type=2"
+
+	# 2. PS4 stick Y release + entry_panel B dismissal
+	r.save_service.set_setting("ps_controller_enabled", true)
+	r.hud.apply_control_layout(false)
+	var jump_events: Array[bool] = []
+	r.hud.jump_requested.connect(func(p: bool): jump_events.append(p))
+	var ax_up := InputEventJoypadMotion.new()
+	ax_up.axis = JOY_AXIS_LEFT_Y
+	ax_up.axis_value = -0.9
+	r.hud._handle_ps_controller_input(ax_up)
+	var ax_center := InputEventJoypadMotion.new()
+	ax_center.axis = JOY_AXIS_LEFT_Y
+	ax_center.axis_value = 0.0
+	r.hud._handle_ps_controller_input(ax_center)
+	if jump_events.size() < 2 or jump_events[0] != true or jump_events[1] != false:
+		_destroy_runner(r)
+		return "PS4 Left Stick Y must emit jump_requested(true) then (false) on release: %s" % str(jump_events)
+
+	r.hud.practice_hub.show_entry_choice()
+	if not r.hud.practice_hub.entry_panel.visible:
+		_destroy_runner(r)
+		return "entry_panel should be visible"
+	var closed := r.hud._handle_ps_menu_button(JOY_BUTTON_B)
+	if not closed or r.hud.practice_hub.entry_panel.visible:
+		_destroy_runner(r)
+		return "PS4 Circle must dismiss entry_panel cleanly without softlock"
+
+	# 3. Contextual skill horizontal hazard clearance
+	var haz: Array[Vector2] = [Vector2(240.0, 224.0)]
+	var gems: Array[Vector2] = []
+	var cpos := r._pick_contextual_skill_pos(SkillManager.SkillType.STONE_SHIELD, false, Vector2.ZERO, false, Vector2.ZERO, false, Vector2.ZERO, haz, gems)
+	if absf(cpos.x - 240.0) < 50.0 and cpos.y >= 175.0:
+		_destroy_runner(r)
+		return "Contextual skill pos must keep horizontal clearance from ground hazard at x=240: got %s" % str(cpos)
+
+	# 4. Linked custom map section transition & completion
+	var sec2 := {
+		"id": "chain_s2", "name": "Stage Two", "world_index": 3, "speed_preset": 2,
+		"immortal": false, "length_px": 1200.0, "linked_next_id": "",
+		"items": [{"type": "trap", "x": 450.0, "y": 216.0, "trap_type": 3}]
+	}
+	var sec1 := {
+		"id": "chain_s1", "name": "Stage One", "world_index": 0, "speed_preset": 0,
+		"immortal": true, "length_px": 1200.0, "linked_next_id": "chain_s2",
+		"items": []
+	}
+	r.save_service.save_custom_map(sec2, false)
+	r.save_service.save_custom_map(sec1, false)
+	r.start_custom_map(sec1)
+	r.player.global_position.x = 1350.0
+	r._update_custom_map_progression()
+	if r._custom_active_section_idx != 1 or r.current_world_index != 3 or int(r.custom_map_data.get("speed_preset", 0)) != 2:
+		_destroy_runner(r)
+		return "Linked custom map must transition world & speed when entering Stage 2"
+	r.player.global_position.x = r._custom_total_end_x + 40.0
+	r._update_custom_map_progression()
+	if not r._custom_map_completed:
+		_destroy_runner(r)
+		return "Linked custom map must mark completion once player clears total span"
+
+	# 5. Parallax cosmetic tint survives world theme switches/transitions
+	var map_tint := Color(0.5, 0.8, 1.0, 1.0)
+	r.parallax_bg.set_cosmetic_tint(map_tint)
+	if r.world_themes.size() > 1 and r.world_themes[1] != null:
+		r.parallax_bg.apply_theme_immediate(r.world_themes[1])
+		var expected_mod: Color = r.world_themes[1].ambient_tint * map_tint
+		if r.parallax_bg.cosmetic_tint != map_tint or not r.parallax_bg.sky_sprite.modulate.is_equal_approx(expected_mod):
+			_destroy_runner(r)
+			return "Parallax cosmetic tint must compose with biome ambient_tint on theme switch"
+		r.parallax_bg.transition_to_theme(r.world_themes[1], 0.1)
+		if r.parallax_bg.cosmetic_tint != map_tint:
+			_destroy_runner(r)
+			return "Parallax cosmetic tint must persist during tweened theme transition"
+
+	# 6. Multi-trap independent timers + Shop swipe guard
+	r.player.practice_immortal = false
+	r.player.reset()
+	r.player.apply_trap_debuff(3.5, 115.0, 0)
+	r.player.apply_trap_debuff(2.0, 0.0, 1)
+	r.player._update_timers(2.2)
+	if r.player.trap_gravity_timer > 0.0 or r.player.trap_gravity_mult > 1.01 or r.player.trap_speed_timer <= 0.0 or r.player.trap_speed_penalty <= 0.0:
+		var msg := "Independent trap timers failed: grav=%s spd=%s pen=%s" % [str(r.player.trap_gravity_timer), str(r.player.trap_speed_timer), str(r.player.trap_speed_penalty)]
+		_destroy_runner(r)
+		return msg
+
+	r.save_service.data["points"] = 500
+	r.hud._shop_drag_moved = true
+	r.hud._on_buy_clicked("emerald", 100)
+	if r.save_service.get_points() != 500:
+		_destroy_runner(r)
+		return "Shop swipe guard must ignore buy tap during drag gesture"
+	r.hud._shop_drag_moved = false
+
+	_destroy_runner(r)
+	return true

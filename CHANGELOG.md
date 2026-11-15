@@ -12,21 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added & Improved
 - **60 FPS Clarity & Responsive Controls (`project.godot`, `scripts/ui/hud.gd`, `scripts/player/player.gd`, `scripts/gameplay/endless_runner.gd`):**
   - Locked `max_fps=60`, `vsync_mode=1`, `physics_ticks_per_second=60`, `physics_jitter_fix=0.0`; clamped `GameCamera` zoom (`0.94..1.04`) and moved speed-line FX to screen edges only.
-  - Added enlarged `200×145` invisible `HitZoneLayer` pads behind `84×44` `JumpButton` & `SlideButton`, enabled Slide & Steer across all 4 modes, guarded `trigger_jump_press()` at `velocity.y >= -10.0`, and wired Jump/Slide taps on idle launch to auto-start and act on frame 1.
+  - Added `96×92` corner `HitZoneLayer` pads behind `84×44` `JumpButton` & `SlideButton` with direct multi-touch `gui_input` routing (zero overlap with Steer/Skill buttons), enabled Slide & Steer across all 4 modes, guarded `trigger_jump_press()` at `velocity.y >= -10.0`, and wired Jump/Slide taps on idle launch to auto-start and act on frame 1.
 - **Difficulty Speeds, Hearts & 4 Hazard Traps (`scripts/gameplay/endless_runner.gd`, `scripts/objects/trap_pickup.gd`, `scripts/ui/hud.gd`):**
-  - Tuned opening speeds and difficulty hearts: `Easy (196→400 px/s, 2♥)`, `Medium (216→460 px/s, 1♥)`, `Hard (232→495 px/s, 3♥, dense spawn profile)`, `Practice (196→310 px/s)`.
-  - Expanded `TrapPickup` to 4 distinct traps (`SPEED_SURGE`, `HEAVY_GRAVITY` with `1.55×` gravity, `VISION_GLITCH` overlay, `SKILL_JAM`) with dedicated HUD debuff feedback.
+  - Tuned opening speeds and difficulty hearts: `Easy (196→400 px/s, 2♥)`, `Medium (216→460 px/s, 1♥)`, `Hard (232→495 px/s, 3♥, dense spawn profile)`, `Practice (196→310 px/s)`, with forward-assist recovery when surviving environmental hazards via hearts/immortality.
+  - Expanded `TrapPickup` to 4 distinct traps (`SPEED_SURGE`, `HEAVY_GRAVITY` with `1.55×` gravity, `VISION_GLITCH` overlay, `SKILL_JAM`) with independent debuff timers, multi-lane placement, and dedicated HUD debuff feedback.
 - **4-Skill Loadout, Distance-Rarity Spawning & Infinite Skill Lab (`scripts/systems/save_service.gd`, `scripts/systems/skill_manager.gd`, `scripts/ui/practice_hub_ui.gd`):**
-  - Enforced `MAX_ENABLED_MAP_SKILLS = 4` (starter deck `[1, 2, 3, 5]`) with `4-STARTER`/`CLEAR` toggles and distance-based rarity intervals (`70m / 105m / 145m / 195m`) placed at contextually relevant obstacles.
+  - Enforced `MAX_ENABLED_MAP_SKILLS = 4` (starter deck `[1, 2, 3, 5]`) with `4-STARTER`/`CLEAR` toggles and distance-based rarity intervals (`70m / 105m / 145m / 195m`) placed with horizontal hazard clearance at contextually relevant obstacles.
   - Added infinite Skill Lab mode (`skill_lab_infinite` keeps charges `>= 1` and cooldown `<= 0.30s`) inside dedicated obstacle-matched test arenas.
 - **7-Step Live Tutorial, Animated Enemies Encyclopedia, Quests, Skin Shop & Linked Map Builder:**
   - Upgraded tutorial to 7 input-gated phases (`player.jumped` required on Step 1) with persistent `active_immortal_shield` visual in Practice & immortal custom maps, and restricted tip popups exclusively to Tutorial/Practice mode while clearing them on exit/restart.
-  - Added 9-entry Enemies Encyclopedia dialog with ~1.2s animated `_EnemyPreviewCanvas` sprites and counter-strategy notes; added visual `_CosmeticPreviewCanvas` swatches + finger/mouse swipe scrolling in `ShopScroll`; enforced single-claim quest guards in `ChallengeService`.
+  - Added 9-entry Enemies Encyclopedia dialog with ~1.2s animated `_EnemyPreviewCanvas` sprites and counter-strategy notes; added visual `_CosmeticPreviewCanvas` swatches, persistent map tint across biome transitions, and swipe-guarded horizontal drag scrolling in `ShopScroll`; enforced single-claim quest guards in `ChallengeService`.
   - Switched `LevelGenerator` to shuffled bag pattern ordering (`_shuffled_bag_ids`) + biome-exclusive chunks (lava volcanic-only).
-  - Expanded Custom Map Builder to `2.6k / 3.8k / 5.0k` lengths with live jump-arc & green/amber/red gap-passability checks, visual obstacle silhouettes, and multi-map saving/linking (`linked_next_id`).
+  - Expanded Custom Map Builder to `2.6k / 3.8k / 5.0k` (`5000px` save cap) with per-trap variant cycling, live jump-arc & green/amber/red gap-passability checks, visual obstacle silhouettes, and live multi-map progression & course completion (`linked_next_id`).
 - **PS4 Controller & Verification (`scripts/ui/hud.gd`, `tests/unit/test_v4_overhaul.gd`):**
-  - Fixed PS4 menu, Pause/GameOver/dialog navigation, analog/D-Pad input, flight vertical axis, and `clear_touch_inputs()` state reset.
-  - Verified **112/112** automated unit tests (`test_v4_overhaul.gd` added), `L1` static validation (0 errors), `Validator V1 & V2` (`24/24` patterns), and L4 Android APK verification (`versionCode=4`, `versionName="1.3.0"`).
+  - Fixed PS4 menu, Practice Entry Panel, Pause/GameOver/dialog navigation, analog Y release tracking without Cross-button jitter, and `clear_touch_inputs()` state reset.
+  - Verified **113/113** automated unit tests (`test_v4_overhaul.gd` added with full v1.3.0 regression coverage), `L1` static validation (0 errors), `Validator V1 & V2` (`24/24` patterns), and L4 Android APK verification (`versionCode=4`, `versionName="1.3.0"`).
 
 ---
 

@@ -15,9 +15,9 @@
 - **Target Engine:** Godot Engine 4.7.2-stable official (`ed1daf0bf`)
 - **Render Mode:** `gl_compatibility` (OpenGL ES 3.0 compatible for broad mobile and desktop support)
 - **Logical Viewport:** 480 × 270 (16:9 pixel-perfect logical grid with nearest-neighbor scaling, locked 60 FPS / 60 Hz physics)
-- **Automated Test Suite:** 112 passing tests (100% pass rate) + 24/24 verified procedural patterns (Validator V1 & V2).
-- **Android Direct Install APK (Signed):** `releases/Riftosaur-debug.apk` (59.89 MB, SHA-256: `76F07D66009CA458919FDB6C82C5D89578A30B7129893C24CEEDB0FB0C60013D`)
-- **Android Unsigned Release APK:** `releases/Riftosaur-release.apk` (55.37 MB, SHA-256: `AA249AE1F2862B6487AECA4CDA45DB5A95E8901E464E391F94D859D53B42B46D`)
+- **Automated Test Suite:** 113 passing tests (100% pass rate) + 24/24 verified procedural patterns (Validator V1 & V2).
+- **Android Direct Install APK (Signed):** `releases/Riftosaur-debug.apk` (59.89 MB, SHA-256: `8A03B0D2567FE41BA3DD28492F9805424BA07C9B7AE36EA2C3730DA3B02E60B9`)
+- **Android Unsigned Release APK:** `releases/Riftosaur-release.apk` (55.37 MB, SHA-256: `644330A4EA98F023E0EB8F0F2AA7EE21E3FC02E5FF8C366172DBD7A811A57095`)
 
 ---
 
@@ -30,7 +30,7 @@
    ```powershell
    Get-FileHash Riftosaur-debug.apk -Algorithm SHA256
    ```
-   Expected: `76F07D66009CA458919FDB6C82C5D89578A30B7129893C24CEEDB0FB0C60013D`
+   Expected: `8A03B0D2567FE41BA3DD28492F9805424BA07C9B7AE36EA2C3730DA3B02E60B9`
 4. See [docs/ANDROID_INSTALL_GUIDE_AR.md](docs/ANDROID_INSTALL_GUIDE_AR.md) for a step-by-step Arabic installation guide.
 
 ### Desktop / Run from Source
@@ -48,11 +48,11 @@
 
 ## What's New in v1.3.0
 
-- **60 FPS Visual Clarity & Responsive Touch Controls:** Locked `60 FPS` (`vsync_mode=1`, `60 Hz` physics with zero jitter), clamped camera zoom (`0.94..1.04`), edge-only FX, enlarged `200×145` invisible touch hit-zones around `Jump` & `Slide`, Slide & Steer across all modes, and instant Frame-1 auto-start directly from a Jump/Slide tap.
-- **Difficulty Speeds, Hearts & 4 Hazard Traps:** Gradual opening speeds (`Easy: 196→400 w/ 2♥`, `Medium: 216→460 w/ 1♥`, `Hard: 232→495 w/ 3♥`), HUD hearts & persistent shield aura when immortal, plus 4 distinct trap debuffs (`Speed Surge`, `Heavy Gravity`, `Vision Glitch`, `Skill Jam`).
-- **4-Skill Loadout, Distance-Rarity Spawning & Infinite Skill Lab:** Pick up to 4 active skills from the 12-skill catalog (default starter deck `[1, 2, 3, 5]`), spawn skills every `70m / 105m / 145m / 195m` by rarity at contextually relevant obstacles, and test any single skill endlessly inside targeted Skill Lab arenas.
-- **Interactive 7-Step Tutorial, Animated Enemies Encyclopedia & Linked Map Builder:** Input-gated 7-step tutorial covering every obstacle family, clean HUD with tutorial-only tips, animated ~1.2s Enemies Guide showing jump/slide/stomp/slash tactics, swipeable Skin Shop previews, non-repeatable quest claims, and a 3-size Custom Map Builder with live jump-arc/gap-passability validation & map chaining.
-- **Full PS4 Controller Mode & 112/112 Verified Tests:** Complete PS4 menu, pause/game-over, D-Pad/analog, Slide/Jump/Skill, and flight Y-axis bindings plus `tests/unit/test_v4_overhaul.gd`.
+- **60 FPS Visual Clarity & Responsive Touch Controls:** Locked `60 FPS` (`vsync_mode=1`, `60 Hz` physics with zero jitter), clamped camera zoom (`0.94..1.04`), edge-only FX, non-overlapping `96×92` multi-touch hit-zones around `Jump` & `Slide`, Slide & Steer across all modes, and instant Frame-1 auto-start directly from a Jump/Slide tap.
+- **Difficulty Speeds, Hearts & 4 Hazard Traps:** Gradual opening speeds (`Easy: 196→400 w/ 2♥`, `Medium: 216→460 w/ 1♥`, `Hard: 232→495 w/ 3♥`), HUD hearts & persistent shield aura when immortal, plus 4 independent trap debuffs (`Speed Surge`, `Heavy Gravity`, `Vision Glitch`, `Skill Jam`).
+- **4-Skill Loadout, Distance-Rarity Spawning & Infinite Skill Lab:** Pick up to 4 active skills from the 12-skill catalog (default starter deck `[1, 2, 3, 5]`), spawn skills every `70m / 105m / 145m / 195m` by rarity at contextually clearable obstacles, and test any single skill endlessly inside targeted Skill Lab arenas.
+- **Interactive 7-Step Tutorial, Animated Enemies Encyclopedia & Linked Map Builder:** Input-gated 7-step tutorial covering every obstacle family, clean HUD with tutorial-only tips, animated ~1.2s Enemies Guide showing jump/slide/stomp/slash tactics, swipe-guarded Skin Shop previews, non-repeatable quest claims, and a 3-size (`2.6k / 3.8k / 5.0k`) Custom Map Builder with live jump-arc/gap-passability validation, per-trap selection, & live linked map progression.
+- **Full PS4 Controller Mode & 113/113 Verified Tests:** Complete PS4 menu, pause/game-over, Practice Entry Panel, D-Pad/analog Y release, Slide/Jump/Skill, and flight Y-axis bindings plus `tests/unit/test_v4_overhaul.gd` regression coverage.
 
 ---
 
