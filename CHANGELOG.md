@@ -27,8 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rendering, Camera & Parallax Polish:**
   - Enabled `physics_interpolation` and disabled pixel-snap jitter in `project.godot`.
   - Improved high-jump camera ground locking (`scripts/world/game_camera.gd`) and 1440px parallax tiling with `SkyBackdropLayer` (`scripts/world/parallax_controller.gd`).
-- **Testing:**
-  - Expanded the L2 automated test suite to 101/101 passing tests with `tests/unit/test_tutorial_practice_and_builder.gd` and `tests/unit/test_v3_features.gd`.
+- **Testing & Post-Release Regression Fixes:**
+  - Expanded the L2 automated test suite to 104/104 passing tests across all suites, including regression coverage for `PracticeHubUI` viewport bounds & non-overlapping overlays, visible/unblocked Jump & Slide touch controls with `FOCUS_NONE`, and step-by-step live tutorial progression & ground alignment.
+  - Fixed `v1.2.0` regressions in `scripts/ui/practice_hub_ui.gd`, `scripts/ui/hud.gd`, and `scripts/gameplay/endless_runner.gd` (full-viewport anchoring and panel clamping for dialogs/banners, TopBar non-overlapping Practice quick bar, restored visible Jump/Slide touch buttons and removed the bottom dead-zone, real mechanic checks and respawn recovery for the 5-step interactive tutorial with ground-aligned obstacles).
 
 ---
 

@@ -201,10 +201,10 @@ func test_hud_skill_button_single_emit_and_practice_mode() -> Variant:
 		runner.get_parent().remove_child(runner)
 		runner.free()
 		return "Practice mode description missing"
-	if runner.hud.slide_button.visible or runner.hud.jump_button.visible:
+	if not runner.hud.slide_button.visible or not runner.hud.jump_button.visible:
 		runner.get_parent().remove_child(runner)
 		runner.free()
-		return "Practice mode should keep jump and slide buttons visually hidden"
+		return "Practice mode should keep jump and slide touch buttons visible"
 
 	runner.get_parent().remove_child(runner)
 	runner.free()

@@ -12,7 +12,28 @@ func _init() -> void:
 	print("==================================================")
 	call_deferred("_run_all_tests")
 
+func _backup_user_saves() -> Dictionary:
+	var backup := {}
+	for path in ["user://save_game.json", "user://save_game.bak"]:
+		if FileAccess.file_exists(path):
+			var f := FileAccess.open(path, FileAccess.READ)
+			if f:
+				backup[path] = f.get_buffer(f.get_length())
+				f.close()
+	return backup
+
+func _restore_user_saves(backup: Dictionary) -> void:
+	for path in ["user://save_game.json", "user://save_game.bak"]:
+		if backup.has(path):
+			var f := FileAccess.open(path, FileAccess.WRITE)
+			if f:
+				f.store_buffer(backup[path])
+				f.close()
+		elif FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
 func _run_all_tests() -> void:
+	var saved_user_files := _backup_user_saves()
 	# Discover test scripts
 	_register_tests()
 
@@ -24,6 +45,8 @@ func _run_all_tests() -> void:
 			var m_name: String = m["name"]
 			if m_name.begins_with("test_"):
 				_run_single_test(test_instance, m_name)
+
+	_restore_user_saves(saved_user_files)
 
 	print("\n==================================================")
 	print("[TestRunner] Test Execution Summary:")

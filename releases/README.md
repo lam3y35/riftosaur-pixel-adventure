@@ -18,8 +18,8 @@ This directory stores locally generated build artifacts (Android APKs, packages,
 
 | File | Target | Version Code | Version Name | Size | SHA-256 Checksum | Evidence Level |
 |---|---|---|---|---|---|---|
-| `Riftosaur-release.apk` | Android (arm64-v8a, x86_64) | 3 | 1.2.0 | 58,071,323 bytes (55.38 MB) | `36A2FC70DD9FA0992802F910C74838C99D9C885D19EDDA6E81F34064404CCED2` | L4 Static Release APK Verification (v1.2.0 Signed) |
-| `Riftosaur-debug.apk` | Android (arm64-v8a, x86_64) | 3 | 1.2.0 | 62,742,656 bytes (59.84 MB) | `CE1B86A9ED58C92F2FEECF97012DA6020DFE815D6AFEB16496808ABB25C91D16` | L4 Static Debug APK Verification (v1.2.0 Debug Signed) |
+| `Riftosaur-release.apk` | Android (arm64-v8a, x86_64) | 3 | 1.2.0 | 58,075,419 bytes (55.39 MB) | `69BD536F66E5E5B088CD018FA1EEAABA1090BDD22011EAF122D4EEAE76994B93` | L4 Static Release APK Verification (v1.2.0 Signed) |
+| `Riftosaur-debug.apk` | Android (arm64-v8a, x86_64) | 3 | 1.2.0 | 62,746,752 bytes (59.84 MB) | `8DA287D9D99BAF1264D126A7DABC3105B2AF021884DE806A17E31C85B6D22953` | L4 Static Debug APK Verification (v1.2.0 Debug Signed) |
 
 ---
 

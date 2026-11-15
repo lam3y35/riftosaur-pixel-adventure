@@ -169,11 +169,13 @@ func test_controls_slide_hold_air_left_stomp_trap_and_ps4() -> Variant:
 	runner.start_new_run()
 	runner.is_game_started = true
 
-	# 1. Jump & Slide buttons are hidden; bottom dock is on opposite side of Jump
-	if runner.hud.jump_button.visible or runner.hud.slide_button.visible:
+	runner.save_service.set_setting("ps_controller_enabled", false)
+	runner.hud.apply_control_layout(false)
+	# 1. Jump & Slide buttons are visible in touch mode; steer stays opposite Jump
+	if not runner.hud.jump_button.visible or not runner.hud.slide_button.visible:
 		runner.get_parent().remove_child(runner)
 		runner.free()
-		return "Jump and Slide buttons should be visually hidden"
+		return "Jump and Slide buttons should be visible in standard touch mode"
 
 	runner.hud.apply_control_layout(false) # Right-handed: Jump Right -> Steer/Skills Left
 	if runner.hud.steer_left_btn.anchor_left != 0.0:
@@ -266,7 +268,7 @@ func test_controls_slide_hold_air_left_stomp_trap_and_ps4() -> Variant:
 	runner.save_service.set_setting("ps_controller_enabled", true)
 	runner.save_service.set_ps_binding("jump", "btn:2") # Remap Jump to Square
 	runner.hud.apply_control_layout(false)
-	if runner.hud.steer_left_btn.visible or runner.hud.steer_right_btn.visible:
+	if runner.hud.jump_button.visible or runner.hud.slide_button.visible or runner.hud.steer_left_btn.visible or runner.hud.steer_right_btn.visible:
 		runner.get_parent().remove_child(runner)
 		runner.free()
 		return "PS4 Controller mode must hide all on-screen buttons"

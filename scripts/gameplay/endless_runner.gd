@@ -76,7 +76,10 @@ var _tut_jump_hold_accum: float = 0.0
 var _tut_short_jump_done: bool = false
 var _tut_long_jump_done: bool = false
 var _tut_slide_done: bool = false
+var _tut_bounce_done: bool = false
 var _tut_skill_done: bool = false
+var _tut_hit_current_obstacle: bool = false
+var _tut_target_node: Node2D = null
 var _tut_phase_timer: float = 0.0
 var _tut_celebrate_timer: float = 0.0
 var _practice_entry_pending: bool = false
@@ -154,6 +157,8 @@ func _ready() -> void:
 		hud.settings_changed.connect(_sync_settings)
 	if hud.has_signal("ui_interacted"):
 		hud.ui_interacted.connect(func(): audio_manager.play_ui_click())
+	if hud.has_signal("live_tutorial_requested"):
+		hud.live_tutorial_requested.connect(_on_hud_live_tutorial_requested)
 
 	# Connect Player signals
 	player.died.connect(_on_player_died)
@@ -456,11 +461,15 @@ func _reset_world_state() -> void:
 	hud.update_seed(run_seed)
 	_refill_skill_bag()
 
-	# Initial opening chunks: exciting gem-arc breather + single hop + crate step hurdle (>= 3 chunks preloaded)
+	# Initial opening chunks: keep runway clear if entering Tutorial, otherwise normal exciting opening chunks
 	_spawn_left_ground_extension()
-	_spawn_chunk_by_index(0, true)  # Chunk 1: Opening gem arc breather (0..480)
-	_spawn_chunk_by_index(1, true)  # Chunk 2: First low hop + glittering gem arc (480..960)
-	_spawn_chunk_by_index(5, true)  # Chunk 3: Stepping crate + reward trail (960..1440)
+	_spawn_chunk_by_index(0, not tutorial_active) # Chunk 1: Opening gem arc breather (0..480)
+	if tutorial_active or (current_mode == 3 and _practice_entry_pending):
+		_spawn_chunk_by_index(0, false)
+		_spawn_chunk_by_index(0, false)
+	else:
+		_spawn_chunk_by_index(1, true)  # Chunk 2: First low hop + glittering gem arc (480..960)
+		_spawn_chunk_by_index(5, true)  # Chunk 3: Stepping crate + reward trail (960..1440)
 
 func _physics_process(delta: float) -> void:
 	if not is_game_started or is_game_over or is_paused:
@@ -961,6 +970,8 @@ func _on_hazard_destroyed(hazard: Hazard) -> void:
 	_hitstop_timer = maxf(_hitstop_timer, 0.032)
 
 func _on_bounce_pad_triggered(_body: Node2D, _force: float, pad: BouncePad) -> void:
+	if tutorial_active and tutorial_phase == 3:
+		_tut_bounce_done = true
 	audio_manager.play_bounce()
 	if fx_manager and is_instance_valid(pad):
 		fx_manager.spawn_burst(pad.global_position + Vector2(0, -6), Color(0.45, 1.0, 0.55), 10, 110.0, PI, 2.5, 180.0, 0.35)
@@ -1352,6 +1363,18 @@ func _trigger_world_transition() -> void:
 # Live Interactive Tutorial, Adaptive Hints, Section Practice & Custom Maps
 # ==============================================================================
 
+func _on_hud_live_tutorial_requested() -> void:
+	_practice_entry_pending = false
+	practice_section_index = -1
+	custom_map_active = false
+	tutorial_active = true
+	get_tree().paused = false
+	is_paused = false
+	hud.select_mode(3)
+	current_mode = 3
+	start_new_run()
+	start_live_tutorial()
+
 func _on_start_live_tutorial() -> void:
 	_practice_entry_pending = false
 	practice_section_index = -1
@@ -1364,6 +1387,7 @@ func _on_start_live_tutorial() -> void:
 func _on_skip_to_practice() -> void:
 	_practice_entry_pending = false
 	tutorial_active = false
+	_clear_tutorial_lane_hazards()
 	get_tree().paused = false
 	is_paused = false
 	if save_service and not save_service.is_first_launch_completed():
@@ -1372,6 +1396,21 @@ func _on_skip_to_practice() -> void:
 		hud.practice_hub.hide_tutorial_banner()
 		hud.practice_hub.show_practice_bar("🛡 FREE PRACTICE • NO DEATH • NO SCORE")
 
+func _clear_tutorial_lane_hazards() -> void:
+	if _tut_target_node and is_instance_valid(_tut_target_node):
+		_tut_target_node.queue_free()
+	_tut_target_node = null
+	if chunk_container == null:
+		return
+	var cutoff: float = player.global_position.x - 40.0
+	for ch in chunk_container.get_children():
+		if ch.is_in_group("hazards") or ch is BouncePad:
+			if ch.global_position.x >= cutoff:
+				ch.queue_free()
+		for sub in ch.get_children():
+			if (sub is Hazard or sub is BouncePad or sub.name.begins_with("Obstacle")) and sub.global_position.x >= cutoff:
+				sub.queue_free()
+
 func start_live_tutorial() -> void:
 	tutorial_active = true
 	tutorial_phase = 0
@@ -1379,67 +1418,91 @@ func start_live_tutorial() -> void:
 	_tut_short_jump_done = false
 	_tut_long_jump_done = false
 	_tut_slide_done = false
+	_tut_bounce_done = false
 	_tut_skill_done = false
+	_tut_hit_current_obstacle = false
 	_tut_phase_timer = 0.0
+	_tut_celebrate_timer = 0.0
+	_clear_tutorial_lane_hazards()
 	if hud.practice_hub:
 		hud.practice_hub.hide_practice_bar()
+		hud.practice_hub.hide_adaptive_hint()
 	_setup_tutorial_phase(0)
 
 func _setup_tutorial_phase(phase: int) -> void:
 	tutorial_phase = phase
 	_tut_phase_timer = 0.0
+	_tut_hit_current_obstacle = false
+	_tut_jump_hold_accum = 0.0
+	_tut_short_jump_done = false
+	_tut_long_jump_done = false
+	_tut_slide_done = false
+	_tut_bounce_done = false
+	_tut_skill_done = false
+	if _tut_target_node and is_instance_valid(_tut_target_node):
+		_tut_target_node.queue_free()
+	_tut_target_node = null
 	if not hud.practice_hub:
 		return
 	match phase:
 		0:
 			hud.practice_hub.show_tutorial_step(
 				"STEP 1/5 • TAP JUMP",
-				"Your Dino runs automatically. TAP Jump briefly for a quick low hop over the small cactus!",
-				"TAP\nJUMP", Color(0.22, 0.65, 0.35), "Tap Jump once!"
+				"Your Dino runs automatically. TAP Jump over the cactus! (Space / W / Tap Right)",
+				"TAP\nJUMP", Color(0.22, 0.65, 0.35), "Tap Jump to clear the cactus!"
 			)
-			_spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_ground_low.tscn", Vector2(player.global_position.x + 280.0, 224.0))
+			_tut_target_node = _spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_ground_low.tscn", Vector2(player.global_position.x + 260.0, 230.0))
 		1:
 			hud.practice_hub.show_tutorial_step(
 				"STEP 2/5 • HOLD FOR HIGH JUMP",
-				"Jump height depends on press duration! HOLD Jump longer to soar high over the tall crate!",
-				"HOLD\nJUMP", Color(0.25, 0.55, 0.92), "Hold Jump to clear higher!"
+				"HOLD Jump longer to jump higher and clear the tall wooden crate!",
+				"HOLD\nJUMP", Color(0.25, 0.55, 0.92), "Hold Jump over the crate!"
 			)
-			_spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_crate_block.tscn", Vector2(player.global_position.x + 300.0, 212.0))
+			_tut_target_node = _spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_crate_block.tscn", Vector2(player.global_position.x + 280.0, 230.0))
 		2:
 			hud.practice_hub.show_tutorial_step(
 				"STEP 3/5 • DUCK / SLIDE & DIVE",
-				"Hold SLIDE (Down) to duck under stone arches! In mid-air, tap SLIDE to fast-dive!",
-				"SLIDE\n▼", Color(0.85, 0.55, 0.2), "Slide under the arch!"
+				"Hold SLIDE (Down / S / Left) to duck under the stone arch! Mid-air slide fast-dives!",
+				"SLIDE\n▼", Color(0.85, 0.55, 0.2), "Slide underneath the stone arch!"
 			)
-			_spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_overhang.tscn", Vector2(player.global_position.x + 300.0, 176.0))
+			_tut_target_node = _spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_overhang.tscn", Vector2(player.global_position.x + 280.0, 230.0))
 		3:
 			hud.practice_hub.show_tutorial_step(
-				"STEP 4/5 • BOUNCE & PLATFORMS",
-				"Hit Bounce Pads to launch skyward! Press Down on one-way platforms to drop through.",
-				"BOUNCE\n▲", Color(0.72, 0.42, 0.92), "Ride the bounce pad!"
+				"STEP 4/5 • BOUNCE PADS",
+				"Run or land directly onto glowing Bounce Pads to launch high into the sky!",
+				"BOUNCE\n▲", Color(0.72, 0.42, 0.92), "Touch the bounce pad to launch!"
 			)
-			_spawn_tutorial_obstacle("res://scenes/objects/bounce_mushroom.tscn", Vector2(player.global_position.x + 280.0, 220.0))
+			_tut_target_node = _spawn_tutorial_obstacle("res://scenes/objects/bounce_mushroom.tscn", Vector2(player.global_position.x + 260.0, 230.0))
 		4:
 			hud.practice_hub.show_tutorial_step(
 				"STEP 5/5 • SKILLS SHOWCASE",
-				"Press SKILL to unleash active powers! Here is Bone Blade — slash the wooden barrier ahead!",
-				"SKILL\n⚡", Color(0.95, 0.72, 0.2), "Activate your Skill!"
+				"Press SKILL (Button / E / 1) right before the Wooden Barrier to slash through it!",
+				"SKILL\n⚡", Color(0.95, 0.72, 0.2), "Slash the barrier with Bone Blade!"
 			)
 			if player.skill_manager:
 				player.skill_manager.equip_skill(SkillManager.SkillType.BONE_BLADE)
-			_spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_wooden_barrier.tscn", Vector2(player.global_position.x + 300.0, 208.0))
+			_tut_target_node = _spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_wooden_barrier.tscn", Vector2(player.global_position.x + 280.0, 216.0))
 
-func _spawn_tutorial_obstacle(scene_path: String, world_pos: Vector2) -> void:
+func _spawn_tutorial_obstacle(scene_path: String, world_pos: Vector2) -> Node2D:
 	if not ResourceLoader.exists(scene_path):
-		return
+		return null
 	var packed = load(scene_path) as PackedScene
 	if not packed:
-		return
+		return null
 	var inst = packed.instantiate() as Node2D
 	inst.position = world_pos
 	chunk_container.add_child(inst)
-	if inst is Hazard and not inst.destroyed.is_connected(_on_hazard_destroyed):
-		inst.destroyed.connect(_on_hazard_destroyed)
+	_wire_custom_node_recursive(inst)
+	return inst
+
+func _respawn_tutorial_target(scene_path: String, x_offset: float, y_pos: float, retry_hint: String) -> void:
+	if _tut_target_node and is_instance_valid(_tut_target_node):
+		_tut_target_node.queue_free()
+	_tut_hit_current_obstacle = false
+	_tut_phase_timer = 0.0
+	_tut_target_node = _spawn_tutorial_obstacle(scene_path, Vector2(player.global_position.x + x_offset, y_pos))
+	if hud.practice_hub:
+		hud.practice_hub.update_tutorial_status(retry_hint, false)
 
 func _update_live_tutorial(delta: float) -> void:
 	if _tut_celebrate_timer > 0.0:
@@ -1451,29 +1514,58 @@ func _update_live_tutorial(delta: float) -> void:
 				_finish_live_tutorial()
 		return
 	_tut_phase_timer += delta
+	var target_valid := _tut_target_node != null and is_instance_valid(_tut_target_node)
+	var target_x: float = _tut_target_node.global_position.x if target_valid else (player.global_position.x + 100.0)
+	var passed_target: bool = target_valid and (player.global_position.x > target_x + 30.0)
+
 	match tutorial_phase:
 		0:
-			if player.state_machine.current_state == PlayerStateMachine.State.JUMP_RISE:
+			if player.state_machine.current_state in [PlayerStateMachine.State.JUMP_RISE, PlayerStateMachine.State.JUMP_APEX, PlayerStateMachine.State.JUMP_FALL]:
 				_tut_short_jump_done = true
-			if _tut_short_jump_done and _tut_phase_timer > 1.8:
-				_advance_tutorial_phase()
+			if passed_target:
+				if _tut_short_jump_done and not _tut_hit_current_obstacle:
+					_advance_tutorial_phase()
+				else:
+					_tut_short_jump_done = false
+					_respawn_tutorial_target("res://scenes/obstacles/obstacle_ground_low.tscn", 260.0, 230.0, "Try again! Tap JUMP just before the cactus!")
 		1:
 			if player.is_jump_holding or Input.is_action_pressed("jump") or player.jump_held:
 				_tut_jump_hold_accum += delta
-			if _tut_jump_hold_accum >= 0.14 or _tut_phase_timer > 3.2:
+			if player.state_machine.current_state in [PlayerStateMachine.State.JUMP_RISE, PlayerStateMachine.State.JUMP_APEX] and _tut_jump_hold_accum >= 0.08:
 				_tut_long_jump_done = true
-				_advance_tutorial_phase()
+			if passed_target:
+				if (_tut_long_jump_done or _tut_jump_hold_accum >= 0.08) and not _tut_hit_current_obstacle:
+					_advance_tutorial_phase()
+				else:
+					_tut_long_jump_done = false
+					_tut_jump_hold_accum = 0.0
+					_respawn_tutorial_target("res://scenes/obstacles/obstacle_crate_block.tscn", 280.0, 230.0, "Hold JUMP longer to soar high over the crate!")
 		2:
-			if player.state_machine.current_state == PlayerStateMachine.State.SLIDE or player.state_machine.current_state == PlayerStateMachine.State.DIVE:
+			if player.state_machine.current_state in [PlayerStateMachine.State.SLIDE, PlayerStateMachine.State.DIVE]:
 				_tut_slide_done = true
-			if _tut_slide_done and _tut_phase_timer > 1.6:
-				_advance_tutorial_phase()
+			if passed_target:
+				if _tut_slide_done and not _tut_hit_current_obstacle:
+					_advance_tutorial_phase()
+				else:
+					_tut_slide_done = false
+					_respawn_tutorial_target("res://scenes/obstacles/obstacle_overhang.tscn", 280.0, 230.0, "Hold SLIDE (Down / Left) before the stone arch!")
 		3:
-			if _tut_phase_timer > 2.8:
+			if _tut_bounce_done and _tut_phase_timer > 0.35:
 				_advance_tutorial_phase()
+			elif passed_target and not _tut_bounce_done:
+				_respawn_tutorial_target("res://scenes/objects/bounce_mushroom.tscn", 260.0, 230.0, "Stay on ground to hit the Bounce Pad!")
 		4:
-			if _tut_skill_done and _tut_phase_timer > 1.5:
+			var barrier_broken: bool = (not target_valid) or (_tut_target_node is Hazard and (_tut_target_node as Hazard).is_destroyed)
+			if barrier_broken:
+				_tut_skill_done = true
 				_advance_tutorial_phase()
+			elif player.skill_manager and player.skill_manager.current_charges == 0 and player.skill_manager.cooldown_timer <= 0.0 and player.global_position.x < target_x - 24.0:
+				player.skill_manager.equip_skill(SkillManager.SkillType.BONE_BLADE)
+			elif passed_target:
+				if player.skill_manager:
+					player.skill_manager.equip_skill(SkillManager.SkillType.BONE_BLADE)
+				_tut_skill_done = false
+				_respawn_tutorial_target("res://scenes/obstacles/obstacle_wooden_barrier.tscn", 280.0, 216.0, "Press SKILL [E] right in front of the barrier!")
 
 func _advance_tutorial_phase() -> void:
 	if hud.practice_hub:
@@ -1486,16 +1578,17 @@ func _finish_live_tutorial() -> void:
 		save_service.set_first_launch_completed(true)
 	if hud.practice_hub:
 		hud.practice_hub.hide_tutorial_banner()
-		hud.practice_hub.show_practice_bar("🛡 FREE PRACTICE • TUTORIAL COMPLETE!")
-		hud.practice_hub.show_adaptive_hint("Tutorial complete! Try Skills Lab to test all 12 skills & pick which ones spawn in your maps!", 5.0)
+		hud.practice_hub.show_practice_bar("🛡 PRACTICE • TUTORIAL DONE!")
+		hud.practice_hub.show_adaptive_hint("Tutorial complete! Open Skills Lab to test all 12 skills & pick map spawns!", 5.0)
 
 func _on_practice_hit_absorbed(cause: String, hazard: Hazard) -> void:
 	audio_manager.play_shield_break()
 	if fx_manager:
 		fx_manager.spawn_floating_text(player.global_position + Vector2(0, -18), "NO DEATH!", Color(0.55, 0.95, 1.0), 1.0)
 	if tutorial_active:
+		_tut_hit_current_obstacle = true
 		if hud.practice_hub:
-			hud.practice_hub.update_tutorial_status("Oops! Try again — you can't die in Tutorial!", false)
+			hud.practice_hub.update_tutorial_status("Oops! Missed timing — spawning another!", false)
 		return
 	# Adaptive Hint tracking in Free Practice / Section Practice
 	var h_key := _classify_practice_hit(cause, hazard)
@@ -1555,9 +1648,9 @@ func _on_test_skill_requested(skill_id: int) -> void:
 	if player.skill_manager:
 		player.skill_manager.equip_skill(skill_id as SkillManager.SkillType)
 	# Spawn a live target ahead so the player can immediately see what the skill does!
-	_spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_wooden_barrier.tscn", Vector2(player.global_position.x + 260.0, 208.0))
+	_spawn_tutorial_obstacle("res://scenes/obstacles/obstacle_wooden_barrier.tscn", Vector2(player.global_position.x + 260.0, 216.0))
 	if hud.practice_hub:
-		hud.practice_hub.show_practice_bar("⚡ SKILLS LAB • PRESS SKILL TO TEST")
+		hud.practice_hub.show_practice_bar("⚡ SKILLS LAB • PRESS SKILL")
 
 func _on_section_practice_requested(chunk_idx: int, section_name: String) -> void:
 	_practice_entry_pending = false

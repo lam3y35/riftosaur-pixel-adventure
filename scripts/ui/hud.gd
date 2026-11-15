@@ -22,6 +22,7 @@ signal flight_up_requested(pressed: bool)
 signal flight_down_requested(pressed: bool)
 signal settings_changed()
 signal ui_interacted()
+signal live_tutorial_requested()
 
 @onready var top_bar: Control = $TopBar
 @onready var score_label: Label = $TopBar/ScoreLabel
@@ -302,10 +303,9 @@ func _ready() -> void:
 		credits_close_btn.pressed.connect(close_credits)
 
 	if start_tutorial_btn:
-		start_tutorial_btn.text = "⚡ SKILLS LAB"
+		start_tutorial_btn.text = "🎓 TUTORIAL"
 		start_tutorial_btn.pressed.connect(func():
-			if practice_hub:
-				practice_hub.open_skills_lab()
+			live_tutorial_requested.emit()
 		)
 	if tutorial_close_btn:
 		tutorial_close_btn.pressed.connect(close_tutorial)
@@ -388,6 +388,7 @@ func _make_box(bg: Color, border: Color, bw_side: int = 2, bw_bottom: int = 3, r
 func _style_arcade_button(btn: Button, bg: Color, border: Color, font_size: int = 10, font_col: Color = Color.WHITE) -> void:
 	if btn == null:
 		return
+	btn.focus_mode = Control.FOCUS_NONE
 	var normal = _make_box(bg, border, 2, 4, 6, 8, 3, 3)
 	var hover = _make_box(bg.lightened(0.14), border.lightened(0.2), 2, 4, 6, 8, 3, 4)
 	var pressed = _make_box(bg.darkened(0.15), border, 2, 2, 6, 8, 4, 1)
@@ -565,8 +566,10 @@ func _wire_menu_sfx() -> void:
 		retry_button, game_over_menu_button
 	]
 	for b in btns:
-		if b is Button and not b.pressed.is_connected(_emit_ui_interacted):
-			b.pressed.connect(_emit_ui_interacted)
+		if b is Button:
+			(b as Button).focus_mode = Control.FOCUS_NONE
+			if not b.pressed.is_connected(_emit_ui_interacted):
+				b.pressed.connect(_emit_ui_interacted)
 
 func _emit_ui_interacted() -> void:
 	ui_interacted.emit()
@@ -704,7 +707,7 @@ func _create_dynamic_ui() -> void:
 
 			var ic = TextureRect.new()
 			ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			ic.custom_minimum_size = Vector2(20, 20)
+			ic.custom_minimum_size = Vector2(16, 16)
 			ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			ic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -715,7 +718,7 @@ func _create_dynamic_ui() -> void:
 			lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			lb.text = "RDY"
-			lb.add_theme_font_size_override("font_size", 7)
+			lb.add_theme_font_size_override("font_size", 6)
 			lb.add_theme_constant_override("outline_size", 2)
 			lb.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
 			vb.add_child(lb)
@@ -831,24 +834,17 @@ func select_mode(mode: int) -> void:
 		_style_arcade_button(mode_practice_btn, active_bg if mode == 3 else idle_bg, active_border if mode == 3 else idle_border, 9)
 
 	var ps_on := _is_ps_controller_enabled()
-	if jump_button:
-		jump_button.visible = false
-		jump_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if slide_button:
-		slide_button.visible = false
-		slide_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
 	match mode:
 		0: # Arcade Jump (Spicy)
 			mode_desc_label.text = "⚡ Fast Spicy Speed • Pure Jump Reflexes • Tap Anywhere!"
 			if steer_left_btn: steer_left_btn.visible = false
 			if steer_right_btn: steer_right_btn.visible = false
 		1: # Runner
-			mode_desc_label.text = "🔥 Accelerating Speed • Tap Sides = Jump/Slide"
+			mode_desc_label.text = "🔥 Accelerating Speed • Jump & Slide Controls"
 			if steer_left_btn: steer_left_btn.visible = not ps_on
 			if steer_right_btn: steer_right_btn.visible = not ps_on
 		2: # Freestyle
-			mode_desc_label.text = "🌀 Steer Left(Air)/Right • Tap Sides = Jump/Duck"
+			mode_desc_label.text = "🌀 Steer Left(Air)/Right • Jump, Duck & Skills"
 			if steer_left_btn: steer_left_btn.visible = not ps_on
 			if steer_right_btn: steer_right_btn.visible = not ps_on
 		3: # Tutorial & Practice
@@ -888,6 +884,8 @@ func hide_start_menu() -> void:
 	if credits_dialog: credits_dialog.visible = false
 	if tutorial_dialog: tutorial_dialog.visible = false
 	touch_controls.visible = true
+	if get_viewport():
+		get_viewport().gui_release_focus()
 
 func update_hud(score: int, distance_m: float = 0.0, best_score: int = 0, points: int = 0) -> void:
 	var is_practice := (current_mode == 3)
@@ -1080,6 +1078,9 @@ func update_skill_status(cd: float, dur: float, charges: int) -> void:
 
 func show_skill_toast(message: String) -> void:
 	if skill_toast and skill_toast_label:
+		var top_y: float = 132.0 if (practice_hub and practice_hub.tutorial_banner and practice_hub.tutorial_banner.visible) else 84.0
+		skill_toast.offset_top = top_y
+		skill_toast.offset_bottom = top_y + 22.0
 		if _skill_toast_tween and _skill_toast_tween.is_valid():
 			_skill_toast_tween.kill()
 		skill_toast_label.text = message
@@ -1127,8 +1128,6 @@ func update_flight_timer(remaining: float, _total: float) -> void:
 func hide_flight_hud() -> void:
 	if flight_controls:
 		flight_controls.visible = false
-	if jump_button:
-		jump_button.visible = false
 	if skill_button:
 		skill_button.visible = _has_active_skill_button and (not _is_ps_controller_enabled())
 	if flight_timer_bar:
@@ -1202,6 +1201,8 @@ func show_pause_menu() -> void:
 func hide_pause_menu() -> void:
 	pause_menu.visible = false
 	touch_controls.visible = true
+	if get_viewport():
+		get_viewport().gui_release_focus()
 
 # ==========================================
 # Skin Shop Implementation
@@ -1759,14 +1760,9 @@ func _handle_touch_down(index: int, pos: Vector2) -> void:
 
 	var vp_rect := get_viewport().get_visible_rect().size
 	var vp_width := vp_rect.x
-	var vp_height := vp_rect.y
 	var split_x := vp_width * 0.5
 
 	if pos.y < 34.0:
-		return
-
-	# Reserve the bottom control dock below the ground so tapping near steer/skill buttons doesn't jump/slide
-	if not _is_ps_controller_enabled() and pos.y >= vp_height - 36.0:
 		return
 
 	if flight_controls and flight_controls.visible:
@@ -2201,27 +2197,46 @@ func apply_control_layout(is_left_handed: bool) -> void:
 	if not touch_controls:
 		return
 	var ps_on := _is_ps_controller_enabled()
+	var in_flight := flight_controls != null and flight_controls.visible
+	var show_pads := (not ps_on) and (not in_flight)
+	var show_slide := show_pads and (current_mode != 0)
+	var show_steer := show_pads and (current_mode != 0)
 
-	# Jump and Slide are invisible screen-side touch zones (kept anchored for test compatibility)
+	# Keep Jump & Slide buttons clearly visible & responsive (hidden only in PS4 mode or Flight)
 	if jump_button:
-		jump_button.visible = false
-		jump_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		jump_button.focus_mode = Control.FOCUS_NONE
+		jump_button.visible = show_pads
+		jump_button.mouse_filter = Control.MOUSE_FILTER_STOP if show_pads else Control.MOUSE_FILTER_IGNORE
 	if slide_button:
-		slide_button.visible = false
-		slide_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slide_button.focus_mode = Control.FOCUS_NONE
+		slide_button.visible = show_slide
+		slide_button.mouse_filter = Control.MOUSE_FILTER_STOP if show_slide else Control.MOUSE_FILTER_IGNORE
 
-	# Bottom dock strip below the ground (y = -32..-2), placed on the OPPOSITE side of Jump
-	var dock_top := -32.0
-	var dock_bot := -2.0
+	var pad_top := -42.0
+	var pad_bot := -4.0
+	var sub_top := -36.0
+	var sub_bot := -4.0
 
 	if is_left_handed:
-		# Jump is on LEFT -> Steer & Skills go on RIGHT bottom dock
+		# Left-handed: Jump + Skills on BOTTOM LEFT, Slide + Steer on BOTTOM RIGHT
 		if jump_button:
 			jump_button.anchor_left = 0.0
 			jump_button.anchor_right = 0.0
+			jump_button.anchor_top = 1.0
+			jump_button.anchor_bottom = 1.0
+			jump_button.offset_left = 8.0
+			jump_button.offset_right = 80.0
+			jump_button.offset_top = pad_top
+			jump_button.offset_bottom = pad_bot
 		if slide_button:
 			slide_button.anchor_left = 1.0
 			slide_button.anchor_right = 1.0
+			slide_button.anchor_top = 1.0
+			slide_button.anchor_bottom = 1.0
+			slide_button.offset_left = -78.0
+			slide_button.offset_right = -8.0
+			slide_button.offset_top = pad_top
+			slide_button.offset_bottom = pad_bot
 
 		if flight_controls:
 			flight_controls.visible = false if ps_on else flight_controls.visible
@@ -2231,49 +2246,63 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			flight_controls.offset_right = 160.0
 
 		if steer_left_btn and steer_right_btn:
-			var show_steer := (not ps_on) and (current_mode != 0)
+			steer_left_btn.focus_mode = Control.FOCUS_NONE
+			steer_right_btn.focus_mode = Control.FOCUS_NONE
 			steer_left_btn.visible = show_steer
 			steer_right_btn.visible = show_steer
-			steer_left_btn.anchor_left = 1.0
-			steer_left_btn.anchor_right = 1.0
-			steer_left_btn.anchor_top = 1.0
-			steer_left_btn.anchor_bottom = 1.0
-			steer_left_btn.offset_left = -88.0
-			steer_left_btn.offset_right = -50.0
-			steer_left_btn.offset_top = dock_top
-			steer_left_btn.offset_bottom = dock_bot
-
 			steer_right_btn.anchor_left = 1.0
 			steer_right_btn.anchor_right = 1.0
 			steer_right_btn.anchor_top = 1.0
 			steer_right_btn.anchor_bottom = 1.0
-			steer_right_btn.offset_left = -46.0
-			steer_right_btn.offset_right = -8.0
-			steer_right_btn.offset_top = dock_top
-			steer_right_btn.offset_bottom = dock_bot
+			steer_right_btn.offset_left = -116.0
+			steer_right_btn.offset_right = -84.0
+			steer_right_btn.offset_top = sub_top
+			steer_right_btn.offset_bottom = sub_bot
+
+			steer_left_btn.anchor_left = 1.0
+			steer_left_btn.anchor_right = 1.0
+			steer_left_btn.anchor_top = 1.0
+			steer_left_btn.anchor_bottom = 1.0
+			steer_left_btn.offset_left = -152.0
+			steer_left_btn.offset_right = -120.0
+			steer_left_btn.offset_top = sub_top
+			steer_left_btn.offset_bottom = sub_bot
 
 		for i in range(skill_slot_buttons.size()):
 			var sb: Button = skill_slot_buttons[i]
 			if sb == null:
 				continue
+			sb.focus_mode = Control.FOCUS_NONE
 			if ps_on:
 				sb.visible = false
-			sb.anchor_left = 1.0
-			sb.anchor_right = 1.0
+			sb.anchor_left = 0.0
+			sb.anchor_right = 0.0
 			sb.anchor_top = 1.0
 			sb.anchor_bottom = 1.0
-			sb.offset_right = -94.0 - float(i) * 42.0
-			sb.offset_left = sb.offset_right - 38.0
-			sb.offset_top = dock_top
-			sb.offset_bottom = dock_bot
+			sb.offset_left = 86.0 + float(i) * 38.0
+			sb.offset_right = sb.offset_left + 34.0
+			sb.offset_top = sub_top
+			sb.offset_bottom = sub_bot
 	else:
-		# Jump is on RIGHT -> Steer & Skills go on LEFT bottom dock
+		# Right-handed: Slide + Steer on BOTTOM LEFT, Jump + Skills on BOTTOM RIGHT
 		if jump_button:
 			jump_button.anchor_left = 1.0
 			jump_button.anchor_right = 1.0
+			jump_button.anchor_top = 1.0
+			jump_button.anchor_bottom = 1.0
+			jump_button.offset_left = -80.0
+			jump_button.offset_right = -8.0
+			jump_button.offset_top = pad_top
+			jump_button.offset_bottom = pad_bot
 		if slide_button:
 			slide_button.anchor_left = 0.0
 			slide_button.anchor_right = 0.0
+			slide_button.anchor_top = 1.0
+			slide_button.anchor_bottom = 1.0
+			slide_button.offset_left = 8.0
+			slide_button.offset_right = 78.0
+			slide_button.offset_top = pad_top
+			slide_button.offset_bottom = pad_bot
 
 		if flight_controls:
 			flight_controls.visible = false if ps_on else flight_controls.visible
@@ -2283,41 +2312,43 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			flight_controls.offset_right = -14.0
 
 		if steer_left_btn and steer_right_btn:
-			var show_steer := (not ps_on) and (current_mode != 0)
+			steer_left_btn.focus_mode = Control.FOCUS_NONE
+			steer_right_btn.focus_mode = Control.FOCUS_NONE
 			steer_left_btn.visible = show_steer
 			steer_right_btn.visible = show_steer
 			steer_left_btn.anchor_left = 0.0
 			steer_left_btn.anchor_right = 0.0
 			steer_left_btn.anchor_top = 1.0
 			steer_left_btn.anchor_bottom = 1.0
-			steer_left_btn.offset_left = 8.0
-			steer_left_btn.offset_right = 46.0
-			steer_left_btn.offset_top = dock_top
-			steer_left_btn.offset_bottom = dock_bot
+			steer_left_btn.offset_left = 84.0
+			steer_left_btn.offset_right = 116.0
+			steer_left_btn.offset_top = sub_top
+			steer_left_btn.offset_bottom = sub_bot
 
 			steer_right_btn.anchor_left = 0.0
 			steer_right_btn.anchor_right = 0.0
 			steer_right_btn.anchor_top = 1.0
 			steer_right_btn.anchor_bottom = 1.0
-			steer_right_btn.offset_left = 50.0
-			steer_right_btn.offset_right = 88.0
-			steer_right_btn.offset_top = dock_top
-			steer_right_btn.offset_bottom = dock_bot
+			steer_right_btn.offset_left = 120.0
+			steer_right_btn.offset_right = 152.0
+			steer_right_btn.offset_top = sub_top
+			steer_right_btn.offset_bottom = sub_bot
 
 		for i in range(skill_slot_buttons.size()):
 			var sb: Button = skill_slot_buttons[i]
 			if sb == null:
 				continue
+			sb.focus_mode = Control.FOCUS_NONE
 			if ps_on:
 				sb.visible = false
-			sb.anchor_left = 0.0
-			sb.anchor_right = 0.0
+			sb.anchor_left = 1.0
+			sb.anchor_right = 1.0
 			sb.anchor_top = 1.0
 			sb.anchor_bottom = 1.0
-			sb.offset_left = 94.0 + float(i) * 42.0
-			sb.offset_right = sb.offset_left + 38.0
-			sb.offset_top = dock_top
-			sb.offset_bottom = dock_bot
+			sb.offset_right = -86.0 - float(i) * 38.0
+			sb.offset_left = sb.offset_right - 34.0
+			sb.offset_top = sub_top
+			sb.offset_bottom = sub_bot
 
 func open_credits() -> void:
 	if credits_dialog:

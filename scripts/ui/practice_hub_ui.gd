@@ -30,19 +30,19 @@ const PRACTICE_SECTIONS: Array[Dictionary] = [
 ]
 
 const BUILDER_PALETTE: Array[Dictionary] = [
-	{"id": "cactus", "label": "Cactus", "color": Color(0.25, 0.82, 0.35), "default_y": 216.0},
-	{"id": "overhang", "label": "Arch", "color": Color(0.65, 0.58, 0.48), "default_y": 176.0},
-	{"id": "crate", "label": "Crate", "color": Color(0.82, 0.55, 0.25), "default_y": 212.0},
-	{"id": "barrier", "label": "Barrier", "color": Color(0.72, 0.38, 0.22), "default_y": 208.0},
-	{"id": "crawler", "label": "Crawler", "color": Color(0.95, 0.35, 0.35), "default_y": 216.0},
-	{"id": "flyer", "label": "Flyer", "color": Color(0.92, 0.45, 0.78), "default_y": 152.0},
-	{"id": "lava", "label": "Lava", "color": Color(1.0, 0.38, 0.12), "default_y": 228.0},
-	{"id": "platform", "label": "Platform", "color": Color(0.45, 0.78, 0.95), "default_y": 168.0},
-	{"id": "bounce", "label": "Bounce", "color": Color(0.95, 0.85, 0.25), "default_y": 220.0},
-	{"id": "wind", "label": "Wind", "color": Color(0.55, 0.95, 0.95), "default_y": 216.0},
-	{"id": "gem", "label": "Gem", "color": Color(1.0, 0.78, 0.15), "default_y": 172.0},
-	{"id": "skill", "label": "Skill", "color": Color(0.75, 0.45, 1.0), "default_y": 176.0},
-	{"id": "eraser", "label": "Erase", "color": Color(0.9, 0.2, 0.2), "default_y": 216.0}
+	{"id": "cactus", "label": "Cactus", "color": Color(0.25, 0.82, 0.35), "default_y": 230.0, "ground_locked": true},
+	{"id": "overhang", "label": "Arch", "color": Color(0.65, 0.58, 0.48), "default_y": 230.0, "ground_locked": true},
+	{"id": "crate", "label": "Crate", "color": Color(0.82, 0.55, 0.25), "default_y": 230.0, "ground_locked": true},
+	{"id": "barrier", "label": "Barrier", "color": Color(0.72, 0.38, 0.22), "default_y": 216.0, "ground_locked": true},
+	{"id": "crawler", "label": "Crawler", "color": Color(0.95, 0.35, 0.35), "default_y": 222.0, "ground_locked": true},
+	{"id": "flyer", "label": "Flyer", "color": Color(0.92, 0.45, 0.78), "default_y": 156.0, "ground_locked": false},
+	{"id": "lava", "label": "Lava", "color": Color(1.0, 0.38, 0.12), "default_y": 230.0, "ground_locked": true},
+	{"id": "platform", "label": "Platform", "color": Color(0.45, 0.78, 0.95), "default_y": 172.0, "ground_locked": false},
+	{"id": "bounce", "label": "Bounce", "color": Color(0.95, 0.85, 0.25), "default_y": 230.0, "ground_locked": true},
+	{"id": "wind", "label": "Wind", "color": Color(0.55, 0.95, 0.95), "default_y": 230.0, "ground_locked": true},
+	{"id": "gem", "label": "Gem", "color": Color(1.0, 0.78, 0.15), "default_y": 176.0, "ground_locked": false},
+	{"id": "skill", "label": "Skill", "color": Color(0.75, 0.45, 1.0), "default_y": 180.0, "ground_locked": false},
+	{"id": "eraser", "label": "Erase", "color": Color(0.9, 0.2, 0.2), "default_y": 216.0, "ground_locked": false}
 ]
 
 var save_service: SaveService = null
@@ -87,11 +87,47 @@ var builder_saved_maps_hbox: HBoxContainer
 var builder_info_label: Label
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_ui()
+	_sync_viewport_rect()
+	if get_viewport() and not get_viewport().size_changed.is_connected(_sync_viewport_rect):
+		get_viewport().size_changed.connect(_sync_viewport_rect)
 	hide_all()
+
+func _sync_viewport_rect() -> void:
+	var vp := get_viewport()
+	if vp == null:
+		return
+	var vis: Rect2 = vp.get_visible_rect()
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if practice_bar:
+		var bar_right: float = clampf(vis.size.x - 142.0, 210.0, 336.0)
+		practice_bar.offset_left = 6.0
+		practice_bar.offset_top = 3.0
+		practice_bar.offset_right = bar_right
+		practice_bar.offset_bottom = 28.0
+	_clamp_panel_to_viewport(entry_panel, Vector2(356.0, 188.0), vis.size)
+	_clamp_panel_to_viewport(skills_lab_dialog, Vector2(436.0, 236.0), vis.size)
+	_clamp_panel_to_viewport(section_dialog, Vector2(420.0, 236.0), vis.size)
+	_clamp_panel_to_viewport(builder_dialog, Vector2(452.0, 240.0), vis.size)
+
+func _clamp_panel_to_viewport(p: Control, target_size: Vector2, vp_size: Vector2) -> void:
+	if p == null:
+		return
+	var w: float = minf(target_size.x, maxf(280.0, vp_size.x - 16.0))
+	var h: float = minf(target_size.y, maxf(160.0, vp_size.y - 16.0))
+	p.anchor_left = 0.5
+	p.anchor_right = 0.5
+	p.anchor_top = 0.5
+	p.anchor_bottom = 0.5
+	p.offset_left = -w * 0.5
+	p.offset_right = w * 0.5
+	p.offset_top = -h * 0.5
+	p.offset_bottom = h * 0.5
+	p.size = Vector2(w, h)
+	p.position = (vp_size - Vector2(w, h)) * 0.5
 
 func bind_save_service(sv: SaveService) -> void:
 	save_service = sv
@@ -113,6 +149,7 @@ func hide_all() -> void:
 
 func show_entry_choice() -> void:
 	hide_all()
+	_sync_viewport_rect()
 	if entry_panel:
 		entry_panel.visible = true
 
@@ -120,7 +157,8 @@ func hide_entry_choice() -> void:
 	if entry_panel:
 		entry_panel.visible = false
 
-func show_practice_bar(mode_text: String = "FREE PRACTICE • NO DEATH • NO SCORE") -> void:
+func show_practice_bar(mode_text: String = "FREE PRACTICE • NO DEATH") -> void:
+	_sync_viewport_rect()
 	if practice_bar:
 		practice_bar.visible = true
 	if practice_status_label:
@@ -131,6 +169,9 @@ func hide_practice_bar() -> void:
 		practice_bar.visible = false
 
 func show_tutorial_step(title_txt: String, body_txt: String, badge_txt: String, badge_color: Color, status_txt: String = "Try it now!") -> void:
+	_sync_viewport_rect()
+	if hint_banner:
+		hint_banner.visible = false
 	if tutorial_banner:
 		tutorial_banner.visible = true
 	if tutorial_step_title:
@@ -139,6 +180,7 @@ func show_tutorial_step(title_txt: String, body_txt: String, badge_txt: String, 
 		tutorial_step_body.text = body_txt
 	if tutorial_step_status:
 		tutorial_step_status.text = status_txt
+		tutorial_step_status.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
 	if tutorial_icon_rect:
 		tutorial_icon_rect.color = badge_color
 	if tutorial_icon_label:
@@ -154,6 +196,9 @@ func hide_tutorial_banner() -> void:
 		tutorial_banner.visible = false
 
 func show_adaptive_hint(text_msg: String, duration: float = 5.5) -> void:
+	if tutorial_banner and tutorial_banner.visible:
+		return
+	_sync_viewport_rect()
 	if hint_banner and hint_label:
 		hint_label.text = "💡 TIP: " + text_msg
 		hint_banner.visible = true
@@ -165,6 +210,7 @@ func hide_adaptive_hint() -> void:
 	_hint_timer = 0.0
 
 func open_skills_lab() -> void:
+	_sync_viewport_rect()
 	_refresh_skills_lab()
 	if skills_lab_dialog:
 		skills_lab_dialog.visible = true
@@ -176,6 +222,7 @@ func close_skills_lab() -> void:
 	modal_closed.emit()
 
 func open_section_practice() -> void:
+	_sync_viewport_rect()
 	if section_dialog:
 		section_dialog.visible = true
 	modal_opened.emit()
@@ -186,6 +233,7 @@ func close_section_practice() -> void:
 	modal_closed.emit()
 
 func open_map_builder() -> void:
+	_sync_viewport_rect()
 	_refresh_saved_maps_bar()
 	if builder_canvas:
 		builder_canvas.queue_redraw()
@@ -231,11 +279,12 @@ func _make_panel_style(bg: Color, border: Color) -> StyleBoxFlat:
 	return sb
 
 func _style_btn(btn: Button, bg: Color, border: Color, font_size: int = 9) -> void:
+	btn.focus_mode = Control.FOCUS_NONE
 	var n = _make_panel_style(bg, border)
-	n.content_margin_left = 8
-	n.content_margin_right = 8
-	n.content_margin_top = 4
-	n.content_margin_bottom = 4
+	n.content_margin_left = 7
+	n.content_margin_right = 7
+	n.content_margin_top = 3
+	n.content_margin_bottom = 3
 	btn.add_theme_stylebox_override("normal", n)
 	var h = n.duplicate()
 	h.bg_color = bg.lightened(0.14)
@@ -262,26 +311,33 @@ func _build_entry_panel() -> void:
 	entry_panel.anchor_right = 0.5
 	entry_panel.anchor_top = 0.5
 	entry_panel.anchor_bottom = 0.5
-	entry_panel.offset_left = -185
-	entry_panel.offset_right = 185
-	entry_panel.offset_top = -105
-	entry_panel.offset_bottom = 105
-	entry_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.16, 0.96), Color(0.35, 0.78, 0.95)))
+	entry_panel.offset_left = -178
+	entry_panel.offset_right = 178
+	entry_panel.offset_top = -94
+	entry_panel.offset_bottom = 94
+	entry_panel.clip_contents = true
+	entry_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.16, 0.97), Color(0.35, 0.78, 0.95)))
 	add_child(entry_panel)
 
 	var vb = VBoxContainer.new()
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vb.custom_minimum_size = Vector2(336, 0)
+	vb.alignment = BoxContainer.ALIGNMENT_CENTER
 	vb.add_theme_constant_override("separation", 6)
 	entry_panel.add_child(vb)
 
 	var title = Label.new()
 	title.text = "TUTORIAL & PRACTICE"
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_font_size_override("font_size", 13)
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	vb.add_child(title)
 
 	var sub = Label.new()
-	sub.text = "Live playable training • Zero death • Test all 12 skills • Build maps"
+	sub.text = "Live training • Zero death • 12 Skills • Map Builder"
+	sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sub.custom_minimum_size = Vector2(320, 0)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sub.add_theme_font_size_override("font_size", 8)
@@ -355,39 +411,45 @@ func _build_tutorial_banner() -> void:
 	tutorial_banner.anchor_left = 0.5
 	tutorial_banner.anchor_right = 0.5
 	tutorial_banner.anchor_top = 0.0
-	tutorial_banner.offset_left = -180
-	tutorial_banner.offset_right = 180
-	tutorial_banner.offset_top = 34
-	tutorial_banner.offset_bottom = 104
+	tutorial_banner.offset_left = -184
+	tutorial_banner.offset_right = 184
+	tutorial_banner.offset_top = 60
+	tutorial_banner.offset_bottom = 128
+	tutorial_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tutorial_banner.add_theme_stylebox_override("panel", _make_panel_style(Color(0.06, 0.10, 0.18, 0.92), Color(0.38, 0.85, 1.0)))
 	add_child(tutorial_banner)
 
 	var hb = HBoxContainer.new()
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hb.add_theme_constant_override("separation", 8)
 	tutorial_banner.add_child(hb)
 
 	tutorial_icon_rect = ColorRect.new()
-	tutorial_icon_rect.custom_minimum_size = Vector2(52, 48)
+	tutorial_icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tutorial_icon_rect.custom_minimum_size = Vector2(48, 44)
 	tutorial_icon_rect.color = Color(0.2, 0.55, 0.85)
 	hb.add_child(tutorial_icon_rect)
 
 	tutorial_icon_label = Label.new()
-	tutorial_icon_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tutorial_icon_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	tutorial_icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tutorial_icon_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	tutorial_icon_label.add_theme_font_size_override("font_size", 10)
+	tutorial_icon_label.add_theme_font_size_override("font_size", 9)
 	tutorial_icon_rect.add_child(tutorial_icon_label)
 
 	var vb = VBoxContainer.new()
+	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vb.add_theme_constant_override("separation", 2)
 	hb.add_child(vb)
 
 	var top_row = HBoxContainer.new()
+	top_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.add_child(top_row)
 
 	tutorial_step_title = Label.new()
 	tutorial_step_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tutorial_step_title.clip_text = true
 	tutorial_step_title.add_theme_font_size_override("font_size", 10)
 	tutorial_step_title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.32))
 	top_row.add_child(tutorial_step_title)
@@ -402,12 +464,16 @@ func _build_tutorial_banner() -> void:
 	top_row.add_child(tutorial_skip_btn)
 
 	tutorial_step_body = Label.new()
+	tutorial_step_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tutorial_step_body.custom_minimum_size = Vector2(220, 0)
 	tutorial_step_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tutorial_step_body.add_theme_font_size_override("font_size", 8)
 	tutorial_step_body.add_theme_color_override("font_color", Color(0.95, 0.96, 0.98))
 	vb.add_child(tutorial_step_body)
 
 	tutorial_step_status = Label.new()
+	tutorial_step_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tutorial_step_status.clip_text = true
 	tutorial_step_status.add_theme_font_size_override("font_size", 8)
 	tutorial_step_status.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
 	vb.add_child(tutorial_step_status)
@@ -420,16 +486,19 @@ func _build_hint_banner() -> void:
 	hint_banner.anchor_top = 0.0
 	hint_banner.offset_left = -180
 	hint_banner.offset_right = 180
-	hint_banner.offset_top = 34
-	hint_banner.offset_bottom = 78
+	hint_banner.offset_top = 60
+	hint_banner.offset_bottom = 102
+	hint_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hint_banner.add_theme_stylebox_override("panel", _make_panel_style(Color(0.18, 0.12, 0.05, 0.94), Color(1.0, 0.72, 0.2)))
 	add_child(hint_banner)
 
 	var hb = HBoxContainer.new()
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hint_banner.add_child(hb)
 
 	hint_label = Label.new()
 	hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hint_label.custom_minimum_size = Vector2(260, 0)
 	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint_label.add_theme_font_size_override("font_size", 8)
 	hint_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.72))
@@ -446,38 +515,46 @@ func _build_practice_bar() -> void:
 	practice_bar.name = "PracticeQuickBar"
 	practice_bar.anchor_left = 0.0
 	practice_bar.anchor_top = 0.0
-	practice_bar.offset_left = 8
-	practice_bar.offset_top = 4
-	practice_bar.offset_right = 330
-	practice_bar.offset_bottom = 30
-	practice_bar.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.14, 0.22, 0.88), Color(0.35, 0.75, 0.95)))
+	practice_bar.offset_left = 6
+	practice_bar.offset_top = 3
+	practice_bar.offset_right = 336
+	practice_bar.offset_bottom = 28
+	practice_bar.clip_contents = true
+	var bar_sb = _make_panel_style(Color(0.08, 0.14, 0.22, 0.9), Color(0.35, 0.75, 0.95))
+	bar_sb.content_margin_left = 6
+	bar_sb.content_margin_right = 6
+	bar_sb.content_margin_top = 2
+	bar_sb.content_margin_bottom = 2
+	practice_bar.add_theme_stylebox_override("panel", bar_sb)
 	add_child(practice_bar)
 
 	var hb = HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 4)
+	hb.add_theme_constant_override("separation", 3)
 	practice_bar.add_child(hb)
 
 	practice_status_label = Label.new()
-	practice_status_label.text = "🛡 PRACTICE • NO SCORE"
-	practice_status_label.add_theme_font_size_override("font_size", 8)
+	practice_status_label.text = "🛡 PRACTICE"
+	practice_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	practice_status_label.clip_text = true
+	practice_status_label.add_theme_font_size_override("font_size", 7)
 	practice_status_label.add_theme_color_override("font_color", Color(0.55, 0.92, 1.0))
 	hb.add_child(practice_status_label)
 
 	var b_skills = Button.new()
 	b_skills.text = "⚡Skills"
-	_style_btn(b_skills, Color(0.28, 0.2, 0.45), Color(0.7, 0.5, 0.95), 8)
+	_style_btn(b_skills, Color(0.28, 0.2, 0.45), Color(0.7, 0.5, 0.95), 7)
 	b_skills.pressed.connect(open_skills_lab)
 	hb.add_child(b_skills)
 
 	var b_sec = Button.new()
 	b_sec.text = "🎯Sections"
-	_style_btn(b_sec, Color(0.35, 0.25, 0.15), Color(0.9, 0.65, 0.3), 8)
+	_style_btn(b_sec, Color(0.35, 0.25, 0.15), Color(0.9, 0.65, 0.3), 7)
 	b_sec.pressed.connect(open_section_practice)
 	hb.add_child(b_sec)
 
 	var b_bld = Button.new()
 	b_bld.text = "🛠Builder"
-	_style_btn(b_bld, Color(0.18, 0.34, 0.32), Color(0.4, 0.85, 0.78), 8)
+	_style_btn(b_bld, Color(0.18, 0.34, 0.32), Color(0.4, 0.85, 0.78), 7)
 	b_bld.pressed.connect(open_map_builder)
 	hb.add_child(b_bld)
 
@@ -488,14 +565,16 @@ func _build_skills_lab_dialog() -> void:
 	skills_lab_dialog.anchor_right = 0.5
 	skills_lab_dialog.anchor_top = 0.5
 	skills_lab_dialog.anchor_bottom = 0.5
-	skills_lab_dialog.offset_left = -215
-	skills_lab_dialog.offset_right = 215
-	skills_lab_dialog.offset_top = -125
-	skills_lab_dialog.offset_bottom = 125
+	skills_lab_dialog.offset_left = -218
+	skills_lab_dialog.offset_right = 218
+	skills_lab_dialog.offset_top = -118
+	skills_lab_dialog.offset_bottom = 118
+	skills_lab_dialog.clip_contents = true
 	skills_lab_dialog.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.09, 0.15, 0.98), Color(0.72, 0.48, 1.0)))
 	add_child(skills_lab_dialog)
 
 	var vb = VBoxContainer.new()
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vb.add_theme_constant_override("separation", 5)
 	skills_lab_dialog.add_child(vb)
 
@@ -503,8 +582,9 @@ func _build_skills_lab_dialog() -> void:
 	vb.add_child(header)
 
 	var ttl = Label.new()
-	ttl.text = "⚡ SKILLS LAB • TEST & SELECT MAP SKILLS"
+	ttl.text = "⚡ SKILLS LAB • TEST & SELECT"
 	ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ttl.clip_text = true
 	ttl.add_theme_font_size_override("font_size", 10)
 	ttl.add_theme_color_override("font_color", Color(0.88, 0.72, 1.0))
 	header.add_child(ttl)
@@ -528,13 +608,19 @@ func _build_skills_lab_dialog() -> void:
 	header.add_child(cls_b)
 
 	var note = Label.new()
-	note.text = "Higher-tier skills (Epic/Legendary) spawn much more rarely in runs than Common skills!"
+	note.text = "Higher-tier skills (Epic/Legendary) spawn much more rarely in runs than Common!"
+	note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	note.custom_minimum_size = Vector2(380, 0)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.add_theme_font_size_override("font_size", 7)
 	note.add_theme_color_override("font_color", Color(0.75, 0.82, 0.92))
 	vb.add_child(note)
 
 	var scroll = ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	vb.add_child(scroll)
 
 	skills_list_vbox = VBoxContainer.new()
@@ -564,14 +650,18 @@ func _refresh_skills_lab() -> void:
 		var pct: float = (float(weight) / float(maxi(total_weight, 1))) * 100.0 if enabled.has(sk_id) else 0.0
 
 		var row_panel = PanelContainer.new()
+		row_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row_panel.clip_contents = true
 		row_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.12, 0.14, 0.22), tier_col * 0.7))
 		skills_list_vbox.add_child(row_panel)
 
 		var hb = HBoxContainer.new()
+		hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		hb.add_theme_constant_override("separation", 6)
 		row_panel.add_child(hb)
 
 		var chk = CheckBox.new()
+		chk.focus_mode = Control.FOCUS_NONE
 		chk.button_pressed = enabled.has(sk_id)
 		chk.text = ""
 		chk.toggled.connect(func(pressed: bool): _on_skill_toggled(sk_id, pressed))
@@ -588,12 +678,16 @@ func _refresh_skills_lab() -> void:
 
 		var name_lbl = Label.new()
 		name_lbl.text = "%s [%s] • Dur: %s%s" % [info.get("name", "Skill"), info.get("tier_name", "Common"), dur_str, rate_str]
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_lbl.clip_text = true
 		name_lbl.add_theme_font_size_override("font_size", 8)
 		name_lbl.add_theme_color_override("font_color", tier_col)
 		text_vb.add_child(name_lbl)
 
 		var desc_lbl = Label.new()
 		desc_lbl.text = str(info.get("desc", ""))
+		desc_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		desc_lbl.add_theme_font_size_override("font_size", 7)
 		desc_lbl.add_theme_color_override("font_color", Color(0.84, 0.88, 0.94))
 		text_vb.add_child(desc_lbl)
@@ -638,14 +732,16 @@ func _build_section_dialog() -> void:
 	section_dialog.anchor_right = 0.5
 	section_dialog.anchor_top = 0.5
 	section_dialog.anchor_bottom = 0.5
-	section_dialog.offset_left = -205
-	section_dialog.offset_right = 205
-	section_dialog.offset_top = -120
-	section_dialog.offset_bottom = 120
+	section_dialog.offset_left = -210
+	section_dialog.offset_right = 210
+	section_dialog.offset_top = -118
+	section_dialog.offset_bottom = 118
+	section_dialog.clip_contents = true
 	section_dialog.add_theme_stylebox_override("panel", _make_panel_style(Color(0.10, 0.09, 0.14, 0.98), Color(0.95, 0.68, 0.30)))
 	add_child(section_dialog)
 
 	var vb = VBoxContainer.new()
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vb.add_theme_constant_override("separation", 5)
 	section_dialog.add_child(vb)
 
@@ -653,8 +749,9 @@ func _build_section_dialog() -> void:
 	vb.add_child(header)
 
 	var ttl = Label.new()
-	ttl.text = "🎯 SECTION PRACTICE • DRILL SPECIFIC OBSTACLES"
+	ttl.text = "🎯 SECTION PRACTICE"
 	ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ttl.clip_text = true
 	ttl.add_theme_font_size_override("font_size", 10)
 	ttl.add_theme_color_override("font_color", Color(1.0, 0.82, 0.4))
 	header.add_child(ttl)
@@ -676,7 +773,10 @@ func _build_section_dialog() -> void:
 	header.add_child(cls_b)
 
 	var scroll = ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	vb.add_child(scroll)
 
 	section_list_vbox = VBoxContainer.new()
@@ -686,10 +786,14 @@ func _build_section_dialog() -> void:
 
 	for sec in PRACTICE_SECTIONS:
 		var row = PanelContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.clip_contents = true
 		row.add_theme_stylebox_override("panel", _make_panel_style(Color(0.14, 0.13, 0.20), Color(0.55, 0.42, 0.25)))
 		section_list_vbox.add_child(row)
 
 		var hb = HBoxContainer.new()
+		hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hb.add_theme_constant_override("separation", 6)
 		row.add_child(hb)
 
 		var tv = VBoxContainer.new()
@@ -698,12 +802,16 @@ func _build_section_dialog() -> void:
 
 		var n_lbl = Label.new()
 		n_lbl.text = sec["name"]
+		n_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		n_lbl.clip_text = true
 		n_lbl.add_theme_font_size_override("font_size", 9)
 		n_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.52))
 		tv.add_child(n_lbl)
 
 		var d_lbl = Label.new()
 		d_lbl.text = sec["desc"]
+		d_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		d_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		d_lbl.add_theme_font_size_override("font_size", 7)
 		d_lbl.add_theme_color_override("font_color", Color(0.84, 0.86, 0.92))
 		tv.add_child(d_lbl)
@@ -727,14 +835,16 @@ func _build_builder_dialog() -> void:
 	builder_dialog.anchor_right = 0.5
 	builder_dialog.anchor_top = 0.5
 	builder_dialog.anchor_bottom = 0.5
-	builder_dialog.offset_left = -228
-	builder_dialog.offset_right = 228
-	builder_dialog.offset_top = -128
-	builder_dialog.offset_bottom = 128
+	builder_dialog.offset_left = -226
+	builder_dialog.offset_right = 226
+	builder_dialog.offset_top = -120
+	builder_dialog.offset_bottom = 120
+	builder_dialog.clip_contents = true
 	builder_dialog.add_theme_stylebox_override("panel", _make_panel_style(Color(0.07, 0.11, 0.13, 0.98), Color(0.42, 0.9, 0.82)))
 	add_child(builder_dialog)
 
 	var vb = VBoxContainer.new()
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vb.add_theme_constant_override("separation", 4)
 	builder_dialog.add_child(vb)
 
@@ -745,7 +855,8 @@ func _build_builder_dialog() -> void:
 
 	builder_name_edit = LineEdit.new()
 	builder_name_edit.text = "My Custom Map"
-	builder_name_edit.custom_minimum_size = Vector2(95, 20)
+	builder_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	builder_name_edit.custom_minimum_size = Vector2(85, 20)
 	builder_name_edit.add_theme_font_size_override("font_size", 8)
 	top_hb.add_child(builder_name_edit)
 
@@ -803,9 +914,14 @@ func _build_builder_dialog() -> void:
 	canvas_scroll.add_child(builder_canvas)
 
 	# Row 4: Saved Maps + Actions
+	var saved_scroll = ScrollContainer.new()
+	saved_scroll.custom_minimum_size = Vector2(0, 22)
+	saved_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vb.add_child(saved_scroll)
+
 	builder_saved_maps_hbox = HBoxContainer.new()
 	builder_saved_maps_hbox.add_theme_constant_override("separation", 4)
-	vb.add_child(builder_saved_maps_hbox)
+	saved_scroll.add_child(builder_saved_maps_hbox)
 
 	var act_hb = HBoxContainer.new()
 	act_hb.add_theme_constant_override("separation", 5)
@@ -988,6 +1104,10 @@ class _BuilderTrackCanvas extends Control:
 						owner_ui.builder_items.remove_at(i)
 						break
 			else:
+				for p in PracticeHubUI.BUILDER_PALETTE:
+					if p["id"] == owner_ui.builder_selected_tool and bool(p.get("ground_locked", false)):
+						wy = float(p.get("default_y", 230.0))
+						break
 				owner_ui.builder_items.append({
 					"type": owner_ui.builder_selected_tool,
 					"x": wx,
