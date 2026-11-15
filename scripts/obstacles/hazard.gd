@@ -33,6 +33,26 @@ func _ready() -> void:
 			sprite.scale = Vector2(1.18, 1.18)
 	if not body_entered.is_connected(_on_body_entered):
 		body_entered.connect(_on_body_entered)
+	_apply_juice()
+
+func _apply_juice() -> void:
+	if sprite == null or sprite.texture == null:
+		return
+	var size: Vector2 = sprite.texture.get_size() * sprite.scale
+	if sprite.hframes > 1:
+		size.x /= float(sprite.hframes)
+	var bottom_y: float = sprite.position.y + sprite.offset.y * sprite.scale.y + size.y * 0.5
+	match category:
+		Category.AIRBORNE, Category.PROJECTILE:
+			AssetJuice.add_glow(self, Color(1.0, 0.25, 0.2), maxf(size.x, size.y) * 0.55, 0.18, sprite.position + sprite.offset)
+		Category.CRAWLER:
+			AssetJuice.add_glow(self, Color(1.0, 0.45, 0.15), size.x * 0.6, 0.2, sprite.position + sprite.offset)
+			AssetJuice.add_shadow(self, size.x * 0.9, bottom_y)
+		Category.ENVIRONMENTAL:
+			AssetJuice.add_glow(self, Color(1.0, 0.4, 0.1), size.x * 0.4, 0.2, sprite.position + sprite.offset)
+		_:
+			if size.y < 80.0:
+				AssetJuice.add_shadow(self, size.x * 0.95, bottom_y)
 
 func _process(delta: float) -> void:
 	if is_destroyed or sprite == null or sprite.hframes <= 1:
@@ -80,6 +100,7 @@ func destroy_hazard() -> void:
 	set_deferred("monitoring", false)
 	set_deferred("monitorable", false)
 	destroyed.emit(self)
+	AssetJuice.burst(self, global_position + Vector2(0, -8), Color(1.0, 0.7, 0.3), 18, 150.0, 0.5)
 	
 	if is_inside_tree():
 		var tw = create_tween()

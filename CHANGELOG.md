@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] - Asset visual pass
+
+### Changed
+- Obstacle, boost, pickup, platform and skill sprites re-shaded (stronger color, rim light, gradient, deeper outlines) via `tools/enhance_asset_pop.py` (originals backed up in `assets/sprites/_orig_before_pop/`).
+- Gem redrawn as a faceted crystal; dust puffs redrawn.
+
+### Added
+- `AssetJuice` (`scripts/effects/asset_juice.gd`): pulsing glow halos, ground shadows, twinkles and particle bursts on gems, pickups, bounce pads, hazards and on collect/destroy.
+
 ## [1.3.0] - 2026-11-15 (60 FPS Clarity, Controls, Skill Deck & Lab, 4 Traps, Hearts, Linked Map Builder & PS4 Overhaul)
 
 ### Added & Improved

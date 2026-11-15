@@ -25,6 +25,8 @@ func _ready() -> void:
 	base_y = position.y
 	bob_timer = randf() * TAU
 	add_to_group("skill_pickups")
+	AssetJuice.add_glow(self, Color(0.75, 0.45, 1.0), 26.0, 0.25)
+	AssetJuice.add_twinkle(self, Vector2(9, -9), Color(1, 0.95, 1, 1), 10.0)
 	body_entered.connect(_on_body_entered)
 	_ensure_tag_badge()
 	_update_visuals()
@@ -128,6 +130,7 @@ func collect(player: Player) -> void:
 		_tag_panel.visible = false
 	set_deferred("monitoring", false)
 	set_deferred("monitorable", false)
+	AssetJuice.burst(self, global_position, Color(0.8, 0.55, 1.0), 22, 160.0, 0.55)
 
 	if player and player.skill_manager:
 		player.skill_manager.equip_skill(skill_type)

@@ -26,6 +26,8 @@ func _ready() -> void:
 	collision_layer = 0
 	collision_mask = 1 # Detect Player (layer 1)
 	body_entered.connect(_on_body_entered)
+	AssetJuice.add_glow(self, Color(1.0, 0.85, 0.3), 20.0, 0.15, Vector2(0, -6))
+	AssetJuice.add_shadow(self, 26.0, 2.0)
 
 func _process(delta: float) -> void:
 	if current_state != State.IDLE:

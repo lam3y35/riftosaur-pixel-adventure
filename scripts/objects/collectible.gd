@@ -15,6 +15,9 @@ func _ready() -> void:
 	base_y = position.y
 	bob_timer = randf() * TAU
 	add_to_group("collectibles")
+	AssetJuice.add_glow(self, Color(0.3, 0.85, 1.0), 17.0, 0.2)
+	AssetJuice.add_twinkle(self, Vector2(4, -5), Color(1, 1, 1, 1), 9.0)
+	AssetJuice.add_twinkle(self, Vector2(-5, 3), Color(0.7, 0.95, 1.0, 1), 6.0)
 	body_entered.connect(_on_body_entered)
 
 func _physics_process(delta: float) -> void:
@@ -57,6 +60,7 @@ func collect(player: Player) -> void:
 		player.add_gems(gem_value, score_bonus)
 
 	collected.emit(self)
+	AssetJuice.burst(self, global_position, Color(0.5, 0.95, 1.0), 16, 130.0, 0.5)
 
 	# Visual collection pop
 	if is_inside_tree():

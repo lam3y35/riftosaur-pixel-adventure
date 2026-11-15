@@ -20,6 +20,8 @@ func _ready() -> void:
 	base_y = position.y
 	bob_timer = randf() * TAU
 	add_to_group("flight_pickups")
+	AssetJuice.add_glow(self, Color(1.0, 0.75, 0.3), 26.0, 0.22)
+	AssetJuice.add_twinkle(self, Vector2(8, -8), Color(1, 1, 0.8, 1), 10.0)
 	body_entered.connect(_on_body_entered)
 
 func _physics_process(delta: float) -> void:
@@ -45,6 +47,7 @@ func collect(player: Player) -> void:
 		player.start_flight(int(flight_type), flight_duration)
 
 	picked_up.emit(self)
+	AssetJuice.burst(self, global_position, Color(1.0, 0.8, 0.35), 22, 160.0, 0.55)
 
 	if is_inside_tree():
 		var tw = create_tween()
