@@ -15,6 +15,7 @@ const MAX_POINTS: int = 10000000
 const MAX_REWARD: int = 5000
 const MAX_RUNS: int = 1000000
 const MAX_SAVE_FILE_BYTES: int = 262144
+const MAX_ENABLED_MAP_SKILLS: int = 4
 
 const SKIN_CATALOG: Dictionary = {
 	"classic": 0,
@@ -107,7 +108,7 @@ func get_default_data() -> Dictionary:
 		"mode_best_scores": {"0": 0, "1": 0, "2": 0},
 		"mode_best_distances": {"0": 0.0, "1": 0.0, "2": 0.0},
 		"first_launch_completed": false,
-		"enabled_map_skills": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+		"enabled_map_skills": [1, 2, 3, 5],
 		"custom_maps": [],
 		"total_runs": 0,
 		"points": 50, # Welcome bonus for first time players
@@ -294,6 +295,8 @@ func _sanitize_data(raw: Dictionary) -> Dictionary:
 			var sk_id = _safe_int(sk, -1)
 			if sk_id >= 1 and sk_id <= 12 and not valid_skills.has(sk_id):
 				valid_skills.append(sk_id)
+				if valid_skills.size() >= MAX_ENABLED_MAP_SKILLS:
+					break
 		clean["enabled_map_skills"] = valid_skills
 
 	if typeof(raw.get("custom_maps", null)) == TYPE_ARRAY:
@@ -318,6 +321,8 @@ func _sanitize_data(raw: Dictionary) -> Dictionary:
 					"world_index": clampi(_safe_int(cm.get("world_index", 0), 0), 0, 3),
 					"speed_preset": clampi(_safe_int(cm.get("speed_preset", 1), 1), 0, 2),
 					"immortal": bool(cm.get("immortal", false)),
+					"length_px": clampf(_safe_float(cm.get("length_px", 1800.0), 1800.0), 960.0, 4800.0),
+					"linked_next_id": str(cm.get("linked_next_id", "")).substr(0, 48),
 					"items": items_clean
 				})
 		clean["custom_maps"] = valid_maps
@@ -539,13 +544,15 @@ func set_first_launch_completed(completed: bool = true, flush: bool = true) -> v
 		_dirty = true
 
 func get_enabled_map_skills() -> Array[int]:
-	var raw = data.get("enabled_map_skills", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+	var raw = data.get("enabled_map_skills", [1, 2, 3, 5])
 	var out: Array[int] = []
 	if typeof(raw) == TYPE_ARRAY:
 		for sk in raw:
 			var sk_id = _safe_int(sk, -1)
 			if sk_id >= 1 and sk_id <= 12 and not out.has(sk_id):
 				out.append(sk_id)
+				if out.size() >= MAX_ENABLED_MAP_SKILLS:
+					break
 	return out
 
 func set_enabled_map_skills(skills: Array[int], flush: bool = true) -> void:
@@ -553,6 +560,8 @@ func set_enabled_map_skills(skills: Array[int], flush: bool = true) -> void:
 	for sk in skills:
 		if sk >= 1 and sk <= 12 and not clean_list.has(sk):
 			clean_list.append(sk)
+			if clean_list.size() >= MAX_ENABLED_MAP_SKILLS:
+				break
 	data["enabled_map_skills"] = clean_list
 	if flush:
 		save_game()

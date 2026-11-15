@@ -350,12 +350,12 @@ func _check_stat(stat_type: String, value: int) -> void:
 		if c["type"] == stat_type:
 			if not save_service.is_challenge_completed(c["id"]):
 				if value >= c["target"]:
-					save_service.complete_challenge(c["id"], c["reward"])
-					challenge_unlocked.emit(c["id"], c["title"], c["reward"])
-					var xp_gain: int = int(c.get("xp", 50))
-					var lv_res: Dictionary = save_service.add_xp(xp_gain, true)
-					if lv_res.get("leveled_up", false):
-						level_up.emit(int(lv_res["new_level"]), int(lv_res["diamond_bonus"]))
+					if save_service.complete_challenge(c["id"], c["reward"]):
+						challenge_unlocked.emit(c["id"], c["title"], c["reward"])
+						var xp_gain: int = int(c.get("xp", 50))
+						var lv_res: Dictionary = save_service.add_xp(xp_gain, true)
+						if lv_res.get("leveled_up", false):
+							level_up.emit(int(lv_res["new_level"]), int(lv_res["diamond_bonus"]))
 
 func get_challenge_progress(ch: Dictionary) -> Dictionary:
 	var target: int = int(ch.get("target", 1))

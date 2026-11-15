@@ -368,11 +368,11 @@ func test_live_tutorial_ground_alignment_and_mechanic_advancement() -> Variant:
 		_destroy_runner(runner)
 		return "Tutorial Phase 1 crate should spawn on ground y=230.0"
 
-	# Advance Phase 1 -> 2 -> 3 -> 4 and verify wooden barrier y=216.0
-	runner._setup_tutorial_phase(4)
+	# Advance to Phase 6 (Final Skill + Barrier) and verify wooden barrier y=216.0
+	runner._setup_tutorial_phase(6)
 	if runner._tut_target_node == null or not is_equal_approx(runner._tut_target_node.position.y, 216.0):
 		_destroy_runner(runner)
-		return "Tutorial Phase 4 wooden barrier should spawn at ground-aligned y=216.0"
+		return "Tutorial Phase 6 wooden barrier should spawn at ground-aligned y=216.0"
 
 	_destroy_runner(runner)
 	return true

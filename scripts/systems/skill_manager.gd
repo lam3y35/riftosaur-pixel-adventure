@@ -222,6 +222,7 @@ var slots: Array[Dictionary] = []
 var active_slot_index: int = 0
 var cooldown_scale: float = 1.0
 var duration_scale: float = 1.0
+var skill_lab_infinite: bool = false
 
 var current_skill: SkillType = SkillType.NONE
 var current_charges: int = 0
@@ -443,6 +444,8 @@ func can_activate_slot(slot_idx: int) -> bool:
 			return false
 		if player.is_flying:
 			return false
+		if "trap_skill_jam_timer" in player and player.trap_skill_jam_timer > 0.0 and not skill_lab_infinite:
+			return false
 
 	if stype == SkillType.GROUND_SLAM:
 		if player != null and player.is_on_floor():
@@ -470,8 +473,12 @@ func activate_slot(slot_idx: int) -> bool:
 	var dur: float = float(info.get("duration", 0.0))
 	var cd: float = float(info.get("cooldown", 0.0))
 
-	sl["charges"] -= 1
-	sl["cooldown"] = cd * cooldown_scale
+	if skill_lab_infinite:
+		sl["charges"] = maxi(sl["max_charges"], 1)
+		sl["cooldown"] = minf(cd * cooldown_scale, 0.30)
+	else:
+		sl["charges"] -= 1
+		sl["cooldown"] = cd * cooldown_scale
 
 	if dur > 0.0:
 		sl["duration"] = dur * duration_scale
@@ -516,8 +523,13 @@ func update(delta: float) -> void:
 				_end_skill_effect(stype)
 				sl["is_active"] = false
 				skill_expired.emit(stype)
-				if sl["charges"] <= 0 and stype != SkillType.AIR_DASH:
+				if skill_lab_infinite:
+					sl["charges"] = maxi(sl["max_charges"], 1)
+				elif sl["charges"] <= 0 and stype != SkillType.AIR_DASH:
 					expired_indices.append(i)
+		elif skill_lab_infinite and sl["charges"] <= 0:
+			sl["charges"] = maxi(sl["max_charges"], 1)
+			needs_signal = true
 		elif not sl["is_active"] and sl["cooldown"] <= 0.0 and sl["charges"] <= 0 and stype != SkillType.AIR_DASH:
 			expired_indices.append(i)
 
@@ -561,6 +573,11 @@ func absorb_shield_hit(hazard: Hazard, allow_solid: bool = false) -> bool:
 		or (allow_solid and (cat == Hazard.Category.SOLID or cat == Hazard.Category.ENVIRONMENTAL))
 	)
 	if absorbed:
+		if skill_lab_infinite:
+			slots[shield_idx]["has_shield"] = true
+			slots[shield_idx]["charges"] = maxi(slots[shield_idx]["max_charges"], 1)
+			slots_changed.emit(get_slots_snapshot())
+			return true
 		slots[shield_idx]["has_shield"] = false
 		clear_slot(shield_idx)
 		return true

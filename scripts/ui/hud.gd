@@ -5,6 +5,69 @@ const SaveService = preload("res://scripts/systems/save_service.gd")
 const ChallengeService = preload("res://scripts/systems/challenge_service.gd")
 const PracticeHubUI = preload("res://scripts/ui/practice_hub_ui.gd")
 
+class _CosmeticPreviewCanvas extends Control:
+	var category: String = "obstacle"
+	var cdata: Dictionary = {}
+
+	func setup(p_cat: String, p_data: Dictionary) -> void:
+		category = p_cat
+		cdata = p_data.duplicate(true)
+		custom_minimum_size = Vector2(54, 34)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		queue_redraw()
+
+	func _draw() -> void:
+		var w := size.x
+		var h := size.y
+		match category:
+			"map":
+				var col: Color = cdata.get("tint", Color(0.75, 0.9, 1.0))
+				if col == Color.WHITE:
+					col = Color(0.55, 0.82, 0.98)
+				draw_rect(Rect2(0, 0, w, h), col.darkened(0.45))
+				draw_rect(Rect2(0, 0, w, h * 0.65), col.lightened(0.08))
+				# Sun / Moon disc
+				draw_circle(Vector2(w * 0.78, 9.0), 4.5, Color(1.0, 0.95, 0.65, 0.92))
+				# Mountains silhouette
+				draw_colored_polygon(PackedVector2Array([Vector2(0, h - 8), Vector2(14, 11), Vector2(28, h - 8)]), col.darkened(0.28))
+				draw_colored_polygon(PackedVector2Array([Vector2(20, h - 8), Vector2(36, 9), Vector2(w, h - 8)]), col.darkened(0.18))
+				# Ground strip
+				draw_rect(Rect2(0, h - 8, w, 8), col.darkened(0.58))
+				draw_rect(Rect2(0, h - 8, w, 2), col.lightened(0.25))
+			"trail":
+				var tcol: Color = cdata.get("color", Color(0.4, 0.9, 1.0))
+				if tcol.a <= 0.05:
+					tcol = Color(0.35, 0.45, 0.6, 0.55)
+				draw_rect(Rect2(0, 0, w, h), Color(0.05, 0.08, 0.16, 0.95))
+				# Flowing glow ribbon & particles
+				for i in range(6):
+					var px: float = 6.0 + float(i) * 6.5
+					var py: float = h * 0.52 + sin(float(i) * 0.9) * 4.0
+					var r: float = 1.6 + float(i) * 0.35
+					var c := tcol
+					c.a = clampf(0.25 + float(i) * 0.14, 0.2, 1.0)
+					draw_circle(Vector2(px, py), r, c)
+				# Mini dino silhouette at leading edge
+				draw_rect(Rect2(w - 14, h * 0.36, 8, 9), Color(0.35, 0.95, 0.65))
+				draw_rect(Rect2(w - 11, h * 0.24, 7, 5), Color(0.42, 0.98, 0.72))
+			_:
+				# Obstacle palette preview: spike cluster + crate + overhead arch bar
+				var tint: Color = cdata.get("tint", Color(0.45, 0.95, 0.55))
+				if tint == Color.WHITE:
+					tint = Color(0.38, 0.85, 0.42)
+				draw_rect(Rect2(0, 0, w, h), Color(0.06, 0.09, 0.16, 0.95))
+				draw_rect(Rect2(0, h - 6, w, 6), Color(0.22, 0.18, 0.14))
+				# Overhead beam
+				draw_rect(Rect2(2, 2, w - 4, 6), tint.darkened(0.25))
+				draw_rect(Rect2(6, 8, 5, 6), tint)
+				draw_rect(Rect2(w - 11, 8, 5, 6), tint)
+				# Spikes / Cactus
+				draw_colored_polygon(PackedVector2Array([Vector2(14, h - 6), Vector2(18, 15), Vector2(22, h - 6)]), tint)
+				draw_colored_polygon(PackedVector2Array([Vector2(20, h - 6), Vector2(24, 18), Vector2(28, h - 6)]), tint.lightened(0.2))
+				# Crate
+				draw_rect(Rect2(33, h - 18, 13, 12), tint.darkened(0.15))
+				draw_rect(Rect2(35, h - 16, 9, 8), tint.lightened(0.15), false, 1.0)
+
 signal start_requested()
 signal mode_selected(mode: int)
 signal jump_requested(pressed: bool)
@@ -192,6 +255,24 @@ var _quests_level_label: Label
 var _quests_xp_bar_fill: ColorRect
 var _tex_cache: Dictionary = {}
 
+# New dynamic HUD & Input widgets
+var hearts_label: Label
+var trap_debuff_panel: PanelContainer
+var trap_debuff_label: Label
+var glitch_overlay: ColorRect
+var _jump_hit_pad: Control
+var _slide_hit_pad: Control
+var _jump_pad_touch_id: int = -1
+var _slide_pad_touch_id: int = -1
+var _jump_pad_mouse_held: bool = false
+var _slide_pad_mouse_held: bool = false
+var shop_scroll: ScrollContainer
+var _shop_scroll_dragging: bool = false
+var _shop_scroll_drag_touch_id: int = -1
+var _shop_scroll_velocity: float = 0.0
+var _ps_dpad_left_held: bool = false
+var _ps_dpad_right_held: bool = false
+
 # Quests swipe / scroll touch handling
 var _quest_scroll_dragging: bool = false
 var _quest_scroll_drag_touch_id: int = -1
@@ -237,11 +318,14 @@ func _ready() -> void:
 	retry_button.pressed.connect(_on_retry_button_pressed)
 
 	# Mode selection buttons
+	mode_casual_btn.text = "EASY (2♥)"
+	mode_runner_btn.text = "MEDIUM"
+	mode_freestyle_btn.text = "HARD (3♥)"
 	mode_casual_btn.pressed.connect(func(): select_mode(0))
 	mode_runner_btn.pressed.connect(func(): select_mode(1))
 	mode_freestyle_btn.pressed.connect(func(): select_mode(2))
 
-	# Action buttons
+	# Action buttons (also paired with generous corner hit pads below)
 	slide_button.button_down.connect(func(): slide_requested.emit(true))
 	slide_button.button_up.connect(func(): slide_requested.emit(false))
 	jump_button.button_down.connect(func(): jump_requested.emit(true))
@@ -321,6 +405,10 @@ func _ready() -> void:
 		quests_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 		quests_scroll.gui_input.connect(_on_quests_scroll_gui_input)
 
+	shop_scroll = get_node_or_null("SkinShopDialog/Panel/VBox/ShopScroll")
+	if shop_scroll:
+		shop_scroll.gui_input.connect(_on_shop_scroll_gui_input)
+
 	_create_dynamic_ui()
 	practice_hub = PracticeHubUI.new()
 	practice_hub.name = "PracticeHubUI"
@@ -359,6 +447,16 @@ func _process(delta: float) -> void:
 		if not _quest_scroll_dragging and abs(_quest_scroll_velocity) > 5.0:
 			quests_scroll.scroll_vertical -= int(_quest_scroll_velocity * delta)
 			_quest_scroll_velocity = move_toward(_quest_scroll_velocity, 0.0, 1600.0 * delta)
+
+	if skin_shop_dialog.visible and shop_scroll:
+		if not _shop_scroll_dragging and abs(_shop_scroll_velocity) > 5.0:
+			shop_scroll.scroll_horizontal -= int(_shop_scroll_velocity * delta)
+			_shop_scroll_velocity = move_toward(_shop_scroll_velocity, 0.0, 1800.0 * delta)
+
+	if glitch_overlay and glitch_overlay.visible:
+		var t := Time.get_ticks_msec() * 0.02
+		var flicker := 0.14 + 0.10 * absf(sin(t * 1.7))
+		glitch_overlay.color = Color(0.18, 0.92, 0.96, flicker) if (int(t) % 2 == 0) else Color(0.95, 0.25, 0.85, flicker * 0.85)
 
 # ==========================================
 # Catchy Arcade UI Theme Engine
@@ -619,6 +717,56 @@ func _create_dynamic_ui() -> void:
 		combo_bar_fill.anchor_bottom = 1.0
 		combo_bar.add_child(combo_bar_fill)
 
+	if top_bar and hearts_label == null:
+		hearts_label = Label.new()
+		hearts_label.name = "HeartsLabel"
+		hearts_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hearts_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hearts_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		hearts_label.text = "♥♥"
+		hearts_label.visible = false
+		hearts_label.add_theme_font_size_override("font_size", 10)
+		hearts_label.add_theme_color_override("font_color", Color(1.0, 0.36, 0.45))
+		hearts_label.add_theme_constant_override("outline_size", 2)
+		hearts_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+		hearts_label.add_theme_stylebox_override("normal", _make_box(Color(0.22, 0.06, 0.12, 0.90), Color(1.0, 0.40, 0.52, 0.95), 1, 2, 6, 5, 2, 1))
+		top_bar.add_child(hearts_label)
+
+	if top_bar and trap_debuff_panel == null:
+		trap_debuff_panel = PanelContainer.new()
+		trap_debuff_panel.name = "TrapDebuffPanel"
+		trap_debuff_panel.visible = false
+		trap_debuff_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		trap_debuff_panel.offset_left = 6.0
+		trap_debuff_panel.offset_top = 58.0
+		trap_debuff_panel.offset_right = 128.0
+		trap_debuff_panel.offset_bottom = 78.0
+		trap_debuff_panel.add_theme_stylebox_override("panel", _make_box(Color(0.24, 0.08, 0.06, 0.92), Color(1.0, 0.55, 0.20, 0.95), 1, 2, 4, 5, 2, 1))
+		top_bar.add_child(trap_debuff_panel)
+
+		trap_debuff_label = Label.new()
+		trap_debuff_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		trap_debuff_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		trap_debuff_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		trap_debuff_label.text = "⚠ TRAP 3.0s"
+		trap_debuff_label.add_theme_font_size_override("font_size", 8)
+		trap_debuff_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+		trap_debuff_label.add_theme_constant_override("outline_size", 2)
+		trap_debuff_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
+		trap_debuff_panel.add_child(trap_debuff_label)
+
+	if glitch_overlay == null:
+		glitch_overlay = ColorRect.new()
+		glitch_overlay.name = "GlitchOverlay"
+		glitch_overlay.visible = false
+		glitch_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		glitch_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		glitch_overlay.color = Color(0.18, 0.92, 0.96, 0.16)
+		add_child(glitch_overlay)
+		move_child(glitch_overlay, 0)
+
+	_create_hit_pads()
+
 	if settings_dialog:
 		var s_list = settings_dialog.get_node_or_null("Panel/VBox/SettingsScroll/SettingsList")
 		if s_list == null:
@@ -835,20 +983,20 @@ func select_mode(mode: int) -> void:
 
 	var ps_on := _is_ps_controller_enabled()
 	match mode:
-		0: # Arcade Jump (Spicy)
-			mode_desc_label.text = "⚡ Fast Spicy Speed • Pure Jump Reflexes • Tap Anywhere!"
-			if steer_left_btn: steer_left_btn.visible = false
-			if steer_right_btn: steer_right_btn.visible = false
-		1: # Runner
-			mode_desc_label.text = "🔥 Accelerating Speed • Jump & Slide Controls"
+		0: # Easy (2 Hearts)
+			mode_desc_label.text = "🛡 2 Hearts (1 Shield Hit) • Gentle Speed • Jump, Slide & Steer"
 			if steer_left_btn: steer_left_btn.visible = not ps_on
 			if steer_right_btn: steer_right_btn.visible = not ps_on
-		2: # Freestyle
-			mode_desc_label.text = "🌀 Steer Left(Air)/Right • Jump, Duck & Skills"
+		1: # Medium (Classic Runner)
+			mode_desc_label.text = "🔥 Balanced Speed • Classic 1-Heart Arcade Challenge"
+			if steer_left_btn: steer_left_btn.visible = not ps_on
+			if steer_right_btn: steer_right_btn.visible = not ps_on
+		2: # Hard (3 Hearts)
+			mode_desc_label.text = "💀 3 Hearts • Dense Obstacles, Max Speed & Full Movement!"
 			if steer_left_btn: steer_left_btn.visible = not ps_on
 			if steer_right_btn: steer_right_btn.visible = not ps_on
 		3: # Tutorial & Practice
-			mode_desc_label.text = "📖 Live Tutorial • 🛡 Free Practice • ⚡ Skills Lab • 🛠 Map Builder"
+			mode_desc_label.text = "📖 Live Tutorial • 🛡 Free Practice • ⚡ Skills Lab • 👾 Enemies • 🛠 Maps"
 			if steer_left_btn: steer_left_btn.visible = not ps_on
 			if steer_right_btn: steer_right_btn.visible = not ps_on
 	if start_best_label and save_service:
@@ -930,6 +1078,64 @@ func update_combo(count: int, mult: int, fever: bool, progress: float) -> void:
 func update_gems(count: int) -> void:
 	if gems_label:
 		gems_label.text = "💎 %d" % count
+
+func update_hearts(current: int, max_h: int, immortal: bool = false) -> void:
+	if hearts_label == null:
+		return
+	var show_h := (max_h > 1) and (not immortal) and (current_mode != 3)
+	hearts_label.visible = show_h
+	if show_h:
+		var filled := maxi(current, 0)
+		var empty := maxi(max_h - filled, 0)
+		hearts_label.text = "♥".repeat(filled) + "♡".repeat(empty)
+		var col := Color(0.45, 0.96, 1.0) if filled >= 2 else Color(1.0, 0.36, 0.45)
+		hearts_label.add_theme_color_override("font_color", col)
+	var vp := get_viewport()
+	if vp:
+		var insets := _get_safe_area_insets()
+		_relayout_top_bar(maxf(320.0, vp.get_visible_rect().size.x - float(insets.get("left", 0.0)) - float(insets.get("right", 0.0))))
+
+func _trap_info(kind: int) -> Dictionary:
+	match kind:
+		1:
+			return {"label": "⬇ HEAVY GRAV", "color": Color(1.0, 0.50, 0.16)}
+		2:
+			return {"label": "⚡ GLITCH", "color": Color(0.22, 0.92, 0.98)}
+		3:
+			return {"label": "🚫 SKILL JAM", "color": Color(1.0, 0.28, 0.36)}
+		_:
+			return {"label": "▲ SPEED SURGE", "color": Color(1.0, 0.85, 0.14)}
+
+func show_trap_debuff(kind: int, duration: float) -> void:
+	var info := _trap_info(kind)
+	var lbl: String = info["label"]
+	var col: Color = info["color"]
+	if glitch_overlay:
+		glitch_overlay.visible = (kind == 2 and duration > 0.0)
+	if trap_debuff_panel and trap_debuff_label:
+		trap_debuff_panel.visible = duration > 0.0
+		trap_debuff_panel.add_theme_stylebox_override("panel", _make_box(Color(col.r * 0.25, col.g * 0.20, col.b * 0.20, 0.92), col, 1, 2, 4, 5, 2, 1))
+		trap_debuff_label.text = "%s %.1fs" % [lbl, maxf(duration, 0.0)]
+
+func update_trap_debuff(remaining: float, kind: int, glitch_rem: float = 0.0) -> void:
+	if glitch_overlay:
+		glitch_overlay.visible = glitch_rem > 0.0 or (kind == 2 and remaining > 0.0)
+	var info := _trap_info(kind)
+	var lbl: String = info["label"]
+	var col: Color = info["color"]
+	if trap_debuff_panel and trap_debuff_label:
+		if remaining <= 0.0:
+			trap_debuff_panel.visible = false
+		else:
+			trap_debuff_panel.visible = true
+			trap_debuff_panel.add_theme_stylebox_override("panel", _make_box(Color(col.r * 0.25, col.g * 0.20, col.b * 0.20, 0.92), col, 1, 2, 4, 5, 2, 1))
+			trap_debuff_label.text = "%s %.1fs" % [lbl, remaining]
+
+func clear_trap_hud() -> void:
+	if trap_debuff_panel:
+		trap_debuff_panel.visible = false
+	if glitch_overlay:
+		glitch_overlay.visible = false
 
 func _get_cached_texture(path: String) -> Texture2D:
 	if path.is_empty():
@@ -1093,6 +1299,13 @@ func show_skill_toast(message: String) -> void:
 			_skill_toast_tween.tween_property(skill_toast, "modulate:a", 0.0, 0.3)
 			_skill_toast_tween.tween_callback(func(): skill_toast.visible = false)
 
+func hide_skill_toast() -> void:
+	if _skill_toast_tween and _skill_toast_tween.is_valid():
+		_skill_toast_tween.kill()
+	if skill_toast:
+		skill_toast.visible = false
+		skill_toast.modulate.a = 0.0
+
 # --- Session 6 Flight HUD ---
 
 func show_flight_hud(f_type: int, total_duration: float) -> void:
@@ -1208,10 +1421,16 @@ func hide_pause_menu() -> void:
 # Skin Shop Implementation
 # ==========================================
 func open_skin_shop() -> void:
+	_shop_scroll_dragging = false
+	_shop_scroll_drag_touch_id = -1
+	_shop_scroll_velocity = 0.0
 	skin_shop_dialog.visible = true
 	refresh_skin_shop()
 
 func close_skin_shop() -> void:
+	_shop_scroll_dragging = false
+	_shop_scroll_drag_touch_id = -1
+	_shop_scroll_velocity = 0.0
 	skin_shop_dialog.visible = false
 
 func _select_shop_category(cat: String) -> void:
@@ -1260,6 +1479,8 @@ func _create_skin_card(info: Dictionary, current_pts: int, equipped_skin: String
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(80, 165)
 
+	panel.custom_minimum_size = Vector2(92, 158)
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	if is_equipped:
 		panel.add_theme_stylebox_override("panel", _make_box(Color(0.06, 0.22, 0.36, 0.96), Color(0.25, 0.88, 1.0), 2, 3, 8, 5, 6, 4))
 	elif is_unlocked:
@@ -1270,12 +1491,14 @@ func _create_skin_card(info: Dictionary, current_pts: int, equipped_skin: String
 		panel.add_theme_stylebox_override("panel", _make_box(Color(0.09, 0.11, 0.18, 0.92), Color(0.26, 0.32, 0.44), 1, 2, 8, 5, 6, 1))
 
 	var vbox = VBoxContainer.new()
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_theme_constant_override("separation", 4)
 	panel.add_child(vbox)
 
 	# Name Label
 	var name_lbl = Label.new()
+	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	name_lbl.text = info["name"]
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_lbl.add_theme_font_size_override("font_size", 10)
@@ -1286,8 +1509,10 @@ func _create_skin_card(info: Dictionary, current_pts: int, equipped_skin: String
 
 	# Framed Icon Preview (40x40 crisp nearest-neighbor)
 	var icon_frame = PanelContainer.new()
+	icon_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon_frame.add_theme_stylebox_override("panel", _make_box(Color(0.03, 0.06, 0.12, 0.9), Color(0.22, 0.36, 0.54), 1, 1, 6, 4, 4, 0))
 	var icon_rect = TextureRect.new()
+	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon_rect.custom_minimum_size = Vector2(36, 36)
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -1299,6 +1524,7 @@ func _create_skin_card(info: Dictionary, current_pts: int, equipped_skin: String
 
 	# Perk / Desc Label
 	var perk_lbl = Label.new()
+	perk_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	perk_lbl.text = str(info.get("desc", ""))
 	perk_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	perk_lbl.add_theme_font_size_override("font_size", 7)
@@ -1307,6 +1533,7 @@ func _create_skin_card(info: Dictionary, current_pts: int, equipped_skin: String
 
 	# Price / Status Label
 	var price_lbl = Label.new()
+	price_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	price_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	price_lbl.add_theme_font_size_override("font_size", 9)
 	price_lbl.add_theme_constant_override("outline_size", 2)
@@ -1362,7 +1589,8 @@ func _create_cosmetic_card(cid: String, cdata: Dictionary, current_pts: int, equ
 	var cat: String = str(cdata.get("category", "obstacle"))
 
 	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(88, 155)
+	panel.custom_minimum_size = Vector2(92, 158)
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	if is_equipped:
 		panel.add_theme_stylebox_override("panel", _make_box(Color(0.06, 0.22, 0.36, 0.96), Color(0.25, 0.88, 1.0), 2, 3, 8, 5, 6, 4))
 	elif is_unlocked:
@@ -1373,11 +1601,13 @@ func _create_cosmetic_card(cid: String, cdata: Dictionary, current_pts: int, equ
 		panel.add_theme_stylebox_override("panel", _make_box(Color(0.09, 0.11, 0.18, 0.92), Color(0.26, 0.32, 0.44), 1, 2, 8, 5, 6, 1))
 
 	var vbox = VBoxContainer.new()
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_theme_constant_override("separation", 4)
 	panel.add_child(vbox)
 
 	var name_lbl = Label.new()
+	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	name_lbl.text = str(cdata.get("name", cid))
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_lbl.add_theme_font_size_override("font_size", 10)
@@ -1387,17 +1617,18 @@ func _create_cosmetic_card(cid: String, cdata: Dictionary, current_pts: int, equ
 	vbox.add_child(name_lbl)
 
 	var swatch_frame = PanelContainer.new()
+	swatch_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sw_col: Color = cdata.get("tint", cdata.get("color", Color.WHITE))
 	if sw_col.a <= 0.05:
 		sw_col = Color(0.25, 0.30, 0.40, 1.0)
-	swatch_frame.add_theme_stylebox_override("panel", _make_box(Color(0.03, 0.06, 0.12, 0.9), sw_col, 2, 2, 6, 4, 4, 0))
-	var swatch = ColorRect.new()
-	swatch.custom_minimum_size = Vector2(36, 30)
-	swatch.color = sw_col
-	swatch_frame.add_child(swatch)
+	swatch_frame.add_theme_stylebox_override("panel", _make_box(Color(0.03, 0.06, 0.12, 0.92), sw_col, 2, 2, 6, 4, 4, 0))
+	var preview := _CosmeticPreviewCanvas.new()
+	preview.setup(cat, cdata)
+	swatch_frame.add_child(preview)
 	vbox.add_child(swatch_frame)
 
 	var perk_lbl = Label.new()
+	perk_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	perk_lbl.text = str(cdata.get("perk_text", ""))
 	perk_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	perk_lbl.add_theme_font_size_override("font_size", 7)
@@ -1405,6 +1636,7 @@ func _create_cosmetic_card(cid: String, cdata: Dictionary, current_pts: int, equ
 	vbox.add_child(perk_lbl)
 
 	var price_lbl = Label.new()
+	price_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	price_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	price_lbl.add_theme_font_size_override("font_size", 9)
 	price_lbl.add_theme_constant_override("outline_size", 2)
@@ -1609,6 +1841,45 @@ func _on_quests_scroll_gui_input(event: InputEvent) -> void:
 			if quests_scroll:
 				quests_scroll.accept_event()
 
+func _on_shop_scroll_gui_input(event: InputEvent) -> void:
+	if shop_scroll == null:
+		return
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_shop_scroll_dragging = true
+			_shop_scroll_drag_touch_id = event.index
+			_shop_scroll_velocity = 0.0
+		elif event.index == _shop_scroll_drag_touch_id:
+			_shop_scroll_dragging = false
+			_shop_scroll_drag_touch_id = -1
+		shop_scroll.accept_event()
+	elif event is InputEventScreenDrag:
+		if event.index == _shop_scroll_drag_touch_id or _shop_scroll_drag_touch_id == -1:
+			_shop_scroll_dragging = true
+			_shop_scroll_drag_touch_id = event.index
+			shop_scroll.scroll_horizontal -= int(event.relative.x)
+			_shop_scroll_velocity = event.velocity.x
+		shop_scroll.accept_event()
+	elif event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				_shop_scroll_dragging = true
+				_shop_scroll_velocity = 0.0
+			else:
+				_shop_scroll_dragging = false
+			shop_scroll.accept_event()
+		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			shop_scroll.scroll_horizontal -= 42
+			shop_scroll.accept_event()
+		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			shop_scroll.scroll_horizontal += 42
+			shop_scroll.accept_event()
+	elif event is InputEventMouseMotion:
+		if _shop_scroll_dragging:
+			shop_scroll.scroll_horizontal -= int(event.relative.x)
+			_shop_scroll_velocity = event.velocity.x
+			shop_scroll.accept_event()
+
 func _on_challenge_unlocked(_id: String, title: String, reward: int) -> void:
 	show_challenge_toast(title, reward)
 
@@ -1639,6 +1910,41 @@ func _event_to_ps_code(event: InputEvent) -> String:
 		return "axis:%d:%s" % [event.axis, "+" if event.axis_value > 0.0 else "-"]
 	return ""
 
+func _has_any_subdialog_open() -> bool:
+	if challenges_dialog and challenges_dialog.visible:
+		return true
+	if skin_shop_dialog and skin_shop_dialog.visible:
+		return true
+	if settings_dialog and settings_dialog.visible:
+		return true
+	if credits_dialog and credits_dialog.visible:
+		return true
+	if tutorial_dialog and tutorial_dialog.visible:
+		return true
+	if practice_hub and practice_hub.has_modal_open():
+		return true
+	return false
+
+func _close_active_subdialog_ps() -> bool:
+	if practice_hub and practice_hub.close_active_modal():
+		return true
+	if skin_shop_dialog and skin_shop_dialog.visible:
+		close_skin_shop()
+		return true
+	if challenges_dialog and challenges_dialog.visible:
+		close_challenges()
+		return true
+	if settings_dialog and settings_dialog.visible:
+		close_settings()
+		return true
+	if credits_dialog and credits_dialog.visible:
+		close_credits()
+		return true
+	if tutorial_dialog and tutorial_dialog.visible:
+		close_tutorial()
+		return true
+	return false
+
 func _input(event: InputEvent) -> void:
 	if _listening_ps_action != "" and settings_dialog and settings_dialog.visible:
 		var code := _event_to_ps_code(event)
@@ -1650,18 +1956,115 @@ func _input(event: InputEvent) -> void:
 			settings_changed.emit()
 			ui_interacted.emit()
 			get_viewport().set_input_as_handled()
+		return
+
+	# Smooth finger/drag scroll anywhere inside Skin Shop ScrollContainer (even across cards)
+	if skin_shop_dialog and skin_shop_dialog.visible and shop_scroll:
+		if event is InputEventScreenTouch:
+			if event.pressed and shop_scroll.get_global_rect().has_point(event.position):
+				_shop_scroll_dragging = true
+				_shop_scroll_drag_touch_id = event.index
+				_shop_scroll_velocity = 0.0
+			elif not event.pressed and event.index == _shop_scroll_drag_touch_id:
+				_shop_scroll_dragging = false
+				_shop_scroll_drag_touch_id = -1
+		elif event is InputEventScreenDrag and (event.index == _shop_scroll_drag_touch_id or _shop_scroll_drag_touch_id == -1):
+			if _shop_scroll_dragging and absf(event.relative.x) > 0.5:
+				shop_scroll.scroll_horizontal -= int(event.relative.x)
+				_shop_scroll_velocity = event.velocity.x
+		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed and shop_scroll.get_global_rect().has_point(event.position):
+				_shop_scroll_dragging = true
+				_shop_scroll_velocity = 0.0
+			elif not event.pressed:
+				_shop_scroll_dragging = false
+		elif event is InputEventMouseMotion and _shop_scroll_dragging:
+			shop_scroll.scroll_horizontal -= int(event.relative.x)
+			_shop_scroll_velocity = event.velocity.x
+
+	# Guarantee HitPad release even if touch/pointer slides outside the corner zone
+	if event is InputEventScreenTouch and not event.pressed:
+		if event.index == _jump_pad_touch_id:
+			_jump_pad_touch_id = -1
+			jump_requested.emit(false)
+		elif event.index == _slide_pad_touch_id:
+			_slide_pad_touch_id = -1
+			slide_requested.emit(false)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		if _jump_pad_mouse_held:
+			_jump_pad_mouse_held = false
+			jump_requested.emit(false)
+		if _slide_pad_mouse_held:
+			_slide_pad_mouse_held = false
+			slide_requested.emit(false)
+
+	if _is_ps_controller_enabled() and event is InputEventJoypadButton and event.pressed:
+		if _handle_ps_menu_button(event.button_index):
+			if get_viewport():
+				get_viewport().set_input_as_handled()
+
+func _handle_ps_menu_button(btn_idx: int) -> bool:
+	var any_sub := _has_any_subdialog_open()
+	if any_sub:
+		if btn_idx == JOY_BUTTON_B:
+			return _close_active_subdialog_ps()
+		return false
+	if start_menu and start_menu.visible:
+		match btn_idx:
+			JOY_BUTTON_A:
+				start_requested.emit()
+				return true
+			JOY_BUTTON_DPAD_LEFT, JOY_BUTTON_LEFT_SHOULDER:
+				select_mode(clampi(current_mode - 1, 0, 3))
+				ui_interacted.emit()
+				return true
+			JOY_BUTTON_DPAD_RIGHT, JOY_BUTTON_RIGHT_SHOULDER:
+				select_mode(clampi(current_mode + 1, 0, 3))
+				ui_interacted.emit()
+				return true
+			JOY_BUTTON_Y:
+				open_skin_shop()
+				ui_interacted.emit()
+				return true
+			JOY_BUTTON_X:
+				open_challenges()
+				ui_interacted.emit()
+				return true
+			JOY_BUTTON_START:
+				open_settings()
+				ui_interacted.emit()
+				return true
+		return false
+	if pause_menu and pause_menu.visible:
+		match btn_idx:
+			JOY_BUTTON_A, JOY_BUTTON_B, JOY_BUTTON_START:
+				_on_resume_button_pressed()
+				return true
+			JOY_BUTTON_Y:
+				_on_restart_button_pressed()
+				return true
+		return false
+	if game_over_menu and game_over_menu.visible:
+		match btn_idx:
+			JOY_BUTTON_A:
+				_on_retry_button_pressed()
+				return true
+			JOY_BUTTON_B:
+				menu_requested.emit()
+				return true
+			JOY_BUTTON_Y:
+				open_skin_shop()
+				ui_interacted.emit()
+				return true
+			JOY_BUTTON_X:
+				open_challenges()
+				ui_interacted.emit()
+				return true
+		return false
+	return false
 
 func _unhandled_input(event: InputEvent) -> void:
-	var any_subdialog := challenges_dialog.visible or skin_shop_dialog.visible
-	if settings_dialog and settings_dialog.visible:
-		any_subdialog = true
-	if credits_dialog and credits_dialog.visible:
-		any_subdialog = true
-	if tutorial_dialog and tutorial_dialog.visible:
-		any_subdialog = true
-	if practice_hub and practice_hub.has_modal_open():
-		any_subdialog = true
-
+	var any_subdialog := _has_any_subdialog_open()
 	if any_subdialog or start_menu.visible or pause_menu.visible or game_over_menu.visible:
 		if game_over_menu.visible and not any_subdialog:
 			var r_pressed: bool = event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R
@@ -1684,6 +2087,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _handle_ps_controller_input(event: InputEvent) -> void:
 	if save_service == null:
 		return
+	var in_flight := flight_controls != null and flight_controls.visible
 	var code := ""
 	var pressed := false
 	var is_valid_ev := false
@@ -1698,10 +2102,10 @@ func _handle_ps_controller_input(event: InputEvent) -> void:
 		var ax: int = event.axis
 		var val: float = event.axis_value
 		if ax == JOY_AXIS_LEFT_X:
-			if val > 0.45:
+			if val > 0.40:
 				_ps_right_held = true
 				_ps_left_held = false
-			elif val < -0.45:
+			elif val < -0.40:
 				_ps_left_held = true
 				_ps_right_held = false
 			else:
@@ -1709,8 +2113,20 @@ func _handle_ps_controller_input(event: InputEvent) -> void:
 				_ps_right_held = false
 			steer_requested.emit((1.0 if _ps_right_held else 0.0) - (1.0 if _ps_left_held else 0.0))
 			return
+		if ax == JOY_AXIS_LEFT_Y:
+			if in_flight:
+				flight_up_requested.emit(val < -0.45)
+				flight_down_requested.emit(val > 0.45)
+				return
+			elif val > 0.55:
+				slide_requested.emit(true)
+			elif val < -0.55:
+				jump_requested.emit(true)
+			else:
+				slide_requested.emit(false)
+			return
 		if ax == JOY_AXIS_TRIGGER_LEFT:
-			var now_l2 := val >= 0.55
+			var now_l2 := val >= 0.45
 			if now_l2 == _ps_l2_held:
 				return
 			_ps_l2_held = now_l2
@@ -1718,7 +2134,7 @@ func _handle_ps_controller_input(event: InputEvent) -> void:
 			pressed = now_l2
 			is_valid_ev = true
 		elif ax == JOY_AXIS_TRIGGER_RIGHT:
-			var now_r2 := val >= 0.55
+			var now_r2 := val >= 0.45
 			if now_r2 == _ps_r2_held:
 				return
 			_ps_r2_held = now_r2
@@ -1727,6 +2143,14 @@ func _handle_ps_controller_input(event: InputEvent) -> void:
 			is_valid_ev = true
 	if not is_valid_ev or code == "":
 		return
+
+	if in_flight:
+		if code == save_service.get_ps_binding("jump") or code == "btn:%d" % JOY_BUTTON_DPAD_UP:
+			flight_up_requested.emit(pressed)
+			return
+		elif code == save_service.get_ps_binding("duck") or code == "btn:%d" % JOY_BUTTON_DPAD_DOWN:
+			flight_down_requested.emit(pressed)
+			return
 
 	if code == save_service.get_ps_binding("jump"):
 		jump_requested.emit(pressed)
@@ -1744,10 +2168,22 @@ func _handle_ps_controller_input(event: InputEvent) -> void:
 		skill_slot_requested.emit(1)
 	elif pressed and code == save_service.get_ps_binding("skill_3"):
 		skill_slot_requested.emit(2)
+	elif code == "btn:%d" % JOY_BUTTON_DPAD_UP:
+		jump_requested.emit(pressed)
+	elif code == "btn:%d" % JOY_BUTTON_DPAD_DOWN:
+		slide_requested.emit(pressed)
 
 func clear_touch_inputs() -> void:
 	jump_touch_index = -1
 	slide_touch_index = -1
+	_jump_pad_touch_id = -1
+	_slide_pad_touch_id = -1
+	_jump_pad_mouse_held = false
+	_slide_pad_mouse_held = false
+	_ps_left_held = false
+	_ps_right_held = false
+	_ps_l2_held = false
+	_ps_r2_held = false
 	touch_start_positions.clear()
 	jump_requested.emit(false)
 	slide_requested.emit(false)
@@ -1768,25 +2204,18 @@ func _handle_touch_down(index: int, pos: Vector2) -> void:
 	if flight_controls and flight_controls.visible:
 		return
 
-	if current_mode == 0:
-		if jump_touch_index == -1:
-			jump_touch_index = index
-			jump_requested.emit(true)
-		return
-
 	var jump_side: bool = (pos.x < split_x) if _is_left_handed() else (pos.x >= split_x)
 	if jump_side:
 		if jump_touch_index == -1:
 			jump_touch_index = index
 			jump_requested.emit(true)
 	else:
-		if current_mode in [1, 2, 3]:
-			if slide_touch_index == -1:
-				slide_touch_index = index
-				slide_requested.emit(true)
+		if slide_touch_index == -1:
+			slide_touch_index = index
+			slide_requested.emit(true)
 
 func _handle_touch_drag(index: int, pos: Vector2) -> void:
-	if current_mode in [1, 2, 3] and touch_start_positions.has(index):
+	if touch_start_positions.has(index):
 		var start_pos: Vector2 = touch_start_positions[index]
 		var delta := pos - start_pos
 		if delta.y > SWIPE_THRESHOLD:
@@ -1837,6 +2266,12 @@ func _apply_safe_area_layout(override_insets: Dictionary = {}) -> void:
 		touch_controls.offset_top = s_top
 		touch_controls.offset_right = -s_right
 		touch_controls.offset_bottom = -s_bottom
+		var hz = get_node_or_null("HitZoneLayer")
+		if hz is Control:
+			hz.offset_left = s_left
+			hz.offset_top = s_top
+			hz.offset_right = -s_right
+			hz.offset_bottom = -s_bottom
 	if combo_panel:
 		# combo_panel is parented under top_bar, which already carries safe-area offsets
 		combo_panel.offset_left = -84.0
@@ -1865,10 +2300,14 @@ func _set_left_rect(ctrl: Control, x0: float, x1: float, y0: float, y1: float) -
 	ctrl.size = Vector2(maxf(8.0, x1 - x0), maxf(8.0, y1 - y0))
 
 func _relayout_top_bar(avail_w: float) -> void:
-	# Row 1: ScoreLabel, BestLabel, PointsLabel, GemsLabel, PauseButton
+	# Row 1: ScoreLabel, BestLabel, PointsLabel, [HeartsLabel], GemsLabel, PauseButton
 	_set_left_rect(pause_button, avail_w - 82.0, avail_w - 8.0, 5.0, 27.0)
 	_set_left_rect(gems_label, avail_w - 134.0, avail_w - 86.0, 5.0, 27.0)
-	var b1: float = maxf(180.0, avail_w - 144.0)
+	var show_hearts := hearts_label != null and hearts_label.visible
+	var b1_right := avail_w - (190.0 if show_hearts else 144.0)
+	if show_hearts:
+		_set_left_rect(hearts_label, avail_w - 186.0, avail_w - 138.0, 5.0, 27.0)
+	var b1: float = maxf(140.0, b1_right)
 	_set_left_rect(score_label, 6.0, 6.0 + b1 * 0.34, 5.0, 27.0)
 	_set_left_rect(best_label, 6.0 + b1 * 0.35, 6.0 + b1 * 0.67, 5.0, 27.0)
 	_set_left_rect(points_label, 6.0 + b1 * 0.68, 6.0 + b1 * 0.99, 5.0, 27.0)
@@ -2167,30 +2606,93 @@ func refresh_accessibility_visuals() -> void:
 func _is_mobile_touch_device() -> bool:
 	return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
 
+func _create_hit_pads() -> void:
+	if touch_controls == null:
+		return
+	var hz := get_node_or_null("HitZoneLayer") as Control
+	if hz == null:
+		hz = Control.new()
+		hz.name = "HitZoneLayer"
+		hz.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hz.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		hz.visible = touch_controls.visible
+		add_child(hz)
+		move_child(hz, touch_controls.get_index())
+		if not touch_controls.visibility_changed.is_connected(func(): hz.visible = touch_controls.visible):
+			touch_controls.visibility_changed.connect(func():
+				if is_instance_valid(hz) and is_instance_valid(touch_controls):
+					hz.visible = touch_controls.visible
+			)
+	if _jump_hit_pad == null:
+		_jump_hit_pad = Control.new()
+		_jump_hit_pad.name = "JumpHitPad"
+		_jump_hit_pad.mouse_filter = Control.MOUSE_FILTER_STOP
+		_jump_hit_pad.gui_input.connect(_on_hit_pad_gui_input.bind(true))
+		hz.add_child(_jump_hit_pad)
+	if _slide_hit_pad == null:
+		_slide_hit_pad = Control.new()
+		_slide_hit_pad.name = "SlideHitPad"
+		_slide_hit_pad.mouse_filter = Control.MOUSE_FILTER_STOP
+		_slide_hit_pad.gui_input.connect(_on_hit_pad_gui_input.bind(false))
+		hz.add_child(_slide_hit_pad)
+
+func _on_hit_pad_gui_input(event: InputEvent, is_jump: bool) -> void:
+	if _is_ps_controller_enabled() or (flight_controls and flight_controls.visible):
+		return
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			if is_jump:
+				_jump_pad_touch_id = event.index
+				jump_requested.emit(true)
+			else:
+				_slide_pad_touch_id = event.index
+				slide_requested.emit(true)
+		else:
+			if is_jump and event.index == _jump_pad_touch_id:
+				_jump_pad_touch_id = -1
+				jump_requested.emit(false)
+			elif not is_jump and event.index == _slide_pad_touch_id:
+				_slide_pad_touch_id = -1
+				slide_requested.emit(false)
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			if is_jump:
+				_jump_pad_mouse_held = true
+				jump_requested.emit(true)
+			else:
+				_slide_pad_mouse_held = true
+				slide_requested.emit(true)
+		else:
+			if is_jump and _jump_pad_mouse_held:
+				_jump_pad_mouse_held = false
+				jump_requested.emit(false)
+			elif not is_jump and _slide_pad_mouse_held:
+				_slide_pad_mouse_held = false
+				slide_requested.emit(false)
+		get_viewport().set_input_as_handled()
+
 func _update_controls_hint(is_left_handed: bool) -> void:
 	if retry_button:
 		retry_button.text = "▶ PLAY AGAIN" if _is_mobile_touch_device() else "▶ PLAY AGAIN (R)"
 	if controls_hint == null:
 		return
+	if _is_ps_controller_enabled():
+		controls_hint.text = "🎮 PS4: ✕ JUMP  •  ○ SLIDE  •  □ SKILL  •  ◀▶ STEER  •  OPTIONS PAUSE"
+		return
 	if not _is_mobile_touch_device():
 		match current_mode:
 			0:
-				controls_hint.text = "SPACE / W = JUMP  •  NO SLIDE IN SPICY  •  E = SKILL"
+				controls_hint.text = "EASY (2♥) • SPACE = JUMP • S = SLIDE • A/D = STEER • E = SKILL"
 			2:
-				controls_hint.text = "A / D = STEER  •  SPACE = JUMP  •  S = DUCK  •  E = SKILL"
+				controls_hint.text = "HARD (3♥) • A/D = STEER • SPACE = JUMP • S = SLIDE • E = SKILL"
 			_:
-				controls_hint.text = "SPACE / W = JUMP  •  S / ↓ = SLIDE / DIVE  •  E = SKILL"
+				controls_hint.text = "SPACE / W = JUMP  •  S / ↓ = SLIDE / DIVE  •  A/D = STEER  •  E = SKILL"
 		return
-	match current_mode:
-		0:
-			controls_hint.text = "TAP %s / SCREEN = JUMP  •  NO SLIDE" % ("LEFT" if is_left_handed else "RIGHT")
-		2:
-			controls_hint.text = "STEER ◀ ▶  •  JUMP ▲  •  DUCK ▼"
-		_:
-			if is_left_handed:
-				controls_hint.text = "TAP LEFT = JUMP  •  TAP RIGHT = SLIDE / DIVE"
-			else:
-				controls_hint.text = "TAP RIGHT = JUMP  •  TAP LEFT = SLIDE / DIVE"
+	if is_left_handed:
+		controls_hint.text = "TAP BOTTOM-LEFT = JUMP  •  TAP BOTTOM-RIGHT = SLIDE / DIVE"
+	else:
+		controls_hint.text = "TAP BOTTOM-RIGHT = JUMP  •  TAP BOTTOM-LEFT = SLIDE / DIVE"
 
 func apply_control_layout(is_left_handed: bool) -> void:
 	_update_controls_hint(is_left_handed)
@@ -2199,10 +2701,10 @@ func apply_control_layout(is_left_handed: bool) -> void:
 	var ps_on := _is_ps_controller_enabled()
 	var in_flight := flight_controls != null and flight_controls.visible
 	var show_pads := (not ps_on) and (not in_flight)
-	var show_slide := show_pads and (current_mode != 0)
-	var show_steer := show_pads and (current_mode != 0)
+	var show_slide := show_pads
+	var show_steer := show_pads
 
-	# Keep Jump & Slide buttons clearly visible & responsive (hidden only in PS4 mode or Flight)
+	# Keep Jump & Slide buttons generous (84x44) + forgiving 200x145 corner HitPads behind them
 	if jump_button:
 		jump_button.focus_mode = Control.FOCUS_NONE
 		jump_button.visible = show_pads
@@ -2211,21 +2713,45 @@ func apply_control_layout(is_left_handed: bool) -> void:
 		slide_button.focus_mode = Control.FOCUS_NONE
 		slide_button.visible = show_slide
 		slide_button.mouse_filter = Control.MOUSE_FILTER_STOP if show_slide else Control.MOUSE_FILTER_IGNORE
+	if _jump_hit_pad:
+		_jump_hit_pad.visible = show_pads
+		_jump_hit_pad.mouse_filter = Control.MOUSE_FILTER_STOP if show_pads else Control.MOUSE_FILTER_IGNORE
+	if _slide_hit_pad:
+		_slide_hit_pad.visible = show_slide
+		_slide_hit_pad.mouse_filter = Control.MOUSE_FILTER_STOP if show_slide else Control.MOUSE_FILTER_IGNORE
 
-	var pad_top := -42.0
+	var pad_top := -48.0
 	var pad_bot := -4.0
-	var sub_top := -36.0
+	var sub_top := -38.0
 	var sub_bot := -4.0
 
 	if is_left_handed:
 		# Left-handed: Jump + Skills on BOTTOM LEFT, Slide + Steer on BOTTOM RIGHT
+		if _jump_hit_pad:
+			_jump_hit_pad.anchor_left = 0.0
+			_jump_hit_pad.anchor_right = 0.0
+			_jump_hit_pad.anchor_top = 1.0
+			_jump_hit_pad.anchor_bottom = 1.0
+			_jump_hit_pad.offset_left = 0.0
+			_jump_hit_pad.offset_right = 200.0
+			_jump_hit_pad.offset_top = -145.0
+			_jump_hit_pad.offset_bottom = 0.0
+		if _slide_hit_pad:
+			_slide_hit_pad.anchor_left = 1.0
+			_slide_hit_pad.anchor_right = 1.0
+			_slide_hit_pad.anchor_top = 1.0
+			_slide_hit_pad.anchor_bottom = 1.0
+			_slide_hit_pad.offset_left = -200.0
+			_slide_hit_pad.offset_right = 0.0
+			_slide_hit_pad.offset_top = -145.0
+			_slide_hit_pad.offset_bottom = 0.0
 		if jump_button:
 			jump_button.anchor_left = 0.0
 			jump_button.anchor_right = 0.0
 			jump_button.anchor_top = 1.0
 			jump_button.anchor_bottom = 1.0
-			jump_button.offset_left = 8.0
-			jump_button.offset_right = 80.0
+			jump_button.offset_left = 6.0
+			jump_button.offset_right = 90.0
 			jump_button.offset_top = pad_top
 			jump_button.offset_bottom = pad_bot
 		if slide_button:
@@ -2233,8 +2759,8 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			slide_button.anchor_right = 1.0
 			slide_button.anchor_top = 1.0
 			slide_button.anchor_bottom = 1.0
-			slide_button.offset_left = -78.0
-			slide_button.offset_right = -8.0
+			slide_button.offset_left = -90.0
+			slide_button.offset_right = -6.0
 			slide_button.offset_top = pad_top
 			slide_button.offset_bottom = pad_bot
 
@@ -2254,8 +2780,8 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			steer_right_btn.anchor_right = 1.0
 			steer_right_btn.anchor_top = 1.0
 			steer_right_btn.anchor_bottom = 1.0
-			steer_right_btn.offset_left = -116.0
-			steer_right_btn.offset_right = -84.0
+			steer_right_btn.offset_left = -128.0
+			steer_right_btn.offset_right = -96.0
 			steer_right_btn.offset_top = sub_top
 			steer_right_btn.offset_bottom = sub_bot
 
@@ -2263,8 +2789,8 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			steer_left_btn.anchor_right = 1.0
 			steer_left_btn.anchor_top = 1.0
 			steer_left_btn.anchor_bottom = 1.0
-			steer_left_btn.offset_left = -152.0
-			steer_left_btn.offset_right = -120.0
+			steer_left_btn.offset_left = -164.0
+			steer_left_btn.offset_right = -132.0
 			steer_left_btn.offset_top = sub_top
 			steer_left_btn.offset_bottom = sub_bot
 
@@ -2279,19 +2805,37 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			sb.anchor_right = 0.0
 			sb.anchor_top = 1.0
 			sb.anchor_bottom = 1.0
-			sb.offset_left = 86.0 + float(i) * 38.0
+			sb.offset_left = 96.0 + float(i) * 38.0
 			sb.offset_right = sb.offset_left + 34.0
 			sb.offset_top = sub_top
 			sb.offset_bottom = sub_bot
 	else:
 		# Right-handed: Slide + Steer on BOTTOM LEFT, Jump + Skills on BOTTOM RIGHT
+		if _jump_hit_pad:
+			_jump_hit_pad.anchor_left = 1.0
+			_jump_hit_pad.anchor_right = 1.0
+			_jump_hit_pad.anchor_top = 1.0
+			_jump_hit_pad.anchor_bottom = 1.0
+			_jump_hit_pad.offset_left = -200.0
+			_jump_hit_pad.offset_right = 0.0
+			_jump_hit_pad.offset_top = -145.0
+			_jump_hit_pad.offset_bottom = 0.0
+		if _slide_hit_pad:
+			_slide_hit_pad.anchor_left = 0.0
+			_slide_hit_pad.anchor_right = 0.0
+			_slide_hit_pad.anchor_top = 1.0
+			_slide_hit_pad.anchor_bottom = 1.0
+			_slide_hit_pad.offset_left = 0.0
+			_slide_hit_pad.offset_right = 200.0
+			_slide_hit_pad.offset_top = -145.0
+			_slide_hit_pad.offset_bottom = 0.0
 		if jump_button:
 			jump_button.anchor_left = 1.0
 			jump_button.anchor_right = 1.0
 			jump_button.anchor_top = 1.0
 			jump_button.anchor_bottom = 1.0
-			jump_button.offset_left = -80.0
-			jump_button.offset_right = -8.0
+			jump_button.offset_left = -90.0
+			jump_button.offset_right = -6.0
 			jump_button.offset_top = pad_top
 			jump_button.offset_bottom = pad_bot
 		if slide_button:
@@ -2299,8 +2843,8 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			slide_button.anchor_right = 0.0
 			slide_button.anchor_top = 1.0
 			slide_button.anchor_bottom = 1.0
-			slide_button.offset_left = 8.0
-			slide_button.offset_right = 78.0
+			slide_button.offset_left = 6.0
+			slide_button.offset_right = 90.0
 			slide_button.offset_top = pad_top
 			slide_button.offset_bottom = pad_bot
 
@@ -2320,8 +2864,8 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			steer_left_btn.anchor_right = 0.0
 			steer_left_btn.anchor_top = 1.0
 			steer_left_btn.anchor_bottom = 1.0
-			steer_left_btn.offset_left = 84.0
-			steer_left_btn.offset_right = 116.0
+			steer_left_btn.offset_left = 96.0
+			steer_left_btn.offset_right = 128.0
 			steer_left_btn.offset_top = sub_top
 			steer_left_btn.offset_bottom = sub_bot
 
@@ -2329,8 +2873,8 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			steer_right_btn.anchor_right = 0.0
 			steer_right_btn.anchor_top = 1.0
 			steer_right_btn.anchor_bottom = 1.0
-			steer_right_btn.offset_left = 120.0
-			steer_right_btn.offset_right = 152.0
+			steer_right_btn.offset_left = 132.0
+			steer_right_btn.offset_right = 164.0
 			steer_right_btn.offset_top = sub_top
 			steer_right_btn.offset_bottom = sub_bot
 
@@ -2345,7 +2889,7 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			sb.anchor_right = 1.0
 			sb.anchor_top = 1.0
 			sb.anchor_bottom = 1.0
-			sb.offset_right = -86.0 - float(i) * 38.0
+			sb.offset_right = -96.0 - float(i) * 38.0
 			sb.offset_left = sb.offset_right - 34.0
 			sb.offset_top = sub_top
 			sb.offset_bottom = sub_bot

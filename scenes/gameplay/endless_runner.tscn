@@ -17,7 +17,7 @@ process_mode = 1
 
 [node name="Player" parent="." instance=ExtResource("3_player")]
 process_mode = 1
-position = Vector2(100, 216)
+position = Vector2(100, 218)
 
 [node name="GameCamera" type="Camera2D" parent="." node_paths=PackedStringArray("target")]
 process_mode = 1

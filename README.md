@@ -10,26 +10,27 @@
 
 **Riftosaur** is an original endless-runner platformer built in Godot Engine 4.x. It reimagines the classic desert runner with dynamic verticality, jumping/sliding/diving mechanics, active elemental abilities, flight pickups, and procedural generation across 4 distinct worlds (Plains, Jungle, Frozen, Volcanic).
 
-- **Current Version:** `v1.2.0` (Production Release)
+- **Current Version:** `v1.3.0` (Production Release)
 - **Root Directory:** `C:\Users\Tweety\Desktop\DINO`
 - **Target Engine:** Godot Engine 4.7.2-stable official (`ed1daf0bf`)
 - **Render Mode:** `gl_compatibility` (OpenGL ES 3.0 compatible for broad mobile and desktop support)
-- **Logical Viewport:** 480 × 270 (16:9 pixel-perfect logical grid with nearest-neighbor scaling)
-- **Automated Test Suite:** 101 passing tests (100% pass rate) + 24/24 verified procedural patterns + 12/12 QA Matrix scenarios.
-- **Android Release:** `releases/Riftosaur-release.apk` (55.38 MB, SHA-256: `36A2FC70DD9FA0992802F910C74838C99D9C885D19EDDA6E81F34064404CCED2`)
+- **Logical Viewport:** 480 × 270 (16:9 pixel-perfect logical grid with nearest-neighbor scaling, locked 60 FPS / 60 Hz physics)
+- **Automated Test Suite:** 112 passing tests (100% pass rate) + 24/24 verified procedural patterns (Validator V1 & V2).
+- **Android Direct Install APK (Signed):** `releases/Riftosaur-debug.apk` (59.89 MB, SHA-256: `76F07D66009CA458919FDB6C82C5D89578A30B7129893C24CEEDB0FB0C60013D`)
+- **Android Unsigned Release APK:** `releases/Riftosaur-release.apk` (55.37 MB, SHA-256: `AA249AE1F2862B6487AECA4CDA45DB5A95E8901E464E391F94D859D53B42B46D`)
 
 ---
 
 ## Download & Setup
 
 ### Android (Direct APK Install)
-1. Download **`Riftosaur-release.apk`** from the [Latest GitHub Release](https://github.com/lam3y35/riftosaur-pixel-adventure/releases/latest).
+1. Download **`Riftosaur-debug.apk`** (ready-to-install signed Android APK) from the [Latest GitHub Release](https://github.com/lam3y35/riftosaur-pixel-adventure/releases/latest) or the [Riftosaur Website](https://lam3y35.github.io/riftosaur-pixel-adventure/). *(Note: `Riftosaur-release.apk` is an unsigned pre-store export for developer signing.)*
 2. Open the downloaded `.apk` on your Android device (Android 7.0+ / API 24+, `arm64-v8a` & `x86_64`) and allow installation from your browser/file manager if prompted.
 3. Verify checksum (optional):
    ```powershell
-   Get-FileHash Riftosaur-release.apk -Algorithm SHA256
+   Get-FileHash Riftosaur-debug.apk -Algorithm SHA256
    ```
-   Expected: `36A2FC70DD9FA0992802F910C74838C99D9C885D19EDDA6E81F34064404CCED2`
+   Expected: `76F07D66009CA458919FDB6C82C5D89578A30B7129893C24CEEDB0FB0C60013D`
 4. See [docs/ANDROID_INSTALL_GUIDE_AR.md](docs/ANDROID_INSTALL_GUIDE_AR.md) for a step-by-step Arabic installation guide.
 
 ### Desktop / Run from Source
@@ -45,13 +46,13 @@
 
 ---
 
-## What's New in v1.2.0
+## What's New in v1.3.0
 
-- **3-Slot Multi-Skill System & Traps:** Equip up to 3 simultaneous skills out of 12 total abilities with independent HUD activation buttons, tier/rarity badges, and `TrapPickup` speed-surge hazards.
-- **16+ Dinosaur Skins & Cosmetics Shop:** 11 new unlockable skins (including *Chromatic God*, *Void Walker*, *Diamond Apex*, *Celestial*, *Crimson Rex*, and more) with starter/passive perks plus obstacle, map, and trail cosmetics.
-- **Tutorial & Practice Hub:** Interactive first-launch tutorial, practice immortality with adaptive hints, section practice, custom map builder, and isolated per-mode high scores.
-- **Quests & Player Leveling:** 25+ quests with XP progression and level-up diamond bonuses.
-- **Controls & PS4 Gamepad Support:** Slide-hold continuation, air-only left steering, crawler stomp (+1 gem), and PS4 controller mode with custom button remapping.
+- **60 FPS Visual Clarity & Responsive Touch Controls:** Locked `60 FPS` (`vsync_mode=1`, `60 Hz` physics with zero jitter), clamped camera zoom (`0.94..1.04`), edge-only FX, enlarged `200×145` invisible touch hit-zones around `Jump` & `Slide`, Slide & Steer across all modes, and instant Frame-1 auto-start directly from a Jump/Slide tap.
+- **Difficulty Speeds, Hearts & 4 Hazard Traps:** Gradual opening speeds (`Easy: 196→400 w/ 2♥`, `Medium: 216→460 w/ 1♥`, `Hard: 232→495 w/ 3♥`), HUD hearts & persistent shield aura when immortal, plus 4 distinct trap debuffs (`Speed Surge`, `Heavy Gravity`, `Vision Glitch`, `Skill Jam`).
+- **4-Skill Loadout, Distance-Rarity Spawning & Infinite Skill Lab:** Pick up to 4 active skills from the 12-skill catalog (default starter deck `[1, 2, 3, 5]`), spawn skills every `70m / 105m / 145m / 195m` by rarity at contextually relevant obstacles, and test any single skill endlessly inside targeted Skill Lab arenas.
+- **Interactive 7-Step Tutorial, Animated Enemies Encyclopedia & Linked Map Builder:** Input-gated 7-step tutorial covering every obstacle family, clean HUD with tutorial-only tips, animated ~1.2s Enemies Guide showing jump/slide/stomp/slash tactics, swipeable Skin Shop previews, non-repeatable quest claims, and a 3-size Custom Map Builder with live jump-arc/gap-passability validation & map chaining.
+- **Full PS4 Controller Mode & 112/112 Verified Tests:** Complete PS4 menu, pause/game-over, D-Pad/analog, Slide/Jump/Skill, and flight Y-axis bindings plus `tests/unit/test_v4_overhaul.gd`.
 
 ---
 

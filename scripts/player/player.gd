@@ -14,6 +14,9 @@ signal gem_collected(count: int, score_bonus: int)
 signal skill_used(type: int)
 signal shield_broken()
 signal practice_hit_absorbed(cause: String, hazard: Hazard)
+signal hearts_changed(current: int, maximum: int)
+signal heart_shield_lost(remaining: int)
+signal trap_debuff_started(trap_kind: int, duration: float)
 signal flight_started(flight_type: int, duration: float)
 signal flight_warning(remaining_time: float)
 signal flight_ended()
@@ -59,6 +62,12 @@ var practice_immortal: bool = false
 var gravity_scale_modifier: float = 1.0
 var trap_debuff_timer: float = 0.0
 var trap_speed_penalty: float = 0.0
+var trap_type: int = 0
+var trap_gravity_mult: float = 1.0
+var trap_glitch_timer: float = 0.0
+var trap_skill_jam_timer: float = 0.0
+var max_hearts: int = 1
+var current_hearts: int = 1
 var _trick_tween: Tween = null
 
 # Session 6 Flight State (M5)
@@ -227,8 +236,15 @@ func _update_timers(delta: float) -> void:
 		trap_debuff_timer = maxf(trap_debuff_timer - delta, 0.0)
 		if trap_debuff_timer <= 0.0:
 			trap_speed_penalty = 0.0
+			trap_gravity_mult = 1.0
 			if sprite:
 				sprite.modulate = Color.WHITE
+
+	if trap_glitch_timer > 0.0:
+		trap_glitch_timer = maxf(trap_glitch_timer - delta, 0.0)
+
+	if trap_skill_jam_timer > 0.0:
+		trap_skill_jam_timer = maxf(trap_skill_jam_timer - delta, 0.0)
 
 	if jump_buffer_timer > 0.0:
 		jump_buffer_timer = maxf(jump_buffer_timer - delta, 0.0)
@@ -286,6 +302,30 @@ func _process_state(delta: float) -> void:
 
 		PlayerStateMachine.State.FLIGHT:
 			_handle_flight_state(delta)
+
+func trigger_jump_press() -> void:
+	if state_machine.current_state == PlayerStateMachine.State.DEAD:
+		return
+	jump_held = true
+	jump_buffer_timer = config.jump_buffer_time
+	if (state_machine.current_state == PlayerStateMachine.State.RUN or state_machine.current_state == PlayerStateMachine.State.IDLE or state_machine.current_state == PlayerStateMachine.State.LAND or coyote_timer > 0.0) and velocity.y >= -10.0:
+		if not is_flying:
+			_execute_jump()
+
+func trigger_slide_press() -> void:
+	if state_machine.current_state == PlayerStateMachine.State.DEAD:
+		return
+	slide_held = true
+	if is_flying:
+		return
+	var st := state_machine.current_state
+	if st == PlayerStateMachine.State.JUMP_RISE or st == PlayerStateMachine.State.JUMP_APEX or st == PlayerStateMachine.State.JUMP_FALL:
+		_trigger_dive()
+	elif st == PlayerStateMachine.State.RUN or st == PlayerStateMachine.State.IDLE or st == PlayerStateMachine.State.LAND:
+		if is_standing_on_one_way_platform():
+			drop_through_one_way_platform()
+		else:
+			_enter_slide()
 
 func _is_slide_pressed() -> bool:
 	return Input.is_action_pressed("slide") or slide_held
@@ -359,7 +399,7 @@ func _handle_jump_rise_state(delta: float) -> void:
 		is_jump_holding = false
 
 	# Apply gravity
-	velocity.y += config.gravity * gravity_scale_modifier * delta
+	velocity.y += config.gravity * gravity_scale_modifier * trap_gravity_mult * delta
 
 	# Check for dive input
 	if Input.is_action_just_pressed("slide"):
@@ -371,7 +411,7 @@ func _handle_jump_rise_state(delta: float) -> void:
 		state_machine.change_state(PlayerStateMachine.State.JUMP_APEX)
 
 func _handle_jump_apex_state(delta: float) -> void:
-	velocity.y += config.gravity * 0.75 * gravity_scale_modifier * delta # Slight float at apex
+	velocity.y += config.gravity * 0.75 * gravity_scale_modifier * trap_gravity_mult * delta # Slight float at apex
 
 	if Input.is_action_just_pressed("slide"):
 		_trigger_dive()
@@ -382,7 +422,7 @@ func _handle_jump_apex_state(delta: float) -> void:
 
 func _handle_jump_fall_state(delta: float) -> void:
 	# Fall gravity multiplier for snappy descent
-	velocity.y += config.gravity * config.fall_gravity_multiplier * gravity_scale_modifier * delta
+	velocity.y += config.gravity * config.fall_gravity_multiplier * gravity_scale_modifier * trap_gravity_mult * delta
 
 	# Coyote jump check
 	if coyote_timer > 0.0 and jump_buffer_timer > 0.0:
@@ -620,6 +660,25 @@ func hit_hazard(cause: String = "Collision", force: bool = false, hazard: Hazard
 		practice_hit_absorbed.emit(cause, hazard)
 		return
 
+	# Difficulty Mode Extra Hearts / Shield Lives (Easy=2 hearts, Hard=3 hearts)
+	if not force and current_hearts > 1:
+		current_hearts -= 1
+		invulnerability_timer = maxf(invulnerability_timer, 1.25)
+		if is_instance_valid(hazard):
+			if hazard.category == Hazard.Category.ENVIRONMENTAL:
+				velocity.y = -280.0
+			else:
+				hazard.destroy_hazard()
+				hazard_broken.emit(hazard, "heart_shield")
+		_play_shield_break_fx()
+		hearts_changed.emit(current_hearts, max_hearts)
+		heart_shield_lost.emit(current_hearts)
+		return
+
+	if max_hearts > 0:
+		current_hearts = 0
+		hearts_changed.emit(0, max_hearts)
+
 	if is_flying:
 		end_flight()
 	jump_held = false
@@ -791,17 +850,41 @@ func perform_trick() -> void:
 			_flash_tween.tween_property(sprite, "modulate", Color(1.4, 1.35, 0.5), 0.12)
 			_flash_tween.tween_property(sprite, "modulate", Color.WHITE, 0.25)
 
-func apply_trap_debuff(duration: float = 4.0, speed_boost: float = 125.0) -> void:
+func set_hearts(total: int) -> void:
+	max_hearts = maxi(total, 1)
+	current_hearts = max_hearts
+	hearts_changed.emit(current_hearts, max_hearts)
+
+func apply_trap_debuff(duration: float = 3.5, speed_boost: float = 115.0, kind: int = 0) -> void:
 	if state_machine.current_state == PlayerStateMachine.State.DEAD or practice_immortal:
 		return
-	trap_debuff_timer = maxf(trap_debuff_timer, duration)
-	trap_speed_penalty = speed_boost
+	trap_type = clampi(kind, 0, 3)
+	var tint := Color(1.5, 0.85, 0.2)
+	match trap_type:
+		1: # HEAVY_GRAVITY
+			trap_debuff_timer = maxf(trap_debuff_timer, duration)
+			trap_gravity_mult = 1.55
+			tint = Color(0.85, 0.55, 1.45)
+		2: # VISION_GLITCH
+			trap_debuff_timer = maxf(trap_debuff_timer, duration)
+			trap_glitch_timer = maxf(trap_glitch_timer, duration)
+			tint = Color(0.45, 1.35, 1.45)
+		3: # SKILL_JAM
+			trap_debuff_timer = maxf(trap_debuff_timer, duration)
+			trap_skill_jam_timer = maxf(trap_skill_jam_timer, duration)
+			tint = Color(1.45, 0.42, 0.45)
+		_: # SPEED_SURGE
+			trap_debuff_timer = maxf(trap_debuff_timer, duration)
+			trap_speed_penalty = speed_boost
+			tint = Color(1.5, 0.85, 0.2)
+
+	trap_debuff_started.emit(trap_type, duration)
 	if is_inside_tree() and sprite:
 		_kill_flash_tween()
 		_flash_tween = create_tween()
 		if _flash_tween:
-			_flash_tween.tween_property(sprite, "modulate", Color(1.5, 0.85, 0.2), 0.14)
-			_flash_tween.tween_property(sprite, "modulate", Color(1.2, 0.9, 0.35), 0.25)
+			_flash_tween.tween_property(sprite, "modulate", tint, 0.14)
+			_flash_tween.tween_property(sprite, "modulate", Color(tint.r * 0.85, tint.g * 0.85, tint.b * 0.85), 0.25)
 
 # --- Session 6 Flight System ---
 
@@ -896,6 +979,12 @@ func reset() -> void:
 	gravity_scale_modifier = 1.0
 	trap_debuff_timer = 0.0
 	trap_speed_penalty = 0.0
+	trap_type = 0
+	trap_gravity_mult = 1.0
+	trap_glitch_timer = 0.0
+	trap_skill_jam_timer = 0.0
+	current_hearts = max_hearts
+	hearts_changed.emit(current_hearts, max_hearts)
 	if _trick_tween and _trick_tween.is_valid():
 		_trick_tween.kill()
 		_trick_tween = null

@@ -18,6 +18,7 @@ var last_exit_height: float = 230.0
 var last_exit_surface: String = "solid"
 var consecutive_challenging_count: int = 0
 var recent_pattern_ids: Array[String] = []
+var _shuffled_bag_ids: Array[String] = []
 
 func _init(initial_seed: int = 0) -> void:
 	if initial_seed == 0:
@@ -39,6 +40,7 @@ func reset_state() -> void:
 	last_exit_surface = "solid"
 	consecutive_challenging_count = 0
 	recent_pattern_ids.clear()
+	_shuffled_bag_ids.clear()
 
 func _load_patterns() -> void:
 	patterns.clear()
@@ -198,10 +200,24 @@ func select_next_pattern(distance_m: float, current_speed: float, world_id: Stri
 		for pat in candidates:
 			if pat.world_ids.size() > 0 and pat.world_ids.size() <= 2:
 				biome_specific.append(pat)
-		if not biome_specific.is_empty() and (rng.randi() % 100) < 65:
+		if not biome_specific.is_empty() and (rng.randi() % 100) < 55:
 			candidates = biome_specific
-		var idx = int(rng.randi() % candidates.size())
-		chosen = candidates[idx]
+
+		# Shuffle-bag draw across candidates so layouts stay fresh instead of repetitive
+		var bag_candidates: Array[LevelPattern] = []
+		for pat in candidates:
+			if not _shuffled_bag_ids.has(pat.pattern_id):
+				bag_candidates.append(pat)
+		if bag_candidates.is_empty():
+			for pat in candidates:
+				_shuffled_bag_ids.erase(pat.pattern_id)
+			bag_candidates = candidates
+
+		var idx = int(rng.randi() % bag_candidates.size())
+		chosen = bag_candidates[idx]
+		_shuffled_bag_ids.append(chosen.pattern_id)
+		if _shuffled_bag_ids.size() > 16:
+			_shuffled_bag_ids.remove_at(0)
 
 	recent_pattern_ids.append(chosen.pattern_id)
 	if recent_pattern_ids.size() > 2:

@@ -410,8 +410,8 @@ func test_hud_combo_non_overlap_and_dev_overlay_toggle() -> Variant:
 		return "ComboPanel must anchor to right edge (1.0) for ultrawide displays"
 	if not has_subground:
 		return "ParallaxController must initialize SubGroundFill for 4:3 displays"
-	if not hint_spicy.contains("NO SLIDE") or (not hint_lh.contains("SLIDE")):
-		return "Expected ControlsHint to dynamically update for Spicy ('%s') and Mode 1 ('%s')" % [hint_spicy, hint_lh]
+	if not hint_spicy.contains("EASY") or (not hint_lh.contains("SLIDE")):
+		return "Expected ControlsHint to dynamically update for Easy ('%s') and Mode 1 ('%s')" % [hint_spicy, hint_lh]
 	return true
 
 func test_career_mastery_summary_matches_unlocked() -> Variant:

@@ -58,7 +58,8 @@ func _physics_process(delta: float) -> void:
 	offset = shake_offset
 
 	# 4. Dynamic Speed / Action Zoom + Elevation Ground-Safety Zoom
-	var speed_zoom: float = 1.0 if reduce_motion else clampf(target_zoom, 0.85, 1.08)
+	# Keep normal zoom stable (0.94..1.04) so fast motion stays razor crisp without shimmering
+	var speed_zoom: float = 1.0 if reduce_motion else clampf(target_zoom, 0.94, 1.04)
 	var desired_zoom = minf(speed_zoom, elevation_zoom)
 	var z_val = lerpf(zoom.x, desired_zoom, clampf(delta * 5.0, 0.0, 1.0))
 	zoom = Vector2(z_val, z_val)

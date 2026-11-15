@@ -19,9 +19,11 @@ var _speed_line_accum: float = 0.0
 var _aura_phase: float = 0.0
 
 var active_shield: bool = false
+var active_immortal_shield: bool = false
 var active_magnet: bool = false
 var active_time_shard: bool = false
 var active_fever: bool = false
+var active_trap_color: Color = Color(0, 0, 0, 0)
 var player_world_pos: Vector2 = Vector2.ZERO
 var reduce_motion: bool = false
 var high_contrast: bool = false
@@ -38,9 +40,11 @@ func clear_all() -> void:
 	speed_lines.clear()
 	ambients.clear()
 	active_shield = false
+	active_immortal_shield = false
 	active_magnet = false
 	active_time_shard = false
 	active_fever = false
+	active_trap_color = Color(0, 0, 0, 0)
 	queue_redraw()
 
 func update_fx(delta: float, cam_x: float, cam_y: float, p_pos: Vector2, p_speed: float, world_id: String, is_running: bool) -> void:
@@ -190,17 +194,18 @@ func spawn_afterimage(tex: Texture2D, region_rect: Rect2, world_pos: Vector2, ti
 	})
 
 func _spawn_speed_line(cam_x: float, cam_y: float, p_speed: float) -> void:
-	var vx = p_speed * 1.7 + randf_range(120.0, 260.0)
-	var sy = cam_y + randf_range(-124.0, 118.0)
+	var vx = p_speed * 1.65 + randf_range(100.0, 220.0)
+	# Keep speed lines along top and bottom margins so the main obstacle lane remains crystal clear
+	var sy = cam_y + (randf_range(-128.0, -76.0) if (randi() % 2 == 0) else randf_range(96.0, 126.0))
 	var sx = cam_x + 255.0 + randf_range(0.0, 35.0)
-	var col = Color(1.0, 0.88, 0.38, 0.55) if active_fever else Color(0.75, 0.94, 1.0, 0.35)
+	var col = Color(1.0, 0.88, 0.38, 0.36) if active_fever else Color(0.75, 0.94, 1.0, 0.22)
 	speed_lines.append({
 		"pos": Vector2(sx, sy),
-		"len": randf_range(26.0, 58.0),
+		"len": randf_range(22.0, 46.0),
 		"vx": vx,
 		"color": col,
 		"age": 0.0,
-		"life": 0.28
+		"life": 0.24
 	})
 
 func _spawn_biome_ambient(cam_x: float, cam_y: float, world_id: String) -> void:
@@ -262,11 +267,19 @@ func _draw() -> void:
 		var s: float = am["size"]
 		draw_rect(Rect2(am["pos"] - Vector2(s * 0.5, s * 0.5), Vector2(s, s)), c)
 
-	# 4. Active Skill Auras around Player
-	if active_shield:
+	# 4. Active Skill & Immortality Auras around Player
+	if active_shield or active_immortal_shield:
 		var pulse = 18.0 + sin(_aura_phase) * 2.0
-		draw_arc(player_world_pos, pulse, 0.0, TAU, 16, Color(0.42, 0.92, 1.0, 0.78), 2.0)
-		draw_arc(player_world_pos, pulse + 3.0, _aura_phase, _aura_phase + PI, 12, Color(0.85, 0.98, 1.0, 0.5), 1.5)
+		var ring_col = Color(0.38, 0.96, 0.86, 0.82) if active_immortal_shield else Color(0.42, 0.92, 1.0, 0.78)
+		var arc_col = Color(0.95, 0.98, 0.55, 0.58) if active_immortal_shield else Color(0.85, 0.98, 1.0, 0.5)
+		draw_arc(player_world_pos, pulse, 0.0, TAU, 20, ring_col, 2.0)
+		draw_arc(player_world_pos, pulse + 3.0, _aura_phase, _aura_phase + PI, 14, arc_col, 1.5)
+		if active_immortal_shield:
+			draw_arc(player_world_pos, pulse + 3.0, _aura_phase + PI * 1.15, _aura_phase + TAU * 0.95, 14, arc_col, 1.2)
+
+	if active_trap_color.a > 0.05:
+		var t_r = 15.0 + cos(_aura_phase * 2.5) * 2.0
+		draw_arc(player_world_pos, t_r, _aura_phase * 1.6, _aura_phase * 1.6 + PI * 1.5, 16, active_trap_color, 1.8)
 
 	if active_magnet:
 		var m_r = 12.0 + fmod(_aura_phase * 14.0, 26.0)
