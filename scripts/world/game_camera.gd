@@ -57,11 +57,13 @@ func _physics_process(delta: float) -> void:
 		shake_offset = Vector2(randf_range(-current_amp, current_amp), randf_range(-current_amp, current_amp))
 	offset = shake_offset
 
-	# 4. Dynamic Speed / Action Zoom + Elevation Ground-Safety Zoom
-	# Keep normal zoom stable (0.94..1.04) so fast motion stays razor crisp without shimmering
-	var speed_zoom: float = 1.0 if reduce_motion else clampf(target_zoom, 0.94, 1.04)
+	# 4. Crisp 1.0 Zoom on Ground Runs (prevents fractional pixel shimmer at high speed)
+	# Only zoom out smoothly during high elevation / flight so ground + sky stay visible.
+	var speed_zoom: float = 1.0 if reduce_motion else clampf(target_zoom, 0.90, 1.0)
 	var desired_zoom = minf(speed_zoom, elevation_zoom)
 	var z_val = lerpf(zoom.x, desired_zoom, clampf(delta * 5.0, 0.0, 1.0))
+	if absf(z_val - 1.0) < 0.002 and desired_zoom >= 0.999:
+		z_val = 1.0
 	zoom = Vector2(z_val, z_val)
 
 	global_position = Vector2(final_x, final_y)

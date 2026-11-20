@@ -306,7 +306,14 @@ func get_slots_snapshot() -> Array:
 	for i in range(slots.size()):
 		var sl: Dictionary = slots[i].duplicate()
 		sl["slot_index"] = i
-		sl["info"] = get_skill_info(sl["type"])
+		var base_info: Dictionary = get_skill_info(sl["type"]).duplicate()
+		if sl.has("custom_tag") and not str(sl["custom_tag"]).is_empty():
+			base_info["short_tag"] = sl["custom_tag"]
+		if sl.has("custom_name") and not str(sl["custom_name"]).is_empty():
+			base_info["name"] = sl["custom_name"]
+		if sl.has("custom_icon") and not str(sl["custom_icon"]).is_empty():
+			base_info["icon"] = sl["custom_icon"]
+		sl["info"] = base_info
 		out.append(sl)
 	return out
 
@@ -327,6 +334,20 @@ func get_skill_info(type: SkillType = current_skill) -> Dictionary:
 	if SKILL_DATA.has(type):
 		return SKILL_DATA[type]
 	return SKILL_DATA[SkillType.NONE]
+
+func equip_flight_skill(flight_type: int, flight_duration: float) -> void:
+	equip_skill(SkillType.PHOENIX_WINGS)
+	for i in range(slots.size()):
+		if slots[i]["type"] == SkillType.PHOENIX_WINGS:
+			slots[i]["flight_type"] = clampi(flight_type, 1, 2)
+			slots[i]["flight_duration"] = maxf(flight_duration, 1.0)
+			slots[i]["custom_tag"] = "ROCKET" if flight_type == 2 else "WINGS"
+			slots[i]["custom_name"] = "Rocket Relic" if flight_type == 2 else "Mechanical Wings"
+			var icon_p: String = "res://assets/sprites/pickup_flight_rocket.png" if flight_type == 2 else "res://assets/sprites/pickup_flight_wings.png"
+			if ResourceLoader.exists(icon_p):
+				slots[i]["custom_icon"] = icon_p
+			slots_changed.emit(get_slots_snapshot())
+			break
 
 func equip_skill(type: SkillType) -> void:
 	if type == SkillType.NONE:
@@ -480,6 +501,11 @@ func activate_slot(slot_idx: int) -> bool:
 		sl["charges"] -= 1
 		sl["cooldown"] = cd * cooldown_scale
 
+	var f_type: int = int(sl.get("flight_type", 1))
+	var f_dur: float = float(sl.get("flight_duration", dur))
+	if stype == SkillType.PHOENIX_WINGS and f_dur > 0.0:
+		dur = f_dur
+
 	if dur > 0.0:
 		sl["duration"] = dur * duration_scale
 		sl["is_active"] = true
@@ -488,7 +514,7 @@ func activate_slot(slot_idx: int) -> bool:
 
 	active_slot_index = slot_idx
 	_sync_legacy_fields()
-	_apply_skill_effect(stype)
+	_apply_skill_effect(stype, f_type, dur * duration_scale)
 	skill_activated.emit(stype)
 	slots_changed.emit(get_slots_snapshot())
 	skill_updated.emit(cooldown_timer, duration_timer, current_charges)
@@ -584,7 +610,7 @@ func absorb_shield_hit(hazard: Hazard, allow_solid: bool = false) -> bool:
 
 	return false
 
-func _apply_skill_effect(type: SkillType) -> void:
+func _apply_skill_effect(type: SkillType, flight_type_override: int = 1, flight_dur_override: float = 5.0) -> void:
 	var player = player_ref.get_ref() if player_ref else null
 
 	match type:
@@ -610,7 +636,7 @@ func _apply_skill_effect(type: SkillType) -> void:
 				player.set_bounce_multiplier(1.35)
 		SkillType.PHOENIX_WINGS:
 			if player and player.has_method("start_flight"):
-				player.start_flight(1, 5.0)
+				player.start_flight(flight_type_override, flight_dur_override)
 		SkillType.SHOCKWAVE_ROAR:
 			if player and player.has_method("execute_shockwave_roar"):
 				player.execute_shockwave_roar()

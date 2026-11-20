@@ -21,9 +21,10 @@ func _execute_flight_replay() -> void:
 	wings_pickup.position = player.position
 	runner.add_child(wings_pickup)
 	wings_pickup.collect(player)
+	player.use_skill()
 
 	if not player.is_flying:
-		print("FAILED: Player did not enter flight mode upon pickup")
+		print("FAILED: Player did not enter flight mode upon activating collected Wings skill")
 		quit(1)
 		return
 	if not hud.flight_controls.visible or not hud.flight_timer_bar.visible:
@@ -85,6 +86,7 @@ func _execute_flight_replay() -> void:
 	rocket_pickup.position = player.position
 	runner.add_child(rocket_pickup)
 	rocket_pickup.collect(player)
+	player.use_skill()
 
 	if player.flight_type != 2 or not player.is_flying:
 		print("FAILED: Rocket Relic failed to activate")

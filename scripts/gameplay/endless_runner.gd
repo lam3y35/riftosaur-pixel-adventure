@@ -60,7 +60,9 @@ var _cached_obs_tint: Color = Color.WHITE
 var _cached_trail_color: Color = Color(1, 1, 1, 0)
 var _procedural_chunks_spawned: int = 0
 var _skill_bag: Array[int] = []
-var _next_skill_spawn_m: float = 40.0
+var _next_skill_spawn_m: float = 45.0
+var _tier_last_spawn_m: Dictionary = {1: -999.0, 2: -999.0, 3: -999.0, 4: -999.0}
+var _last_global_hazard_x: float = -500.0
 
 var chunk_scenes: Array[PackedScene] = []
 var chunk_pool: Array[Node2D] = []
@@ -275,17 +277,17 @@ func _apply_mode_settings() -> void:
 		player.practice_shield_enabled = is_practice_mode
 		player.practice_immortal = is_practice_mode
 	match current_mode:
-		0: # Easy Mode: gentle opening speed, 2 hearts (1 built-in shield hit before dying)
+		0: # Easy Mode: gentle opening speed, 1 heart (classic easiest mode)
 			player.is_steer_enabled = true
-			player.set_hearts(2)
+			player.set_hearts(1)
 			player.current_speed = 196.0
 			player.config.coyote_time = 0.10
 			player.config.jump_buffer_time = 0.14
 			if player.skill_manager:
 				player.skill_manager.clear_skill()
-		1: # Medium (Runner) Mode: balanced speed & obstacle mix, 1 heart
+		1: # Medium (Runner) Mode: balanced speed & obstacle mix, 2 hearts (1 shield hit before dying)
 			player.is_steer_enabled = true
-			player.set_hearts(1)
+			player.set_hearts(2)
 			player.current_speed = 216.0
 			player.config.coyote_time = 0.08
 			player.config.jump_buffer_time = 0.12
@@ -299,16 +301,17 @@ func _apply_mode_settings() -> void:
 			player.config.jump_buffer_time = 0.12
 			if player.skill_manager:
 				player.skill_manager.clear_skill()
-		3: # Tutorial & Practice mode: 196 px/s opening, 1.5x coyote/buffer, immortal continuous shield
+		3: # Tutorial & Practice mode: 196 px/s opening, 1.5x coyote/buffer, immortal continuous shield (NOT in custom mortality maps!)
 			player.is_steer_enabled = true
 			player.set_hearts(1)
 			player.current_speed = 196.0
 			player.config.coyote_time = 0.12
 			player.config.jump_buffer_time = 0.20
-			if player.skill_manager and not skill_lab_active:
+			if player.skill_manager and not skill_lab_active and not custom_map_active:
 				player.skill_manager.equip_skill(SkillManager.SkillType.STONE_SHIELD)
 	if fx_manager:
 		fx_manager.active_immortal_shield = player.practice_immortal
+		fx_manager.active_shield = (player.skill_manager != null and player.skill_manager.has_shield)
 	if hud and hud.has_method("update_hearts"):
 		hud.update_hearts(player.current_hearts, player.max_hearts, player.practice_immortal)
 
@@ -320,6 +323,16 @@ func _apply_biome_modifier() -> void:
 		modifier = world_themes[current_world_index].gameplay_modifier
 	# Slippery icy slide momentum surge in Frozen Ruins
 	player.icy_slide_boost = 75.0 if modifier == "SLIPPERY_SURFACES" else 0.0
+
+func _hide_transient_tips_and_toasts() -> void:
+	if hud:
+		if hud.has_method("hide_skill_toast"):
+			hud.hide_skill_toast()
+		if hud.has_method("clear_trap_hud"):
+			hud.clear_trap_hud()
+		if hud.practice_hub:
+			hud.practice_hub.hide_adaptive_hint()
+			hud.practice_hub.hide_tutorial_banner()
 
 func init_title_screen() -> void:
 	is_game_started = false
@@ -340,10 +353,7 @@ func init_title_screen() -> void:
 
 	if hud.practice_hub:
 		hud.practice_hub.hide_all()
-	if hud.has_method("hide_skill_toast"):
-		hud.hide_skill_toast()
-	if hud.has_method("clear_trap_hud"):
-		hud.clear_trap_hud()
+	_hide_transient_tips_and_toasts()
 	hud.show_start_menu(save_service.get_best_score(), save_service.get_points())
 	hud.update_hud(0, 0.0, save_service.get_best_score(), save_service.get_points())
 	audio_manager.set_music_ducked(false)
@@ -355,6 +365,7 @@ func begin_run() -> void:
 		return
 	is_game_started = true
 	_hitstop_timer = 0.0
+	_hide_transient_tips_and_toasts()
 	hud.hide_start_menu()
 	if get_viewport():
 		get_viewport().gui_release_focus()
@@ -475,7 +486,9 @@ func _reset_world_state() -> void:
 	is_fever_active = false
 	_procedural_chunks_spawned = 0
 	_skill_bag.clear()
-	_next_skill_spawn_m = 40.0
+	_next_skill_spawn_m = 45.0
+	_tier_last_spawn_m = {1: -999.0, 2: -999.0, 3: -999.0, 4: -999.0}
+	_last_global_hazard_x = -500.0
 	_skill_lab_next_wave_x = 340.0
 	_custom_map_sections.clear()
 	_custom_active_section_idx = 0
@@ -483,8 +496,7 @@ func _reset_world_state() -> void:
 	_custom_map_completed = false
 	if player.skill_manager:
 		player.skill_manager.skill_lab_infinite = skill_lab_active
-	if hud.has_method("clear_trap_hud"):
-		hud.clear_trap_hud()
+	_hide_transient_tips_and_toasts()
 	if challenge_service:
 		challenge_service.reset_session_run_stats()
 
@@ -546,9 +558,9 @@ func _physics_process(delta: float) -> void:
 	var base_spd: float = 216.0
 	match current_mode:
 		0: # Easy: starts gentle and caps cleanly
-			base_spd = minf(196.0 + (distance_m * 0.14), 400.0)
+			base_spd = minf(196.0 + (distance_m * 0.12), 380.0)
 		1: # Medium (Runner): smooth acceleration
-			base_spd = minf(216.0 + (distance_m * 0.18), 460.0)
+			base_spd = minf(216.0 + (distance_m * 0.17), 450.0)
 		2: # Hard: faster ramp + dense obstacles + full movement
 			base_spd = minf(232.0 + (distance_m * 0.22), 495.0)
 		3: # Practice / Skill Lab
@@ -578,10 +590,9 @@ func _physics_process(delta: float) -> void:
 		if hud.has_method("update_combo"):
 			hud.update_combo(combo_count, combo_multiplier, is_fever_active, combo_timer / 2.8)
 
-	# Camera dynamic speed/flight zoom framing
+	# Camera dynamic flight zoom framing; keep ground run locked at crisp 1.0 zoom (no shimmer)
 	if camera:
-		var spd_ratio = clampf((player.current_speed - 280.0) / 180.0, 0.0, 1.0)
-		var target_z = 0.90 if player.is_flying else (1.0 - 0.08 * spd_ratio)
+		var target_z = 0.90 if player.is_flying else 1.0
 		camera.set_dynamic_zoom(target_z)
 
 	# Dash / Rocket / Fever afterimages & Slide gravel sparks
@@ -756,7 +767,17 @@ func _get_current_modifier() -> String:
 	return "NONE"
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and event.keycode == KEY_BACK):
+	var is_ps_gameplay_circle: bool = (
+		event is InputEventJoypadButton
+		and event.button_index == JOY_BUTTON_B
+		and hud != null
+		and hud._is_ps_controller_enabled()
+		and is_game_started
+		and not is_game_over
+		and not is_paused
+		and not _is_any_modal_open()
+	)
+	if not is_ps_gameplay_circle and (event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and event.keycode == KEY_BACK)):
 		_handle_back_action()
 		return
 
@@ -836,13 +857,26 @@ func get_skill_spawn_interval_m(skill_type: int) -> float:
 	var tier: int = int(s_info.get("tier", SkillManager.SkillTier.COMMON))
 	match tier:
 		SkillManager.SkillTier.RARE:
-			return 105.0
+			return 110.0
 		SkillManager.SkillTier.EPIC:
-			return 145.0
+			return 155.0
 		SkillManager.SkillTier.LEGENDARY:
-			return 195.0
+			return 220.0
 		_:
 			return 70.0
+
+func get_skill_min_unlock_m(skill_type: int) -> float:
+	var s_info: Dictionary = SkillManager.SKILL_DATA.get(skill_type, {})
+	var tier: int = int(s_info.get("tier", SkillManager.SkillTier.COMMON))
+	match tier:
+		SkillManager.SkillTier.RARE:
+			return 85.0
+		SkillManager.SkillTier.EPIC:
+			return 135.0
+		SkillManager.SkillTier.LEGENDARY:
+			return 190.0
+		_:
+			return 45.0
 
 func _spawn_left_ground_extension() -> void:
 	if chunk_container == null or not ResourceLoader.exists("res://assets/sprites/ground_tile.png"):
@@ -890,9 +924,11 @@ func _spawn_next_procedural_chunk() -> void:
 
 	var allowed_moves: Array = []
 	var avoid_overhang: bool = player.is_flying
+	var enabled_sk: Array[int] = save_service.get_enabled_map_skills() if save_service else [1, 2, 3, 5]
+	var allow_flight_routes: bool = (current_mode == 3) or enabled_sk.has(int(SkillManager.SkillType.PHOENIX_WINGS))
 	# Hard mode (mode 2) raises effective distance band so denser, movement-rich obstacle chunks appear sooner!
 	var gen_dist: float = distance_m + (180.0 if current_mode == 2 else 0.0)
-	var pat = level_generator.select_next_pattern(gen_dist, player.current_speed, world_id, allowed_moves, avoid_overhang)
+	var pat = level_generator.select_next_pattern(gen_dist, player.current_speed, world_id, allowed_moves, avoid_overhang, allow_flight_routes, current_mode)
 	if pat == null:
 		_spawn_chunk_by_index(0, false)
 		return
@@ -910,10 +946,24 @@ func _spawn_next_procedural_chunk() -> void:
 	_decorate_and_wire_chunk(chunk, true, true)
 	next_chunk_x += pat.chunk_width
 
+func _is_hazard_placement_fair(local_x: float, existing_hazards: Array[Vector2], chunk_x: float, chunk_w: float, speed: float, is_wide: bool = false) -> bool:
+	if local_x < 108.0 or local_x > chunk_w - 96.0:
+		return false
+	var min_gap: float = maxf(142.0, speed * 0.62) + (28.0 if is_wide else 0.0)
+	var world_x: float = chunk_x + local_x
+	if world_x - _last_global_hazard_x < min_gap:
+		return false
+	for hp in existing_hazards:
+		if absf(local_x - hp.x) < min_gap:
+			return false
+	return true
+
 func _decorate_and_wire_chunk(chunk: Node2D, allow_rewards: bool, is_procedural: bool) -> void:
 	var world_id = "plains"
 	if current_world_index < world_themes.size() and world_themes[current_world_index] != null:
 		world_id = world_themes[current_world_index].world_id
+
+	var chunk_w: float = float(chunk.get("chunk_width")) if "chunk_width" in chunk else CHUNK_WIDTH
 
 	# 1. Swap biome ground tile texture cleanly
 	if theme_tile_textures.has(world_id):
@@ -928,6 +978,8 @@ func _decorate_and_wire_chunk(chunk: Node2D, allow_rewards: bool, is_procedural:
 	var has_gem := false
 	var has_skill := false
 	var existing_hazards: Array[Vector2] = []
+	var hazard_nodes: Array[Hazard] = []
+	var pre_skill_nodes: Array[SkillPickup] = []
 	var existing_gems: Array[Vector2] = []
 	var has_breakable := false
 	var breakable_pos: Vector2 = Vector2.ZERO
@@ -942,28 +994,30 @@ func _decorate_and_wire_chunk(chunk: Node2D, allow_rewards: bool, is_procedural:
 		for ch in cur.get_children():
 			stack.append(ch)
 		if cur is Hazard:
-			var h_pos := (cur as Node2D).position
+			var hz := cur as Hazard
+			hazard_nodes.append(hz)
+			var h_pos := hz.position
 			existing_hazards.append(h_pos)
-			if cur.category == Hazard.Category.BREAKABLE and not has_breakable:
+			if hz.category == Hazard.Category.BREAKABLE and not has_breakable:
 				has_breakable = true
 				breakable_pos = h_pos
-			elif (cur.category == Hazard.Category.AIRBORNE or cur.category == Hazard.Category.CRAWLER) and not has_flyer_or_crawler:
+			elif (hz.category == Hazard.Category.AIRBORNE or hz.category == Hazard.Category.CRAWLER) and not has_flyer_or_crawler:
 				has_flyer_or_crawler = true
 				enemy_pos = h_pos
-			elif cur.category == Hazard.Category.ENVIRONMENTAL and not has_aerial_or_bounce:
+			elif hz.category == Hazard.Category.ENVIRONMENTAL and not has_aerial_or_bounce:
 				has_aerial_or_bounce = true
 				aerial_pos = h_pos
 			if _cached_obs_tint != Color.WHITE:
-				(cur as Node2D).modulate = _cached_obs_tint
+				hz.modulate = _cached_obs_tint
 			if active_ts != 1.0:
-				cur.set_time_scale(active_ts)
-			if not cur.destroyed.is_connected(_on_hazard_destroyed):
-				cur.destroyed.connect(_on_hazard_destroyed)
+				hz.set_time_scale(active_ts)
+			if not hz.destroyed.is_connected(_on_hazard_destroyed):
+				hz.destroyed.connect(_on_hazard_destroyed)
 		elif cur is Collectible:
 			has_gem = true
 			existing_gems.append((cur as Node2D).position)
 		elif cur is SkillPickup:
-			has_skill = true
+			pre_skill_nodes.append(cur as SkillPickup)
 		elif cur is BouncePad:
 			has_aerial_or_bounce = true
 			aerial_pos = (cur as Node2D).position
@@ -971,26 +1025,85 @@ func _decorate_and_wire_chunk(chunk: Node2D, allow_rewards: bool, is_procedural:
 			if not pad.launched.is_connected(_on_bounce_pad_triggered):
 				pad.launched.connect(_on_bounce_pad_triggered.bind(pad))
 
-	# Hard Mode extra movement/obstacle injection on breather-style chunks (safely spaced >= 140px)
+	# Enforce user-selected loadout & meter gating on pre-placed SkillPickups in procedural normal runs
+	for pre_sk in pre_skill_nodes:
+		if not is_instance_valid(pre_sk):
+			continue
+		if is_procedural and current_mode != 3:
+			if distance_m >= _next_skill_spawn_m:
+				if _skill_bag.is_empty():
+					_refill_skill_bag()
+				if not _skill_bag.is_empty():
+					var repl_sk: int = _pick_contextual_skill_from_bag(has_breakable, has_flyer_or_crawler, has_aerial_or_bounce, existing_gems.size() >= 3)
+					pre_sk.skill_type = repl_sk
+					has_skill = true
+					_advance_next_skill_threshold(repl_sk)
+					continue
+			pre_sk.queue_free()
+		else:
+			has_skill = true
+
+	# Smart Micro-Shuffle on spaced single/double ground hazards so layouts stay fresh yet fair
+	if is_procedural and not has_aerial_or_bounce and hazard_nodes.size() >= 1 and hazard_nodes.size() <= 2:
+		var spd: float = maxf(player.current_speed, 210.0)
+		for hi in range(hazard_nodes.size()):
+			var hz_node: Hazard = hazard_nodes[hi]
+			if hz_node.category == Hazard.Category.ENVIRONMENTAL:
+				continue
+			var shift: float = float(level_generator.rng.randi_range(-18, 18))
+			var cand_x: float = hz_node.position.x + shift
+			var others: Array[Vector2] = []
+			for oi in range(existing_hazards.size()):
+				if oi != hi:
+					others.append(existing_hazards[oi])
+			if _is_hazard_placement_fair(cand_x, others, chunk.position.x, chunk_w, spd, false):
+				hz_node.position.x = cand_x
+				existing_hazards[hi].x = cand_x
+				if hz_node.category == Hazard.Category.BREAKABLE:
+					breakable_pos = hz_node.position
+				elif hz_node.category == Hazard.Category.AIRBORNE or hz_node.category == Hazard.Category.CRAWLER:
+					enemy_pos = hz_node.position
+
+	# Hard Mode trajectory-aware complementary obstacle injection (never traps landing arc)
 	if is_procedural and current_mode == 2 and existing_hazards.size() <= 1 and distance_m >= 35.0:
-		var extra_x: float = 340.0 if (existing_hazards.is_empty() or existing_hazards[0].x < 210.0) else 155.0
-		var safe_spot := true
-		for hp in existing_hazards:
-			if absf(hp.x - extra_x) < 125.0:
-				safe_spot = false
+		var spd_h: float = maxf(player.current_speed, 232.0)
+		var slot_candidates: Array[float] = [345.0, 240.0, 145.0]
+		if existing_hazards.size() == 1 and existing_hazards[0].x > 220.0:
+			slot_candidates = [135.0, 360.0]
+		for extra_x in slot_candidates:
+			if _is_hazard_placement_fair(extra_x, existing_hazards, chunk.position.x, chunk_w, spd_h, false):
+				var roll_ex := int(level_generator.rng.randi() % 4)
+				var ex_path := "res://scenes/obstacles/obstacle_crawler.tscn"
+				var ex_y := 222.0
+				match roll_ex:
+					1:
+						ex_path = "res://scenes/obstacles/obstacle_pterodactyl.tscn"
+						ex_y = 184.0
+					2:
+						ex_path = "res://scenes/obstacles/obstacle_overhang.tscn"
+						ex_y = 230.0
+					3:
+						ex_path = "res://scenes/obstacles/obstacle_wooden_barrier.tscn"
+						ex_y = 216.0
+				if ResourceLoader.exists(ex_path):
+					var ex_sc := load(ex_path) as PackedScene
+					if ex_sc:
+						var ex_node := ex_sc.instantiate() as Node2D
+						ex_node.position = Vector2(extra_x, ex_y)
+						chunk.add_child(ex_node)
+						_wire_custom_node_recursive(ex_node)
+						existing_hazards.append(ex_node.position)
+						if roll_ex == 3 and not has_breakable:
+							has_breakable = true
+							breakable_pos = ex_node.position
+						elif (roll_ex == 0 or roll_ex == 1) and not has_flyer_or_crawler:
+							has_flyer_or_crawler = true
+							enemy_pos = ex_node.position
 				break
-		if safe_spot:
-			var roll_ex := int(level_generator.rng.randi() % 3)
-			var ex_path := "res://scenes/obstacles/obstacle_crawler.tscn" if roll_ex == 0 else ("res://scenes/obstacles/obstacle_pterodactyl.tscn" if roll_ex == 1 else "res://scenes/obstacles/obstacle_overhang.tscn")
-			var ex_y := 222.0 if roll_ex == 0 else (184.0 if roll_ex == 1 else 230.0)
-			if ResourceLoader.exists(ex_path):
-				var ex_sc := load(ex_path) as PackedScene
-				if ex_sc:
-					var ex_node := ex_sc.instantiate() as Node2D
-					ex_node.position = Vector2(extra_x, ex_y)
-					chunk.add_child(ex_node)
-					_wire_custom_node_recursive(ex_node)
-					existing_hazards.append(ex_node.position)
+
+	# Record furthest hazard world X for cross-chunk trajectory fairness
+	for hp in existing_hazards:
+		_last_global_hazard_x = maxf(_last_global_hazard_x, chunk.position.x + hp.x)
 
 	# 3. Ensure rewarding gem arcs appear smoothly
 	if allow_rewards and not has_gem:
@@ -1010,16 +1123,15 @@ func _decorate_and_wire_chunk(chunk: Node2D, allow_rewards: bool, is_procedural:
 			_next_skill_spawn_m = distance_m + 120.0
 		else:
 			var chosen_skill: int = _pick_contextual_skill_from_bag(has_breakable, has_flyer_or_crawler, has_aerial_or_bounce, existing_gems.size() >= 3)
-			var pickup = SkillPickupScene.instantiate() as SkillPickup
-			pickup.skill_type = chosen_skill
-			var target_pos: Vector2 = _pick_contextual_skill_pos(chosen_skill, has_breakable, breakable_pos, has_flyer_or_crawler, enemy_pos, has_aerial_or_bounce, aerial_pos, existing_hazards, existing_gems)
-			pickup.position = target_pos
-			chunk.add_child(pickup)
-
-			# Advance next meter threshold based on spawned skill's rarity tier!
-			var base_gap_m: float = get_skill_spawn_interval_m(chosen_skill)
-			var jitter: float = float(level_generator.rng.randi_range(-10, 18))
-			_next_skill_spawn_m = distance_m + maxf(55.0, base_gap_m + jitter)
+			if chosen_skill > 0:
+				var pickup = SkillPickupScene.instantiate() as SkillPickup
+				pickup.skill_type = chosen_skill
+				var target_pos: Vector2 = _pick_contextual_skill_pos(chosen_skill, has_breakable, breakable_pos, has_flyer_or_crawler, enemy_pos, has_aerial_or_bounce, aerial_pos, existing_hazards, existing_gems)
+				pickup.position = target_pos
+				chunk.add_child(pickup)
+				_advance_next_skill_threshold(chosen_skill)
+			else:
+				_next_skill_spawn_m = distance_m + 35.0
 
 	# Spawn varied avoidable hazard traps on ground / low-air / jump-arc tracks
 	var trap_mod: int = 3 if current_mode == 2 else 4
@@ -1142,6 +1254,7 @@ func _on_player_died(cause: String) -> void:
 		return
 	is_game_over = true
 	_clear_all_held_inputs()
+	_hide_transient_tips_and_toasts()
 
 	var run_pts: int = int(distance_m * 0.5) + int(current_score * 0.1)
 	if run_pts < 1 and distance_m > 5.0:
@@ -1189,6 +1302,8 @@ func toggle_pause() -> void:
 func pause_game() -> void:
 	is_paused = true
 	_clear_all_held_inputs()
+	if hud and hud.practice_hub:
+		hud.practice_hub.hide_adaptive_hint()
 	if save_service:
 		save_service.flush_if_dirty()
 	get_tree().paused = true
@@ -1541,9 +1656,35 @@ func _on_skip_to_practice() -> void:
 		hud.practice_hub.hide_tutorial_banner()
 		hud.practice_hub.show_practice_bar("🛡 FREE PRACTICE • NO DEATH • NO SCORE")
 
+func _advance_next_skill_threshold(chosen_skill: int) -> void:
+	var s_info: Dictionary = SkillManager.SKILL_DATA.get(chosen_skill, {})
+	var tier: int = int(s_info.get("tier", SkillManager.SkillTier.COMMON))
+	_tier_last_spawn_m[tier] = distance_m
+	var base_gap_m: float = get_skill_spawn_interval_m(chosen_skill)
+	var jitter: float = float(level_generator.rng.randi_range(-10, 18))
+	_next_skill_spawn_m = distance_m + maxf(55.0, base_gap_m + jitter)
+
+func _is_skill_tier_ready(sk_id: int) -> bool:
+	var s_info: Dictionary = SkillManager.SKILL_DATA.get(sk_id, {})
+	var tier: int = int(s_info.get("tier", SkillManager.SkillTier.COMMON))
+	var min_m: float = get_skill_min_unlock_m(sk_id)
+	# If the player's entire selected loadout consists only of higher-tier skills, allow earliest chosen tier at 65m
+	var enabled: Array[int] = save_service.get_enabled_map_skills() if save_service else [1]
+	var min_selected_tier: int = 4
+	for eid in enabled:
+		var t: int = int(SkillManager.SKILL_DATA.get(eid, {}).get("tier", 1))
+		if t < min_selected_tier:
+			min_selected_tier = t
+	if tier == min_selected_tier:
+		min_m = minf(min_m, 65.0)
+	if distance_m < min_m:
+		return false
+	var last_m: float = float(_tier_last_spawn_m.get(tier, -999.0))
+	return (distance_m - last_m) >= get_skill_spawn_interval_m(sk_id) * 0.78
+
 func _pick_contextual_skill_from_bag(has_breakable: bool, has_enemy: bool, has_aerial: bool, has_gems: bool) -> int:
 	if _skill_bag.is_empty():
-		return int(SkillManager.SkillType.BONE_BLADE)
+		return 0
 	var preferred: Array[int] = []
 	if has_breakable:
 		preferred.append_array([int(SkillManager.SkillType.BONE_BLADE), int(SkillManager.SkillType.SHOCKWAVE_ROAR), int(SkillManager.SkillType.GROUND_SLAM)])
@@ -1554,23 +1695,39 @@ func _pick_contextual_skill_from_bag(has_breakable: bool, has_enemy: bool, has_a
 	if has_gems:
 		preferred.append_array([int(SkillManager.SkillType.MAGNET_RELIC), int(SkillManager.SkillType.DOUBLE_GEM)])
 
+	# 1. Preferred contextual skill whose rarity meter gate is ready
 	for i in range(_skill_bag.size()):
-		if preferred.has(_skill_bag[i]):
+		if preferred.has(_skill_bag[i]) and _is_skill_tier_ready(_skill_bag[i]):
 			var sk: int = _skill_bag[i]
 			_skill_bag.remove_at(i)
 			return sk
+	# 2. Any selected skill whose rarity meter gate is ready
+	for i in range(_skill_bag.size()):
+		if _is_skill_tier_ready(_skill_bag[i]):
+			var sk2: int = _skill_bag[i]
+			_skill_bag.remove_at(i)
+			return sk2
+	# 3. Fallback: contextual preferred skill from selected pool, or front of bag
+	for i in range(_skill_bag.size()):
+		if preferred.has(_skill_bag[i]):
+			var sk3: int = _skill_bag[i]
+			_skill_bag.remove_at(i)
+			return sk3
 	return _skill_bag.pop_front()
 
 func _pick_contextual_skill_pos(skill_id: int, has_breakable: bool, breakable_pos: Vector2, has_enemy: bool, enemy_pos: Vector2, has_aerial: bool, aerial_pos: Vector2, existing_hazards: Array[Vector2], existing_gems: Array[Vector2]) -> Vector2:
 	var candidates: Array[Vector2] = []
 	if (skill_id == SkillManager.SkillType.BONE_BLADE or skill_id == SkillManager.SkillType.SHOCKWAVE_ROAR) and has_breakable:
-		candidates.append(Vector2(maxf(80.0, breakable_pos.x - 115.0), 192.0))
+		candidates.append(Vector2(maxf(80.0, breakable_pos.x - 115.0), 194.0))
+	elif skill_id == SkillManager.SkillType.GROUND_SLAM and (has_enemy or has_breakable):
+		var target_x: float = enemy_pos.x if has_enemy else breakable_pos.x
+		candidates.append(Vector2(maxf(80.0, target_x - 95.0), 164.0))
 	elif (skill_id == SkillManager.SkillType.BOOMERANG or skill_id == SkillManager.SkillType.SHOCKWAVE_ROAR) and has_enemy:
-		candidates.append(Vector2(maxf(80.0, enemy_pos.x - 125.0), 190.0))
+		candidates.append(Vector2(maxf(80.0, enemy_pos.x - 125.0), 186.0))
 	elif (skill_id == SkillManager.SkillType.AIR_DASH or skill_id == SkillManager.SkillType.BOUNCE_POWER or skill_id == SkillManager.SkillType.FEATHER_FALL or skill_id == SkillManager.SkillType.PHOENIX_WINGS) and has_aerial:
-		candidates.append(Vector2(maxf(80.0, aerial_pos.x - 95.0), 182.0))
+		candidates.append(Vector2(maxf(80.0, aerial_pos.x - 92.0), 182.0))
 	elif (skill_id == SkillManager.SkillType.MAGNET_RELIC or skill_id == SkillManager.SkillType.DOUBLE_GEM) and not existing_gems.is_empty():
-		candidates.append(Vector2(maxf(80.0, existing_gems[0].x - 75.0), 182.0))
+		candidates.append(Vector2(maxf(80.0, existing_gems[0].x - 70.0), 184.0))
 	candidates.append_array([Vector2(140.0, 184.0), Vector2(240.0, 178.0), Vector2(315.0, 176.0), Vector2(405.0, 180.0)])
 
 	for cand in candidates:
@@ -1864,8 +2021,8 @@ func _on_practice_hit_absorbed(cause: String, hazard: Hazard) -> void:
 		if hud.practice_hub:
 			hud.practice_hub.update_tutorial_status("Oops! Missed timing — spawning another!", false)
 		return
-	# Adaptive Hint tracking strictly in Practice & Tutorial mode only (never in normal modes)
-	if current_mode != 3 or custom_map_active or skill_lab_active:
+	# Adaptive Hint tracking strictly during an active Practice & Tutorial run (never outside run or in normal modes)
+	if not is_game_started or is_game_over or current_mode != 3 or custom_map_active or skill_lab_active:
 		return
 	var h_key := _classify_practice_hit(cause, hazard)
 	_practice_pattern_hits[h_key] = int(_practice_pattern_hits.get(h_key, 0)) + 1
@@ -2062,7 +2219,7 @@ func _populate_custom_map_items() -> void:
 	var chain_list: Array = custom_map_chain if not custom_map_chain.is_empty() else [custom_map_data]
 	var total_span: float = 0.0
 	for m in chain_list:
-		total_span += clampf(float(m.get("length_px", 1800.0)), 960.0, 5000.0)
+		total_span += clampf(float(m.get("length_px", 1800.0)), 960.0, 10000.0)
 	var num_chunks: int = maxi(8, int(ceilf(total_span / CHUNK_WIDTH)) + 4)
 	for _i in range(num_chunks):
 		_spawn_chunk_by_index(0, false)
@@ -2084,7 +2241,7 @@ func _populate_custom_map_items() -> void:
 	}
 	var base_offset_x: float = 0.0
 	for map_entry in chain_list:
-		var map_len: float = clampf(float(map_entry.get("length_px", 1800.0)), 960.0, 5000.0)
+		var map_len: float = clampf(float(map_entry.get("length_px", 1800.0)), 960.0, 10000.0)
 		_custom_map_sections.append({
 			"start_x": base_offset_x,
 			"end_x": base_offset_x + map_len,

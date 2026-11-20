@@ -278,6 +278,7 @@ func test_quests_dialog_scroll_and_touch_swipe() -> Variant:
 func test_overhang_obstacle_kills_standing_player() -> Variant:
 	var w = _create_runner_world()
 	var runner: EndlessRunner = w["runner"]
+	runner.hud.select_mode(0)
 	runner.begin_run()
 
 	var overhang_scene = load("res://scenes/obstacles/obstacle_overhang.tscn")

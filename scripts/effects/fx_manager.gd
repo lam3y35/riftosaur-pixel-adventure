@@ -117,9 +117,9 @@ func update_fx(delta: float, cam_x: float, cam_y: float, p_pos: Vector2, p_speed
 			_ambient_spawn_accum = 0.0
 			_spawn_biome_ambient(cam_x, cam_y, world_id)
 
-		if (p_speed >= 340.0 or active_fever) and speed_lines.size() < 18:
+		if (p_speed >= 360.0 or active_fever) and speed_lines.size() < 10:
 			_speed_line_accum += delta
-			var interval = 0.035 if active_fever else 0.07
+			var interval = 0.055 if active_fever else 0.10
 			if _speed_line_accum >= interval:
 				_speed_line_accum = 0.0
 				_spawn_speed_line(cam_x, cam_y, p_speed)

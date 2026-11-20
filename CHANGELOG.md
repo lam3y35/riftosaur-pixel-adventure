@@ -7,14 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased] - Asset visual pass
+## [1.4.0] - 2026-11-20 (Normal Game Skill Deck, Animated Enemies Guide, Fair Placement & Spacing, 10k Linked Builder, PS4 Overhaul, Flying Skill Rework & Overhang Fix)
 
-### Changed
-- Obstacle, boost, pickup, platform and skill sprites re-shaded (stronger color, rim light, gradient, deeper outlines) via `tools/enhance_asset_pop.py` (originals backed up in `assets/sprites/_orig_before_pop/`).
-- Gem redrawn as a faceted crystal; dust puffs redrawn.
-
-### Added
-- `AssetJuice` (`scripts/effects/asset_juice.gd`): pulsing glow halos, ground shadows, twinkles and particle bursts on gems, pickups, bounce pads, hazards and on collect/destroy.
+### Added & Improved
+- **Normal Game Skill Selection & Distance-Rarity Spawning (scripts/ui/hud.gd, scripts/gameplay/endless_runner.gd, scripts/systems/save_service.gd):**
+  - Added direct Start Menu SKILLS DECK button (StartSkillsBtn) allowing players to configure their active 4-skill loadout specifically for standard runs without entering the Practice Hub.
+  - Contextual skill placement: skills spawn based on meters traversed and tier rarity (70m / 105m / 145m / 195m), positioned fairly where they can be effectively utilized rather than purely random coordinates.
+- **Enemies Encyclopedia with Real Sprite Animations (scripts/ui/practice_hub_ui.gd, scripts/ui/hud.gd):**
+  - Added dedicated ENEMIES GUIDE (StartEnemiesBtn) directly accessible from the main start menu as well as the Practice Hub.
+  - Features real game sprite rendering with ~1.0s animated loops, spawn lane indicators (Ground, Air, Elevated), obstacle classifications, and tactical counters (Slide, Jump, Stomp, Bone Blade, Boomerang, Dash).
+- **Difficulty Rebalancing & Hearts Model (scripts/gameplay/endless_runner.gd, scripts/ui/hud.gd):**
+  - Inverted & refined hearts system: Easy Mode features 1♥ (focused on baseline reflexes), Medium Mode features 2♥ (allows 1 hit recovery before defeat), and Hard Mode features 3♥ (high obstacle density & rapid speed progression requiring extra resilience).
+- **Fair Procedural Obstacle Placement & Spacing (scripts/gameplay/endless_runner.gd, scripts/world/level_generator.gd):**
+  - Implemented _is_hazard_placement_fair validation ensuring minimum reaction clearance between adjacent hazards based on player speed and jump arc physics.
+  - Added deterministic micro-shuffling to keep layouts dynamic and unpredictable while strictly preserving fair, passable clear windows.
+- **Flight Pickup & Skill Mechanics Overhaul (scripts/objects/flight_pickup.gd, scripts/systems/skill_manager.gd, scenes/obstacles/obstacle_overhang.tscn):**
+  - Flight pickups (Mechanical Wings, Rocket Relic) no longer activate automatically upon pickup; they equip into active skill slots and trigger only on deliberate player activation.
+  - Removed top obstacle collision pillar on overhang hazards (obstacle_high.png, obstacle_overhang.tscn), allowing flying dinosaurs to soar cleanly over obstacles without fatal clipping when sliding is disabled during flight.
+- **Dynamic Map Builder Enhancements (scripts/ui/practice_hub_ui.gd, scripts/systems/save_service.gd):**
+  - Extended custom map builder capacity from 5,000 px to 10,000 px (up to 300 placed objects).
+  - Added zoom toggles (1x/2x), meter distance grid markers, live reachability ghost previews, +NEW canvas reset, undo support, right-click eraser, and linked map course chains.
+- **Transient Tips & Builder Mortality Shield Fix (scripts/gameplay/endless_runner.gd, scripts/ui/hud.gd):**
+  - Fixed persistent gameplay tips: tips and toasts automatically dismiss immediately upon game over, pause, quitting to menu, or starting a new run.
+  - Fixed immortality shield visual aura appearing in Builder mode when mortality is explicitly enabled (Mortality: ON / immortal: false).
+- **PlayStation 4 Controller Navigation & Gameplay Polish (scripts/ui/hud.gd):**
+  - Fixed Circle button (○) behavior during active gameplay so it slides/ducks cleanly without firing ui_cancel pause events.
+  - Enabled full D-pad and shoulder bumper navigation across all subdialogs and skill/enemy menus.
+- **60 FPS Performance & Pixel Shimmering Fix (scripts/main.gd, scripts/world/game_camera.gd, project.godot):**
+  - Adaptive VSync (VSYNC_ADAPTIVE) and integer-aligned ground camera zoom lock (1.0) eliminate pixel shimmer at high runner speeds.
+- **Asset Visual Pass (scripts/effects/asset_juice.gd, 	ools/enhance_asset_pop.py):**
+  - Sprites re-shaded with enhanced rim light, faceted gem crystal redraw, and particle glow/sparkle bursts via AssetJuice.
 
 ## [1.3.0] - 2026-11-15 (60 FPS Clarity, Controls, Skill Deck & Lab, 4 Traps, Hearts, Linked Map Builder & PS4 Overhaul)
 

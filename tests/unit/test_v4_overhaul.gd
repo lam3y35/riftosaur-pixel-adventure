@@ -52,31 +52,36 @@ func test_60fps_settings_and_camera_zoom_clarity() -> Variant:
 func test_difficulty_modes_opening_speeds_and_hearts() -> Variant:
 	var r := _create_runner()
 
-	# Mode 0: Easy (2 hearts, 196 opening speed)
+	# Mode 0: Easy (1 heart, 196 opening speed)
 	r.hud.select_mode(0)
 	r.begin_run()
-	if not is_equal_approx(r.player.current_speed, 196.0) or r.player.max_hearts != 2 or r.player.current_hearts != 2:
+	if not is_equal_approx(r.player.current_speed, 196.0) or r.player.max_hearts != 1 or r.player.current_hearts != 1:
 		var msg := "Mode 0 Easy mismatch: spd=%.1f hearts=%d/%d" % [r.player.current_speed, r.player.current_hearts, r.player.max_hearts]
 		_destroy_runner(r)
 		return msg
 	r.player.invulnerability_timer = 0.0
 	r.player.hit_hazard("Test Spike 1")
-	if r.player.state_machine.current_state == PlayerStateMachine.State.DEAD or r.player.current_hearts != 1:
-		_destroy_runner(r)
-		return "Easy mode 2-heart shield must absorb 1st hit and leave 1 heart"
-	r.player.invulnerability_timer = 0.0
-	r.player.hit_hazard("Test Spike 2")
 	if r.player.state_machine.current_state != PlayerStateMachine.State.DEAD or r.player.current_hearts != 0:
 		_destroy_runner(r)
-		return "Easy mode must die on 2nd hit"
+		return "Easy mode (1 heart) must die on 1st hit"
 
-	# Mode 1: Medium (1 heart, 216 opening speed)
+	# Mode 1: Medium (2 hearts, 216 opening speed)
 	r.hud.select_mode(1)
 	r.start_new_run()
-	if not is_equal_approx(r.player.current_speed, 216.0) or r.player.max_hearts != 1:
-		var msg1 := "Mode 1 Medium mismatch: spd=%.1f max_hearts=%d" % [r.player.current_speed, r.player.max_hearts]
+	if not is_equal_approx(r.player.current_speed, 216.0) or r.player.max_hearts != 2 or r.player.current_hearts != 2:
+		var msg1 := "Mode 1 Medium mismatch: spd=%.1f hearts=%d/%d" % [r.player.current_speed, r.player.current_hearts, r.player.max_hearts]
 		_destroy_runner(r)
 		return msg1
+	r.player.invulnerability_timer = 0.0
+	r.player.hit_hazard("Medium Hit 1")
+	if r.player.state_machine.current_state == PlayerStateMachine.State.DEAD or r.player.current_hearts != 1:
+		_destroy_runner(r)
+		return "Medium mode 2-heart shield must absorb 1st hit and leave 1 heart"
+	r.player.invulnerability_timer = 0.0
+	r.player.hit_hazard("Medium Hit 2")
+	if r.player.state_machine.current_state != PlayerStateMachine.State.DEAD or r.player.current_hearts != 0:
+		_destroy_runner(r)
+		return "Medium mode must die on 2nd hit"
 
 	# Mode 2: Hard (3 hearts, 232 opening speed, steering enabled)
 	r.hud.select_mode(2)
@@ -443,6 +448,95 @@ func test_v130_regression_audit_fixes() -> Variant:
 		_destroy_runner(r)
 		return "Shop swipe guard must ignore buy tap during drag gesture"
 	r.hud._shop_drag_moved = false
+
+	_destroy_runner(r)
+	return true
+
+func test_round2_fixes_loadout_tips_builder_flight_overhang_and_ps4() -> Variant:
+	var r := _create_runner()
+
+	# 1. Start Menu exposes Normal-Game Skills Loadout & Enemies Guide directly
+	if r.hud.start_skills_btn == null or r.hud.start_enemies_btn == null:
+		_destroy_runner(r)
+		return "Start Menu must expose StartSkillsBtn and StartEnemiesBtn directly for Normal Game"
+	r.hud.start_skills_btn.pressed.emit()
+	if not r.hud.practice_hub.skills_lab_dialog.visible or not r.hud.practice_hub.skills_loadout_only_mode:
+		_destroy_runner(r)
+		return "StartSkillsBtn must open Normal-Game Skills Loadout mode"
+	r.hud.practice_hub.close_skills_lab()
+
+	# 2. Tips clear immediately on death and on new game
+	r.hud.select_mode(3)
+	r.begin_run()
+	r.hud.practice_hub.show_adaptive_hint("Transient tip", 8.0)
+	if not r.hud.practice_hub.hint_banner.visible:
+		_destroy_runner(r)
+		return "Hint banner should be visible during active run"
+	r._on_player_died("Test Death")
+	if r.hud.practice_hub.hint_banner.visible:
+		_destroy_runner(r)
+		return "Hint banner must hide when run ends"
+	r.hud.practice_hub.show_adaptive_hint("Stale tip", 8.0)
+	r.start_new_run()
+	if r.hud.practice_hub.hint_banner.visible:
+		_destroy_runner(r)
+		return "Hint banner must hide when starting a new run"
+
+	# 3. Builder mode with Mortality: ON (immortal: false) must NOT grant shield aura or Stone Shield
+	var mort_map := {
+		"id": "mort_test",
+		"name": "Mortal Test",
+		"world_index": 0,
+		"speed_preset": 1,
+		"immortal": false,
+		"length_px": 5000.0,
+		"items": []
+	}
+	r.start_custom_map(mort_map)
+	if r.player.practice_immortal or r.player.skill_manager.has_skill(SkillManager.SkillType.STONE_SHIELD) or r.fx_manager.active_shield or r.fx_manager.active_immortal_shield:
+		_destroy_runner(r)
+		return "Builder with Mortality ON must NOT equip Stone Shield or activate shield aura"
+
+	# 4. FlightPickup equips into skill slot and waits for manual click (no auto-fly on pickup)
+	r.hud.select_mode(1)
+	r.custom_map_active = false
+	r.start_new_run()
+	var wings_sc := load("res://scenes/objects/flight_pickup_wings.tscn") as PackedScene
+	var wings := wings_sc.instantiate() as FlightPickup
+	r.add_child(wings)
+	wings.collect(r.player)
+	if r.player.is_flying:
+		_destroy_runner(r)
+		return "Collecting FlightPickup must NOT immediately activate flight; must wait for click"
+	if not r.player.skill_manager.has_skill(SkillManager.SkillType.PHOENIX_WINGS):
+		_destroy_runner(r)
+		return "Collecting FlightPickup must equip flying skill into SkillManager slot"
+	if not r.player.use_skill() or not r.player.is_flying:
+		_destroy_runner(r)
+		return "Activating equipped flight skill slot must enter flight"
+
+	# 5. Overhang obstacle top is removed so high-flying player passes cleanly above it
+	var overhang_sc := load("res://scenes/obstacles/obstacle_overhang.tscn") as PackedScene
+	var ov := overhang_sc.instantiate() as Hazard
+	var ov_col := ov.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var rect := ov_col.shape as RectangleShape2D
+	var ov_top_world_y: float = 230.0 + ov_col.position.y - rect.size.y * 0.5
+	ov.free()
+	if ov_top_world_y < 140.0:
+		_destroy_runner(r)
+		return "Overhang top must be removed (top y=%.1f >= 140) so flying players pass freely overhead" % ov_top_world_y
+
+	# 6. PS4 Circle button (duck/slide) during active gameplay must NOT trigger ui_cancel pause
+	r.save_service.set_setting("ps_controller_enabled", true)
+	r.hud.select_mode(1)
+	r.start_new_run()
+	var ev_circle := InputEventJoypadButton.new()
+	ev_circle.button_index = JOY_BUTTON_B
+	ev_circle.pressed = true
+	r._unhandled_input(ev_circle)
+	if r.is_paused:
+		_destroy_runner(r)
+		return "PS4 Circle (Slide) during gameplay must NOT pause via ui_cancel"
 
 	_destroy_runner(r)
 	return true

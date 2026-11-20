@@ -43,7 +43,9 @@ func collect(player: Player) -> void:
 	set_deferred("monitoring", false)
 	set_deferred("monitorable", false)
 
-	if player and player.has_method("start_flight"):
+	if player and player.skill_manager:
+		player.skill_manager.equip_flight_skill(int(flight_type), flight_duration)
+	elif player and player.has_method("start_flight"):
 		player.start_flight(int(flight_type), flight_duration)
 
 	picked_up.emit(self)

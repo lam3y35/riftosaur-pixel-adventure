@@ -15,7 +15,7 @@
 - **Target Engine:** Godot Engine 4.7.2-stable official (`ed1daf0bf`)
 - **Render Mode:** `gl_compatibility` (OpenGL ES 3.0 compatible for broad mobile and desktop support)
 - **Logical Viewport:** 480 × 270 (16:9 pixel-perfect logical grid with nearest-neighbor scaling, locked 60 FPS / 60 Hz physics)
-- **Automated Test Suite:** 113 passing tests (100% pass rate) + 24/24 verified procedural patterns (Validator V1 & V2).
+- **Automated Test Suite:** 114 passing tests (100% pass rate) + 24/24 verified procedural patterns (Validator V1 & V2).
 - **Android Direct Install APK (Signed):** `releases/Riftosaur-debug.apk` (59.89 MB, SHA-256: `8A03B0D2567FE41BA3DD28492F9805424BA07C9B7AE36EA2C3730DA3B02E60B9`)
 - **Android Unsigned Release APK:** `releases/Riftosaur-release.apk` (55.37 MB, SHA-256: `644330A4EA98F023E0EB8F0F2AA7EE21E3FC02E5FF8C366172DBD7A811A57095`)
 
@@ -45,6 +45,18 @@
    ```
 
 ---
+
+## What's New in v1.4.0
+
+- **Normal Game Skill Selection & Distance-Rarity Spawning:** Direct Start Menu SKILLS DECK button to customize your 4 active skills for regular runs. In-game skills spawn contextually by meters run (70m / 105m / 145m / 195m) at clearable obstacles.
+- **Animated Enemies Guide:** Start Menu & Practice Hub guide featuring real ~1.0s animated loops, spawn lane indicators (Ground, Air, Elevated), and tactical counter maneuvers (Slide, Jump, Stomp, Bone Blade, Boomerang, Dash).
+- **Difficulty Hearts Inversion:** Easy Mode features 1♥, Medium Mode features 2♥, and Hard Mode features 3♥ to match difficulty dynamics and obstacle density.
+- **Fair Procedural Obstacle Placement & Spacing:** Algorithmic gap checks and deterministic micro-shuffling ensure every hazard combination has fair reaction clearance and passability.
+- **Flight Skill Rework & Overhang Clear:** Flight pickups (Mechanical Wings, Rocket Relic) now equip into active skill slots and trigger only on deliberate player press. The top overhang pillar is removed so flying players cleanly pass above.
+- **Dynamic 10k Linked Map Builder:** Canvas length expanded to 10,000 px (300 items), with 1x/2x zoom, meter distance grid, reachability ghost preview, and course chain linking.
+- **Transient Tips & Builder Mortality Fix:** Tips cleanly disappear on game over, pause, menu quit, or new run. Immortal shield aura is disabled in builder mode when mortality is turned on.
+- **PlayStation 4 Controller Polish:** Circle button (○) ducks/slides during gameplay without triggering ui_cancel pause; full D-pad/shoulder navigation across all subdialogs.
+- **60 FPS Performance & Shimmer Elimination:** Adaptive VSync and integer-locked ground camera zoom eliminate pixel jitter at high speeds.
 
 ## What's New in v1.3.0
 

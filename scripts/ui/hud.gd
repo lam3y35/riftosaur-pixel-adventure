@@ -257,6 +257,9 @@ var _tex_cache: Dictionary = {}
 
 # New dynamic HUD & Input widgets
 var hearts_label: Label
+var start_skills_btn: Button
+var start_enemies_btn: Button
+var _ps_axis_held: Dictionary = {}
 var trap_debuff_panel: PanelContainer
 var trap_debuff_label: Label
 var glitch_overlay: ColorRect
@@ -322,8 +325,8 @@ func _ready() -> void:
 	retry_button.pressed.connect(_on_retry_button_pressed)
 
 	# Mode selection buttons
-	mode_casual_btn.text = "EASY (2♥)"
-	mode_runner_btn.text = "MEDIUM"
+	mode_casual_btn.text = "EASY (1♥)"
+	mode_runner_btn.text = "MEDIUM (2♥)"
 	mode_freestyle_btn.text = "HARD (3♥)"
 	mode_casual_btn.pressed.connect(func(): select_mode(0))
 	mode_runner_btn.pressed.connect(func(): select_mode(1))
@@ -599,6 +602,9 @@ func bind_services(p_save: SaveService, p_challenge: ChallengeService) -> void:
 	challenge_service = p_challenge
 	if practice_hub:
 		practice_hub.bind_save_service(save_service)
+		if not practice_hub.map_skills_updated.is_connected(_on_loadout_skills_updated):
+			practice_hub.map_skills_updated.connect(_on_loadout_skills_updated)
+	_refresh_start_skills_btn()
 	if challenge_service:
 		if not challenge_service.challenge_unlocked.is_connected(_on_challenge_unlocked):
 			challenge_service.challenge_unlocked.connect(_on_challenge_unlocked)
@@ -768,6 +774,34 @@ func _create_dynamic_ui() -> void:
 		move_child(glitch_overlay, 0)
 
 	_create_hit_pads()
+
+	if start_menu:
+		var shop_row := start_menu.get_node_or_null("Panel/VBox/ShopQuestsHBox")
+		if shop_row and start_skills_btn == null:
+			start_skills_btn = Button.new()
+			start_skills_btn.name = "StartSkillsBtn"
+			start_skills_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			start_skills_btn.text = "⚡ SKILLS (4/4)"
+			_style_arcade_button(start_skills_btn, Color(0.28, 0.18, 0.56), Color(0.72, 0.48, 1.0), 10)
+			start_skills_btn.pressed.connect(func():
+				ui_interacted.emit()
+				if practice_hub:
+					practice_hub.open_skills_lab(true)
+			)
+			shop_row.add_child(start_skills_btn)
+		var extra_row := start_menu.get_node_or_null("Panel/VBox/ExtraMenuHBox")
+		if extra_row and start_enemies_btn == null:
+			start_enemies_btn = Button.new()
+			start_enemies_btn.name = "StartEnemiesBtn"
+			start_enemies_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			start_enemies_btn.text = "👾 ENEMIES"
+			_style_arcade_button(start_enemies_btn, Color(0.42, 0.16, 0.28), Color(1.0, 0.48, 0.65), 9)
+			start_enemies_btn.pressed.connect(func():
+				ui_interacted.emit()
+				if practice_hub:
+					practice_hub.open_enemies_guide()
+			)
+			extra_row.add_child(start_enemies_btn)
 
 	if settings_dialog:
 		var s_list = settings_dialog.get_node_or_null("Panel/VBox/SettingsScroll/SettingsList")
@@ -968,6 +1002,15 @@ func _update_mascot_icons() -> void:
 				mascot_right.texture = tex
 			break
 
+func _on_loadout_skills_updated(_skills: Array[int]) -> void:
+	_refresh_start_skills_btn()
+
+func _refresh_start_skills_btn() -> void:
+	if start_skills_btn == null:
+		return
+	var cnt: int = save_service.get_enabled_map_skills().size() if save_service else 4
+	start_skills_btn.text = "⚡ SKILLS (%d/%d)" % [cnt, SaveService.MAX_ENABLED_MAP_SKILLS]
+
 func select_mode(mode: int) -> void:
 	current_mode = mode
 	mode_selected.emit(mode)
@@ -985,12 +1028,12 @@ func select_mode(mode: int) -> void:
 
 	var ps_on := _is_ps_controller_enabled()
 	match mode:
-		0: # Easy (2 Hearts)
-			mode_desc_label.text = "🛡 2 Hearts (1 Shield Hit) • Gentle Speed • Jump, Slide & Steer"
+		0: # Easy (1 Heart)
+			mode_desc_label.text = "🌱 1 Heart • Gentle Speed • Easiest Obstacle Pacing"
 			if steer_left_btn: steer_left_btn.visible = not ps_on
 			if steer_right_btn: steer_right_btn.visible = not ps_on
-		1: # Medium (Classic Runner)
-			mode_desc_label.text = "🔥 Balanced Speed • Classic 1-Heart Arcade Challenge"
+		1: # Medium (2 Hearts)
+			mode_desc_label.text = "🛡 2 Hearts (1 Shield Hit) • Balanced Speed & Obstacles"
 			if steer_left_btn: steer_left_btn.visible = not ps_on
 			if steer_right_btn: steer_right_btn.visible = not ps_on
 		2: # Hard (3 Hearts)
@@ -1006,6 +1049,7 @@ func select_mode(mode: int) -> void:
 			start_best_label.text = "🛡 PRACTICE • NO SCORE"
 		else:
 			start_best_label.text = "🏆 MODE BEST: %05d" % save_service.get_mode_best_score(mode)
+	_refresh_start_skills_btn()
 	apply_control_layout(_is_left_handed())
 
 func show_start_menu(best_score: int, points: int = 0) -> void:
@@ -1018,6 +1062,7 @@ func show_start_menu(best_score: int, points: int = 0) -> void:
 	start_points_label.text = "💎 PTS: %05d" % points
 	points_label.text = "💎 PTS: %05d" % points
 	_update_mascot_icons()
+	_refresh_start_skills_btn()
 	start_menu.visible = true
 	touch_controls.visible = false
 	skin_shop_dialog.visible = false
@@ -1084,7 +1129,7 @@ func update_gems(count: int) -> void:
 func update_hearts(current: int, max_h: int, immortal: bool = false) -> void:
 	if hearts_label == null:
 		return
-	var show_h := (max_h > 1) and (not immortal) and (current_mode != 3)
+	var show_h := (max_h >= 1) and (not immortal) and (current_mode != 3)
 	hearts_label.visible = show_h
 	if show_h:
 		var filled := maxi(current, 0)
@@ -2025,6 +2070,34 @@ func _handle_ps_menu_button(btn_idx: int) -> bool:
 	if any_sub:
 		if btn_idx == JOY_BUTTON_B:
 			return _close_active_subdialog_ps()
+		if btn_idx == JOY_BUTTON_DPAD_UP or btn_idx == JOY_BUTTON_DPAD_DOWN:
+			var delta_y: int = -48 if btn_idx == JOY_BUTTON_DPAD_UP else 48
+			if challenges_dialog and challenges_dialog.visible and quests_scroll:
+				quests_scroll.scroll_vertical += delta_y
+				return true
+			if settings_dialog and settings_dialog.visible and settings_scroll:
+				settings_scroll.scroll_vertical += delta_y
+				return true
+			if practice_hub:
+				for dlg in [practice_hub.skills_lab_dialog, practice_hub.section_dialog, practice_hub.enemies_dialog]:
+					if dlg and dlg.visible:
+						for sc in dlg.find_children("*", "ScrollContainer", true, false):
+							if sc is ScrollContainer:
+								(sc as ScrollContainer).scroll_vertical += delta_y
+						return true
+		if skin_shop_dialog and skin_shop_dialog.visible and shop_scroll:
+			if btn_idx == JOY_BUTTON_DPAD_LEFT:
+				shop_scroll.scroll_horizontal -= 96
+				return true
+			elif btn_idx == JOY_BUTTON_DPAD_RIGHT:
+				shop_scroll.scroll_horizontal += 96
+				return true
+			elif btn_idx == JOY_BUTTON_LEFT_SHOULDER or btn_idx == JOY_BUTTON_RIGHT_SHOULDER:
+				var cats := ["dino", "obstacle", "map", "trail"]
+				var c_idx := cats.find(_shop_category)
+				var step := -1 if btn_idx == JOY_BUTTON_LEFT_SHOULDER else 1
+				_select_shop_category(cats[(c_idx + step + cats.size()) % cats.size()])
+				return true
 		return false
 	if start_menu and start_menu.visible:
 		match btn_idx:
@@ -2060,6 +2133,9 @@ func _handle_ps_menu_button(btn_idx: int) -> bool:
 			JOY_BUTTON_Y:
 				_on_restart_button_pressed()
 				return true
+			JOY_BUTTON_X:
+				menu_requested.emit()
+				return true
 		return false
 	if game_over_menu and game_over_menu.visible:
 		match btn_idx:
@@ -2091,7 +2167,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if _is_ps_controller_enabled():
-		_handle_ps_controller_input(event)
+		if _handle_ps_controller_input(event):
+			if get_viewport():
+				get_viewport().set_input_as_handled()
+			return
 
 	if event is InputEventScreenTouch:
 		if event.pressed:
@@ -2101,9 +2180,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventScreenDrag:
 		_handle_touch_drag(event.index, event.position)
 
-func _handle_ps_controller_input(event: InputEvent) -> void:
+func _handle_ps_controller_input(event: InputEvent) -> bool:
 	if save_service == null:
-		return
+		return false
 	var in_flight := flight_controls != null and flight_controls.visible
 	var code := ""
 	var pressed := false
@@ -2114,7 +2193,7 @@ func _handle_ps_controller_input(event: InputEvent) -> void:
 		is_valid_ev = true
 		if pressed and event.button_index == JOY_BUTTON_START:
 			pause_requested.emit()
-			return
+			return true
 	elif event is InputEventJoypadMotion:
 		var ax: int = event.axis
 		var val: float = event.axis_value
@@ -2129,12 +2208,12 @@ func _handle_ps_controller_input(event: InputEvent) -> void:
 				_ps_left_held = false
 				_ps_right_held = false
 			steer_requested.emit((1.0 if _ps_right_held else 0.0) - (1.0 if _ps_left_held else 0.0))
-			return
+			return true
 		if ax == JOY_AXIS_LEFT_Y:
 			if in_flight:
 				flight_up_requested.emit(val < -0.45)
 				flight_down_requested.emit(val > 0.45)
-				return
+				return true
 			var want_slide := val > 0.55
 			var want_jump := val < -0.55
 			if want_slide != _ps_stick_slide_held:
@@ -2143,11 +2222,11 @@ func _handle_ps_controller_input(event: InputEvent) -> void:
 			if want_jump != _ps_stick_jump_held:
 				_ps_stick_jump_held = want_jump
 				jump_requested.emit(want_jump)
-			return
+			return true
 		if ax == JOY_AXIS_TRIGGER_LEFT:
 			var now_l2 := val >= 0.45
 			if now_l2 == _ps_l2_held:
-				return
+				return false
 			_ps_l2_held = now_l2
 			code = "axis:%d:+" % ax
 			pressed = now_l2
@@ -2155,42 +2234,64 @@ func _handle_ps_controller_input(event: InputEvent) -> void:
 		elif ax == JOY_AXIS_TRIGGER_RIGHT:
 			var now_r2 := val >= 0.45
 			if now_r2 == _ps_r2_held:
-				return
+				return false
 			_ps_r2_held = now_r2
 			code = "axis:%d:+" % ax
 			pressed = now_r2
 			is_valid_ev = true
+		else:
+			# Support remapped Right Stick / other analog axes cleanly
+			for dir_sign in ["+", "-"]:
+				var ax_code := "axis:%d:%s" % [ax, dir_sign]
+				var is_now: bool = (val >= 0.55) if dir_sign == "+" else (val <= -0.55)
+				var was_held: bool = bool(_ps_axis_held.get(ax_code, false))
+				if is_now != was_held:
+					_ps_axis_held[ax_code] = is_now
+					code = ax_code
+					pressed = is_now
+					is_valid_ev = true
+					break
 	if not is_valid_ev or code == "":
-		return
+		return false
 
 	if in_flight:
 		if code == save_service.get_ps_binding("jump") or code == "btn:%d" % JOY_BUTTON_DPAD_UP:
 			flight_up_requested.emit(pressed)
-			return
+			return true
 		elif code == save_service.get_ps_binding("duck") or code == "btn:%d" % JOY_BUTTON_DPAD_DOWN:
 			flight_down_requested.emit(pressed)
-			return
+			return true
 
 	if code == save_service.get_ps_binding("jump"):
 		jump_requested.emit(pressed)
+		return true
 	elif code == save_service.get_ps_binding("duck"):
 		slide_requested.emit(pressed)
+		return true
 	elif code == save_service.get_ps_binding("move_right"):
 		_ps_right_held = pressed
 		steer_requested.emit((1.0 if _ps_right_held else 0.0) - (1.0 if _ps_left_held else 0.0))
+		return true
 	elif code == save_service.get_ps_binding("move_left"):
 		_ps_left_held = pressed
 		steer_requested.emit((1.0 if _ps_right_held else 0.0) - (1.0 if _ps_left_held else 0.0))
+		return true
 	elif pressed and code == save_service.get_ps_binding("skill_1"):
 		skill_slot_requested.emit(0)
+		return true
 	elif pressed and code == save_service.get_ps_binding("skill_2"):
 		skill_slot_requested.emit(1)
+		return true
 	elif pressed and code == save_service.get_ps_binding("skill_3"):
 		skill_slot_requested.emit(2)
+		return true
 	elif code == "btn:%d" % JOY_BUTTON_DPAD_UP:
 		jump_requested.emit(pressed)
+		return true
 	elif code == "btn:%d" % JOY_BUTTON_DPAD_DOWN:
 		slide_requested.emit(pressed)
+		return true
+	return false
 
 func clear_touch_inputs() -> void:
 	jump_touch_index = -1
@@ -2205,6 +2306,7 @@ func clear_touch_inputs() -> void:
 	_ps_r2_held = false
 	_ps_stick_jump_held = false
 	_ps_stick_slide_held = false
+	_ps_axis_held.clear()
 	touch_start_positions.clear()
 	jump_requested.emit(false)
 	slide_requested.emit(false)
@@ -2703,12 +2805,14 @@ func _update_controls_hint(is_left_handed: bool) -> void:
 	if controls_hint == null:
 		return
 	if _is_ps_controller_enabled():
-		controls_hint.text = "🎮 PS4: ✕ JUMP  •  ○ SLIDE  •  □ SKILL  •  ◀▶ STEER  •  OPTIONS PAUSE"
+		controls_hint.text = "🎮 PS4: ✕ JUMP • ○ SLIDE • □△R1 SKILLS • ◀▶ STEER • OPTIONS PAUSE"
 		return
 	if not _is_mobile_touch_device():
 		match current_mode:
 			0:
-				controls_hint.text = "EASY (2♥) • SPACE = JUMP • S = SLIDE • A/D = STEER • E = SKILL"
+				controls_hint.text = "EASY (1♥) • SPACE = JUMP • S = SLIDE • A/D = STEER • E = SKILL"
+			1:
+				controls_hint.text = "MEDIUM (2♥) • SPACE = JUMP • S = SLIDE • A/D = STEER • E = SKILL"
 			2:
 				controls_hint.text = "HARD (3♥) • A/D = STEER • SPACE = JUMP • S = SLIDE • E = SKILL"
 			_:

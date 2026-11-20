@@ -97,7 +97,7 @@ func get_world_transition_pattern() -> LevelPattern:
 			return pat
 	return null
 
-func select_next_pattern(distance_m: float, current_speed: float, world_id: String, allowed_movements: Array = [], avoid_overhang: bool = false) -> LevelPattern:
+func select_next_pattern(distance_m: float, current_speed: float, world_id: String, allowed_movements: Array = [], avoid_overhang: bool = false, allow_flight_routes: bool = true, mode_hint: int = 1) -> LevelPattern:
 	var target_band = get_difficulty_band(distance_m, current_speed)
 	var candidates: Array[LevelPattern] = []
 
@@ -107,6 +107,9 @@ func select_next_pattern(distance_m: float, current_speed: float, world_id: Stri
 	for pat in patterns:
 		# Exclude special transition chunk from ordinary procedural selection
 		if pat.pattern_id == "p00_world_transition":
+			continue
+
+		if not allow_flight_routes and pat.required_movement.has("flight"):
 			continue
 
 		# Check world compatibility
@@ -143,6 +146,10 @@ func select_next_pattern(distance_m: float, current_speed: float, world_id: Stri
 		if not allow_challenging and pat.route_class == "challenging":
 			continue
 
+		# Keep empty safe breather strictly as recovery/fallback, never spamming empty chunks
+		if pat.pattern_id == "p01_safe_breather" and allow_challenging:
+			continue
+
 		candidates.append(pat)
 
 	# Second-chance relaxation: if strict high-band speed gates excluded every chunk (e.g., Chill/Practice speed caps),
@@ -150,6 +157,8 @@ func select_next_pattern(distance_m: float, current_speed: float, world_id: Stri
 	if candidates.is_empty():
 		for pat in patterns:
 			if pat.pattern_id == "p00_world_transition" or pat.pattern_id == "p01_safe_breather":
+				continue
+			if not allow_flight_routes and pat.required_movement.has("flight"):
 				continue
 			if not pat.world_ids.is_empty() and not pat.world_ids.has(world_id):
 				continue
@@ -181,6 +190,23 @@ func select_next_pattern(distance_m: float, current_speed: float, world_id: Stri
 				non_recent.append(pat)
 		if not non_recent.is_empty():
 			candidates = non_recent
+
+	# Mode-aware pacing bias (without ever making layout deterministic-boring or exhausting all patterns)
+	if candidates.size() > 2:
+		if mode_hint == 0:
+			var gentle: Array[LevelPattern] = []
+			for pat in candidates:
+				if pat.route_class != "challenging":
+					gentle.append(pat)
+			if not gentle.is_empty() and (rng.randi() % 100) < 68:
+				candidates = gentle
+		elif mode_hint == 2 and allow_challenging:
+			var intense: Array[LevelPattern] = []
+			for pat in candidates:
+				if pat.route_class == "challenging" or pat.route_class == "optional_reward":
+					intense.append(pat)
+			if not intense.is_empty() and (rng.randi() % 100) < 75:
+				candidates = intense
 
 	# Fallback if no matching pattern
 	if candidates.is_empty():
