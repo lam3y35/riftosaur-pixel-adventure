@@ -246,6 +246,7 @@ var _world_toast_tween: Tween
 var _challenge_toast_tween: Tween
 var _high_contrast_active: bool = false
 var _has_active_skill_button: bool = false
+var _is_in_flight: bool = false
 var skill_slot_buttons: Array[Button] = []
 var _skill_btn_icons: Array[TextureRect] = []
 var _skill_btn_labels: Array[Label] = []
@@ -660,6 +661,39 @@ static func format_ps_code(code: String) -> String:
 			return "Axis %d %s" % [ax, dir]
 	return code if not code.is_empty() else "Unbound"
 
+static func _format_ps_glyph(code: String) -> String:
+	if code.begins_with("btn:"):
+		match int(code.substr(4)):
+			0: return "✕"
+			1: return "○"
+			2: return "□"
+			3: return "△"
+			4: return "SHR"
+			5: return "PS"
+			6: return "OPT"
+			7: return "L3"
+			8: return "R3"
+			9: return "L1"
+			10: return "R1"
+			11: return "▲"
+			12: return "▼"
+			13: return "◀"
+			14: return "▶"
+			15: return "TP"
+			_: return "B%s" % code.substr(4)
+	elif code.begins_with("axis:"):
+		var parts := code.split(":")
+		if parts.size() >= 3:
+			var ax := int(parts[1])
+			var dir := parts[2]
+			if ax == 4: return "L2"
+			if ax == 5: return "R2"
+			if ax == 0: return "L▶" if dir == "+" else "L◀"
+			if ax == 1: return "L▼" if dir == "+" else "L▲"
+			if ax == 2: return "R▶" if dir == "+" else "R◀"
+			if ax == 3: return "R▼" if dir == "+" else "R▲"
+	return "?"
+
 func _wire_menu_sfx() -> void:
 	var btns: Array = [
 		play_button, mode_casual_btn, mode_runner_btn, mode_freestyle_btn, mode_practice_btn,
@@ -1053,6 +1087,9 @@ func select_mode(mode: int) -> void:
 	apply_control_layout(_is_left_handed())
 
 func show_start_menu(best_score: int, points: int = 0) -> void:
+	_is_in_flight = false
+	if flight_controls:
+		flight_controls.visible = false
 	if current_mode == 3:
 		start_best_label.text = "🛡 PRACTICE • NO SCORE"
 	elif save_service:
@@ -1197,7 +1234,8 @@ func _get_cached_texture(path: String) -> Texture2D:
 	return null
 
 func update_skill_slots(slots_snapshot: Array) -> void:
-	var in_flight := flight_controls != null and flight_controls.visible
+	var in_flight := _is_in_flight
+	var ps_on := _is_ps_controller_enabled()
 	var equipped_slots: Array = []
 	for sl in slots_snapshot:
 		if int(sl.get("type", 0)) != 0:
@@ -1254,7 +1292,8 @@ func update_skill_slots(slots_snapshot: Array) -> void:
 			btn.visible = false
 			continue
 
-		btn.visible = (not in_flight) and (not _is_ps_controller_enabled())
+		btn.visible = not in_flight
+		btn.mouse_filter = Control.MOUSE_FILTER_IGNORE if ps_on else Control.MOUSE_FILTER_STOP
 		btn.disabled = is_passive
 		var tier_col := SkillManager.get_tier_color(int(info.get("tier", 1)))
 		var accent_col: Color = info.get("color", tier_col)
@@ -1266,6 +1305,9 @@ func update_skill_slots(slots_snapshot: Array) -> void:
 		if i < _skill_btn_labels.size() and _skill_btn_labels[i]:
 			var lbl := _skill_btn_labels[i]
 			var short_tag := str(info.get("short_tag", ""))
+			var ps_prefix := ""
+			if ps_on and save_service and not is_passive:
+				ps_prefix = _format_ps_glyph(save_service.get_ps_binding("skill_%d" % (i + 1))) + " "
 			if is_passive:
 				lbl.text = "SHLD"
 				lbl.add_theme_color_override("font_color", Color(0.55, 0.95, 1.0))
@@ -1274,19 +1316,19 @@ func update_skill_slots(slots_snapshot: Array) -> void:
 				var dur := float(sl.get("duration", 0.0))
 				var ch := int(sl.get("charges", 0))
 				if cd > 0.0:
-					lbl.text = "%.1fs" % cd
+					lbl.text = "%s%.1fs" % [ps_prefix, cd]
 					lbl.add_theme_color_override("font_color", Color(1.0, 0.45, 0.35))
 				elif dur > 0.0:
-					lbl.text = "%.1fs" % dur
+					lbl.text = "%s%.1fs" % [ps_prefix, dur]
 					lbl.add_theme_color_override("font_color", Color(0.35, 1.0, 0.6))
 				elif ch > 1:
-					lbl.text = "%s x%d" % [short_tag, ch] if not short_tag.is_empty() else "x%d" % ch
+					lbl.text = ("%s%s x%d" % [ps_prefix, short_tag, ch]) if not short_tag.is_empty() else ("%sx%d" % [ps_prefix, ch])
 					lbl.add_theme_color_override("font_color", Color(0.45, 0.9, 1.0))
 				elif ch == 1:
-					lbl.text = short_tag if not short_tag.is_empty() else "RDY"
+					lbl.text = ("%s%s" % [ps_prefix, short_tag]) if not short_tag.is_empty() else ("%sRDY" % ps_prefix)
 					lbl.add_theme_color_override("font_color", accent_col.lerp(Color.WHITE, 0.35))
 				else:
-					lbl.text = "--"
+					lbl.text = "%s--" % ps_prefix
 					lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 
 func update_skill_slot(info: Dictionary, cd: float = 0.0, dur: float = 0.0, charges: int = 1) -> void:
@@ -1294,7 +1336,8 @@ func update_skill_slot(info: Dictionary, cd: float = 0.0, dur: float = 0.0, char
 	var is_passive = has_skill and float(info.get("duration", 0.0)) < 0.0
 	_has_active_skill_button = has_skill and not is_passive
 	if skill_button:
-		skill_button.visible = _has_active_skill_button and (flight_controls == null or not flight_controls.visible)
+		skill_button.visible = _has_active_skill_button and (not _is_in_flight)
+		skill_button.mouse_filter = Control.MOUSE_FILTER_IGNORE if _is_ps_controller_enabled() else Control.MOUSE_FILTER_STOP
 	if not has_skill:
 		for i in range(1, skill_slot_buttons.size()):
 			if skill_slot_buttons[i]:
@@ -1357,13 +1400,13 @@ func hide_skill_toast() -> void:
 
 func show_flight_hud(f_type: int, total_duration: float) -> void:
 	clear_touch_inputs()
+	_is_in_flight = true
 	if flight_controls:
-		flight_controls.visible = true
-	if jump_button:
-		jump_button.visible = false
+		flight_controls.visible = false
 	for b in skill_slot_buttons:
 		if b:
 			b.visible = false
+	apply_control_layout(_is_left_handed())
 
 	if flight_timer_bar:
 		flight_timer_bar.visible = true
@@ -1386,10 +1429,14 @@ func update_flight_timer(remaining: float, _total: float) -> void:
 			flight_warning_label.visible = false
 
 func hide_flight_hud() -> void:
+	_is_in_flight = false
 	if flight_controls:
 		flight_controls.visible = false
+	flight_up_requested.emit(false)
+	flight_down_requested.emit(false)
 	if skill_button:
-		skill_button.visible = _has_active_skill_button and (not _is_ps_controller_enabled())
+		skill_button.visible = _has_active_skill_button
+		skill_button.mouse_filter = Control.MOUSE_FILTER_IGNORE if _is_ps_controller_enabled() else Control.MOUSE_FILTER_STOP
 	if flight_timer_bar:
 		flight_timer_bar.visible = false
 	apply_control_layout(_is_left_handed())
@@ -2028,19 +2075,33 @@ func _input(event: InputEvent) -> void:
 		if event.index == _jump_pad_touch_id:
 			_jump_pad_touch_id = -1
 			jump_requested.emit(false)
+			if _is_in_flight:
+				flight_up_requested.emit(false)
 		elif event.index == _slide_pad_touch_id:
 			_slide_pad_touch_id = -1
 			slide_requested.emit(false)
+			if _is_in_flight:
+				flight_down_requested.emit(false)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed and event.device != -1:
 		if _jump_pad_mouse_held:
 			_jump_pad_mouse_held = false
 			jump_requested.emit(false)
+			if _is_in_flight:
+				flight_up_requested.emit(false)
 		if _slide_pad_mouse_held:
 			_slide_pad_mouse_held = false
 			slide_requested.emit(false)
+			if _is_in_flight:
+				flight_down_requested.emit(false)
 
-	if _is_ps_controller_enabled() and event is InputEventJoypadButton and event.pressed:
-		if _handle_ps_menu_button(event.button_index):
+	if _is_ps_controller_enabled():
+		if event is InputEventJoypadButton and event.pressed:
+			if _handle_ps_menu_button(event.button_index):
+				if get_viewport():
+					get_viewport().set_input_as_handled()
+				return
+		var in_menu := _has_any_subdialog_open() or (start_menu != null and start_menu.visible) or (pause_menu != null and pause_menu.visible) or (game_over_menu != null and game_over_menu.visible)
+		if not in_menu and _handle_ps_controller_input(event):
 			if get_viewport():
 				get_viewport().set_input_as_handled()
 
@@ -2167,9 +2228,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if _is_ps_controller_enabled():
-		if _handle_ps_controller_input(event):
-			if get_viewport():
-				get_viewport().set_input_as_handled()
+		if event is InputEventJoypadButton or event is InputEventJoypadMotion:
 			return
 
 	if event is InputEventScreenTouch:
@@ -2183,7 +2242,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _handle_ps_controller_input(event: InputEvent) -> bool:
 	if save_service == null:
 		return false
-	var in_flight := flight_controls != null and flight_controls.visible
+	var in_flight := _is_in_flight or (flight_controls != null and flight_controls.visible)
 	var code := ""
 	var pressed := false
 	var is_valid_ev := false
@@ -2197,32 +2256,6 @@ func _handle_ps_controller_input(event: InputEvent) -> bool:
 	elif event is InputEventJoypadMotion:
 		var ax: int = event.axis
 		var val: float = event.axis_value
-		if ax == JOY_AXIS_LEFT_X:
-			if val > 0.40:
-				_ps_right_held = true
-				_ps_left_held = false
-			elif val < -0.40:
-				_ps_left_held = true
-				_ps_right_held = false
-			else:
-				_ps_left_held = false
-				_ps_right_held = false
-			steer_requested.emit((1.0 if _ps_right_held else 0.0) - (1.0 if _ps_left_held else 0.0))
-			return true
-		if ax == JOY_AXIS_LEFT_Y:
-			if in_flight:
-				flight_up_requested.emit(val < -0.45)
-				flight_down_requested.emit(val > 0.45)
-				return true
-			var want_slide := val > 0.55
-			var want_jump := val < -0.55
-			if want_slide != _ps_stick_slide_held:
-				_ps_stick_slide_held = want_slide
-				slide_requested.emit(want_slide)
-			if want_jump != _ps_stick_jump_held:
-				_ps_stick_jump_held = want_jump
-				jump_requested.emit(want_jump)
-			return true
 		if ax == JOY_AXIS_TRIGGER_LEFT:
 			var now_l2 := val >= 0.45
 			if now_l2 == _ps_l2_held:
@@ -2240,7 +2273,7 @@ func _handle_ps_controller_input(event: InputEvent) -> bool:
 			pressed = now_r2
 			is_valid_ev = true
 		else:
-			# Support remapped Right Stick / other analog axes cleanly
+			# Only trigger on axes that the user explicitly bound
 			for dir_sign in ["+", "-"]:
 				var ax_code := "axis:%d:%s" % [ax, dir_sign]
 				var is_now: bool = (val >= 0.55) if dir_sign == "+" else (val <= -0.55)
@@ -2255,10 +2288,10 @@ func _handle_ps_controller_input(event: InputEvent) -> bool:
 		return false
 
 	if in_flight:
-		if code == save_service.get_ps_binding("jump") or code == "btn:%d" % JOY_BUTTON_DPAD_UP:
+		if code == save_service.get_ps_binding("jump"):
 			flight_up_requested.emit(pressed)
 			return true
-		elif code == save_service.get_ps_binding("duck") or code == "btn:%d" % JOY_BUTTON_DPAD_DOWN:
+		elif code == save_service.get_ps_binding("duck"):
 			flight_down_requested.emit(pressed)
 			return true
 
@@ -2276,20 +2309,17 @@ func _handle_ps_controller_input(event: InputEvent) -> bool:
 		_ps_left_held = pressed
 		steer_requested.emit((1.0 if _ps_right_held else 0.0) - (1.0 if _ps_left_held else 0.0))
 		return true
-	elif pressed and code == save_service.get_ps_binding("skill_1"):
-		skill_slot_requested.emit(0)
+	elif code == save_service.get_ps_binding("skill_1"):
+		if pressed:
+			skill_slot_requested.emit(0)
 		return true
-	elif pressed and code == save_service.get_ps_binding("skill_2"):
-		skill_slot_requested.emit(1)
+	elif code == save_service.get_ps_binding("skill_2"):
+		if pressed:
+			skill_slot_requested.emit(1)
 		return true
-	elif pressed and code == save_service.get_ps_binding("skill_3"):
-		skill_slot_requested.emit(2)
-		return true
-	elif code == "btn:%d" % JOY_BUTTON_DPAD_UP:
-		jump_requested.emit(pressed)
-		return true
-	elif code == "btn:%d" % JOY_BUTTON_DPAD_DOWN:
-		slide_requested.emit(pressed)
+	elif code == save_service.get_ps_binding("skill_3"):
+		if pressed:
+			skill_slot_requested.emit(2)
 		return true
 	return false
 
@@ -2315,6 +2345,8 @@ func clear_touch_inputs() -> void:
 	flight_down_requested.emit(false)
 
 func _handle_touch_down(index: int, pos: Vector2) -> void:
+	if _is_ps_controller_enabled():
+		return
 	touch_start_positions[index] = pos
 
 	var vp_rect := get_viewport().get_visible_rect().size
@@ -2324,30 +2356,41 @@ func _handle_touch_down(index: int, pos: Vector2) -> void:
 	if pos.y < 34.0:
 		return
 
-	if flight_controls and flight_controls.visible:
-		return
-
 	var jump_side: bool = (pos.x < split_x) if _is_left_handed() else (pos.x >= split_x)
 	if jump_side:
 		if jump_touch_index == -1:
 			jump_touch_index = index
-			jump_requested.emit(true)
+			if _is_in_flight:
+				flight_up_requested.emit(true)
+			else:
+				jump_requested.emit(true)
 	else:
 		if slide_touch_index == -1:
 			slide_touch_index = index
-			slide_requested.emit(true)
+			if _is_in_flight:
+				flight_down_requested.emit(true)
+			else:
+				slide_requested.emit(true)
 
 func _handle_touch_drag(index: int, pos: Vector2) -> void:
+	if _is_ps_controller_enabled():
+		return
 	if touch_start_positions.has(index):
 		var start_pos: Vector2 = touch_start_positions[index]
 		var delta := pos - start_pos
 		if delta.y > SWIPE_THRESHOLD:
 			if index == jump_touch_index:
 				jump_touch_index = -1
-				jump_requested.emit(false)
+				if _is_in_flight:
+					flight_up_requested.emit(false)
+				else:
+					jump_requested.emit(false)
 			slide_touch_index = index
 			touch_start_positions[index] = pos
-			slide_requested.emit(true)
+			if _is_in_flight:
+				flight_down_requested.emit(true)
+			else:
+				slide_requested.emit(true)
 
 func _get_safe_area_insets() -> Dictionary:
 	var result := {"left": 0.0, "top": 0.0, "right": 0.0, "bottom": 0.0}
@@ -2453,9 +2496,13 @@ func _handle_touch_up(index: int, _pos: Vector2) -> void:
 	if index == jump_touch_index:
 		jump_touch_index = -1
 		jump_requested.emit(false)
+		if _is_in_flight:
+			flight_up_requested.emit(false)
 	elif index == slide_touch_index:
 		slide_touch_index = -1
 		slide_requested.emit(false)
+		if _is_in_flight:
+			flight_down_requested.emit(false)
 
 	touch_start_positions.erase(index)
 
@@ -2762,40 +2809,64 @@ func _create_hit_pads() -> void:
 		hz.add_child(_slide_hit_pad)
 
 func _on_hit_pad_gui_input(event: InputEvent, is_jump: bool) -> void:
-	if _is_ps_controller_enabled() or (flight_controls and flight_controls.visible):
+	if _is_ps_controller_enabled():
 		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			if is_jump:
 				_jump_pad_touch_id = event.index
-				jump_requested.emit(true)
+				if _is_in_flight:
+					flight_up_requested.emit(true)
+				else:
+					jump_requested.emit(true)
 			else:
 				_slide_pad_touch_id = event.index
-				slide_requested.emit(true)
+				if _is_in_flight:
+					flight_down_requested.emit(true)
+				else:
+					slide_requested.emit(true)
 		else:
 			if is_jump and event.index == _jump_pad_touch_id:
 				_jump_pad_touch_id = -1
-				jump_requested.emit(false)
+				if _is_in_flight:
+					flight_up_requested.emit(false)
+				else:
+					jump_requested.emit(false)
 			elif not is_jump and event.index == _slide_pad_touch_id:
 				_slide_pad_touch_id = -1
-				slide_requested.emit(false)
+				if _is_in_flight:
+					flight_down_requested.emit(false)
+				else:
+					slide_requested.emit(false)
 		if get_viewport():
 			get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.device != -1:
 		if event.pressed:
 			if is_jump:
 				_jump_pad_mouse_held = true
-				jump_requested.emit(true)
+				if _is_in_flight:
+					flight_up_requested.emit(true)
+				else:
+					jump_requested.emit(true)
 			else:
 				_slide_pad_mouse_held = true
-				slide_requested.emit(true)
+				if _is_in_flight:
+					flight_down_requested.emit(true)
+				else:
+					slide_requested.emit(true)
 		else:
 			if is_jump and _jump_pad_mouse_held:
 				_jump_pad_mouse_held = false
-				jump_requested.emit(false)
+				if _is_in_flight:
+					flight_up_requested.emit(false)
+				else:
+					jump_requested.emit(false)
 			elif not is_jump and _slide_pad_mouse_held:
 				_slide_pad_mouse_held = false
-				slide_requested.emit(false)
+				if _is_in_flight:
+					flight_down_requested.emit(false)
+				else:
+					slide_requested.emit(false)
 		if get_viewport():
 			get_viewport().set_input_as_handled()
 
@@ -2828,8 +2899,7 @@ func apply_control_layout(is_left_handed: bool) -> void:
 	if not touch_controls:
 		return
 	var ps_on := _is_ps_controller_enabled()
-	var in_flight := flight_controls != null and flight_controls.visible
-	var show_pads := (not ps_on) and (not in_flight)
+	var show_pads := not ps_on
 	var show_slide := show_pads
 	var show_steer := show_pads
 
@@ -2894,7 +2964,7 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			slide_button.offset_bottom = pad_bot
 
 		if flight_controls:
-			flight_controls.visible = false if ps_on else flight_controls.visible
+			flight_controls.visible = false
 			flight_controls.anchor_left = 0.0
 			flight_controls.anchor_right = 0.0
 			flight_controls.offset_left = 14.0
@@ -2928,7 +2998,8 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			if sb == null:
 				continue
 			sb.focus_mode = Control.FOCUS_NONE
-			if ps_on:
+			sb.mouse_filter = Control.MOUSE_FILTER_IGNORE if ps_on else Control.MOUSE_FILTER_STOP
+			if _is_in_flight:
 				sb.visible = false
 			sb.anchor_left = 0.0
 			sb.anchor_right = 0.0
@@ -2978,7 +3049,7 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			slide_button.offset_bottom = pad_bot
 
 		if flight_controls:
-			flight_controls.visible = false if ps_on else flight_controls.visible
+			flight_controls.visible = false
 			flight_controls.anchor_left = 1.0
 			flight_controls.anchor_right = 1.0
 			flight_controls.offset_left = -160.0
@@ -3012,7 +3083,8 @@ func apply_control_layout(is_left_handed: bool) -> void:
 			if sb == null:
 				continue
 			sb.focus_mode = Control.FOCUS_NONE
-			if ps_on:
+			sb.mouse_filter = Control.MOUSE_FILTER_IGNORE if ps_on else Control.MOUSE_FILTER_STOP
+			if _is_in_flight:
 				sb.visible = false
 			sb.anchor_left = 1.0
 			sb.anchor_right = 1.0

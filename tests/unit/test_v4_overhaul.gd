@@ -357,7 +357,7 @@ func test_v130_regression_audit_fixes() -> Variant:
 		_destroy_runner(r)
 		return "SaveService must preserve trailing item x=4900 and trap_type=2"
 
-	# 2. PS4 stick Y release + entry_panel B dismissal
+	# 2. PS4 single-binding enforcement, skill activation, OS flight via Jump/Slide, & entry_panel B dismissal
 	r.save_service.set_setting("ps_controller_enabled", true)
 	r.hud.apply_control_layout(false)
 	var jump_events: Array[bool] = []
@@ -366,13 +366,64 @@ func test_v130_regression_audit_fixes() -> Variant:
 	ax_up.axis = JOY_AXIS_LEFT_Y
 	ax_up.axis_value = -0.9
 	r.hud._handle_ps_controller_input(ax_up)
+	var dpad_up := InputEventJoypadButton.new()
+	dpad_up.button_index = JOY_BUTTON_DPAD_UP
+	dpad_up.pressed = true
+	r.hud._handle_ps_controller_input(dpad_up)
+	if not jump_events.is_empty():
+		_destroy_runner(r)
+		return "Unbound stick/D-Pad must NOT duplicate jump_requested in PS4 mode: %s" % str(jump_events)
+
+	# When explicitly bound to axis:1:-, stick release emits false
+	r.save_service.set_ps_binding("jump", "axis:1:-")
+	r.hud._ps_axis_held.clear()
+	r.hud._handle_ps_controller_input(ax_up)
 	var ax_center := InputEventJoypadMotion.new()
 	ax_center.axis = JOY_AXIS_LEFT_Y
 	ax_center.axis_value = 0.0
 	r.hud._handle_ps_controller_input(ax_center)
 	if jump_events.size() < 2 or jump_events[0] != true or jump_events[1] != false:
 		_destroy_runner(r)
-		return "PS4 Left Stick Y must emit jump_requested(true) then (false) on release: %s" % str(jump_events)
+		return "PS4 bound axis:1:- must emit jump_requested(true) then (false) on release: %s" % str(jump_events)
+	r.save_service.set_ps_binding("jump", "btn:0")
+
+	# PS4 skill_1 / skill_2 / skill_3 emit skill_slot_requested via _input
+	var skill_slots_triggered: Array[int] = []
+	r.hud.skill_slot_requested.connect(func(idx: int): skill_slots_triggered.append(idx))
+	r.hud.hide_start_menu()
+	for btn_i in [JOY_BUTTON_X, JOY_BUTTON_Y, JOY_BUTTON_RIGHT_SHOULDER]:
+		var sk_ev := InputEventJoypadButton.new()
+		sk_ev.button_index = btn_i
+		sk_ev.pressed = true
+		r.hud._input(sk_ev)
+	if skill_slots_triggered != [0, 1, 2]:
+		_destroy_runner(r)
+		return "PS4 skill buttons must trigger slots [0, 1, 2], got %s" % str(skill_slots_triggered)
+
+	# OS mode flight keeps flight_controls hidden and routes Jump/Slide hit pads to flight up/down
+	r.save_service.set_setting("ps_controller_enabled", false)
+	r.hud.apply_control_layout(false)
+	r.hud.show_flight_hud(1, 5.0)
+	if r.hud.flight_controls and r.hud.flight_controls.visible:
+		_destroy_runner(r)
+		return "OS mode flight must NOT show separate flight_controls buttons"
+	if not r.hud.jump_button.visible or not r.hud.slide_button.visible:
+		_destroy_runner(r)
+		return "OS mode flight must keep Jump & Slide buttons visible"
+	var fl_up := [false]
+	var fl_down := [false]
+	r.hud.flight_up_requested.connect(func(p: bool): fl_up[0] = p)
+	r.hud.flight_down_requested.connect(func(p: bool): fl_down[0] = p)
+	var mb_up := InputEventMouseButton.new()
+	mb_up.button_index = MOUSE_BUTTON_LEFT
+	mb_up.pressed = true
+	mb_up.device = 0
+	r.hud._on_hit_pad_gui_input(mb_up, true)
+	r.hud._on_hit_pad_gui_input(mb_up, false)
+	if not fl_up[0] or not fl_down[0]:
+		_destroy_runner(r)
+		return "OS mode flight must route Jump/Slide pads to flight_up/flight_down"
+	r.hud.hide_flight_hud()
 
 	r.hud.practice_hub.show_entry_choice()
 	if not r.hud.practice_hub.entry_panel.visible:

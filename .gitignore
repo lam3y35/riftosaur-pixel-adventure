@@ -1,15 +1,17 @@
 # Godot 4.x engine cache and imports
 .godot/
 
-# Export outputs and APK builds
+# Export outputs and APK/EXE builds
 releases/*.apk
 releases/*.aab
 releases/*.idsig
 releases/*.zip
+releases/*.exe
 *.apk
 *.aab
 *.idsig
 *.zip
+*.exe
 
 # Keystores and signing credentials
 *.keystore
